@@ -38,11 +38,7 @@ const Index = () => {
   const [completedData, setCompletedData] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
-  useEffect(() => {
-    if (!authLoading && !user) {
-      navigate("/auth");
-    }
-  }, [user, authLoading, navigate]);
+  // Removed authentication requirement for main page
 
   useEffect(() => {
     if (user) {
@@ -69,20 +65,7 @@ const Index = () => {
     navigate("/auth");
   };
 
-  if (authLoading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 flex items-center justify-center">
-        <div className="text-center">
-          <FileText className="h-12 w-12 text-primary animate-pulse mx-auto mb-4" />
-          <p className="text-muted-foreground">Caricamento...</p>
-        </div>
-      </div>
-    );
-  }
-
-  if (!user) {
-    return null;
-  }
+  // No loading screen needed - app is accessible without auth
 
   const steps = [
     { id: "input", label: "Incolla Dati", icon: FileText, completed: ["extraction", "completion", "generation"].includes(currentStep) },
@@ -117,16 +100,24 @@ const Index = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              {isAdmin && (
-                <Button variant="outline" onClick={() => navigate("/admin")}>
-                  <Settings className="mr-2 h-4 w-4" />
-                  Admin
+              {user ? (
+                <>
+                  {isAdmin && (
+                    <Button variant="outline" onClick={() => navigate("/admin")}>
+                      <Settings className="mr-2 h-4 w-4" />
+                      Admin
+                    </Button>
+                  )}
+                  <Button variant="outline" onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <Button variant="outline" onClick={() => navigate("/auth")}>
+                  Login
                 </Button>
               )}
-              <Button variant="outline" onClick={handleLogout}>
-                <LogOut className="mr-2 h-4 w-4" />
-                Logout
-              </Button>
             </div>
           </div>
         </div>
