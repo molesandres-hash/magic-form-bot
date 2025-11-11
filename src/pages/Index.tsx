@@ -1,11 +1,15 @@
-import { useState } from "react";
-import { FileText, Sparkles, CheckCircle, Download } from "lucide-react";
+import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { FileText, Sparkles, CheckCircle, Download, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 import InputStep from "@/components/steps/InputStep";
 import ExtractionStep from "@/components/steps/ExtractionStep";
 import CompletionStep from "@/components/steps/CompletionStep";
 import GenerationStep from "@/components/steps/GenerationStep";
+import { useAuth } from "@/hooks/useAuth";
 
 type Step = "input" | "extraction" | "completion" | "generation";
 
@@ -27,9 +31,58 @@ interface ExtractedData {
 }
 
 const Index = () => {
+  const navigate = useNavigate();
+  const { user, session, loading: authLoading } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>("input");
   const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
   const [completedData, setCompletedData] = useState<any>(null);
+  const [isAdmin, setIsAdmin] = useState(false);
+
+  useEffect(() => {
+    if (!authLoading && !user) {
+      navigate("/auth");
+    }
+  }, [user, authLoading, navigate]);
+
+  useEffect(() => {
+    if (user) {
+      checkAdminRole();
+    }
+  }, [user]);
+
+  const checkAdminRole = async () => {
+    if (!user) return;
+    
+    const { data } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "admin")
+      .maybeSingle();
+    
+    setIsAdmin(!!data);
+  };
+
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    toast.success("Logout effettuato");
+    navigate("/auth");
+  };
+
+  if (authLoading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-background to-primary/5 flex items-center justify-center">
+        <div className="text-center">
+          <FileText className="h-12 w-12 text-primary animate-pulse mx-auto mb-4" />
+          <p className="text-muted-foreground">Caricamento...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return null;
+  }
 
   const steps = [
     { id: "input", label: "Incolla Dati", icon: FileText, completed: ["extraction", "completion", "generation"].includes(currentStep) },
@@ -62,6 +115,18 @@ const Index = () => {
                 <h1 className="text-xl font-bold text-foreground">DocuCompile AI</h1>
                 <p className="text-sm text-muted-foreground">Sistema Automatico Compilazione Documenti Formativi</p>
               </div>
+            </div>
+            <div className="flex gap-2">
+              {isAdmin && (
+                <Button variant="outline" onClick={() => navigate("/admin")}>
+                  <Settings className="mr-2 h-4 w-4" />
+                  Admin
+                </Button>
+              )}
+              <Button variant="outline" onClick={handleLogout}>
+                <LogOut className="mr-2 h-4 w-4" />
+                Logout
+              </Button>
             </div>
           </div>
         </div>
