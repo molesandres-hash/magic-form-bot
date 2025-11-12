@@ -130,7 +130,7 @@ export type Database = {
           numero_civico_residenza: string | null
           provincia_nascita: string | null
           qualifica: string | null
-          tipo: Database["public"]["Enums"]["app_role"]
+          tipo: string
           updated_at: string
           via_residenza: string | null
         }
@@ -147,7 +147,7 @@ export type Database = {
           numero_civico_residenza?: string | null
           provincia_nascita?: string | null
           qualifica?: string | null
-          tipo: Database["public"]["Enums"]["app_role"]
+          tipo: string
           updated_at?: string
           via_residenza?: string | null
         }
@@ -164,7 +164,7 @@ export type Database = {
           numero_civico_residenza?: string | null
           provincia_nascita?: string | null
           qualifica?: string | null
-          tipo?: Database["public"]["Enums"]["app_role"]
+          tipo?: string
           updated_at?: string
           via_residenza?: string | null
         }
