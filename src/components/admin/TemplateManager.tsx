@@ -37,12 +37,15 @@ interface Template {
   created_at: string;
 }
 
-const templateTypes = [
-  { value: "registro", label: "Registro Didattico" },
-  { value: "verbale", label: "Verbale Partecipazione" },
-  { value: "verbale_esame", label: "Verbale Scrutinio" },
-  { value: "fad", label: "Modello FAD" },
-];
+const TEMPLATE_CATEGORIES = [
+  { value: "registro_didattico", label: "📋 Registro Didattico", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
+  { value: "modulo_a_fad", label: "📝 Modulo A - FAD", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
+  { value: "modulo_b_calendario", label: "📅 Modulo B - Calendario", color: "bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-200" },
+  { value: "verbale_partecipazione", label: "📄 Verbale Partecipazione", color: "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200" },
+  { value: "verbale_scrutinio", label: "🎓 Verbale Scrutinio", color: "bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-200" },
+  { value: "attestato", label: "🏆 Attestato", color: "bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-200" },
+  { value: "altro", label: "📎 Altro", color: "bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-200" }
+] as const;
 
 const TemplateManager = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -53,7 +56,7 @@ const TemplateManager = () => {
   const [formData, setFormData] = useState({
     name: "",
     description: "",
-    template_type: "",
+    template_type: "registro_didattico",
     file: null as File | null,
   });
 
@@ -133,7 +136,7 @@ const TemplateManager = () => {
       if (dbError) throw dbError;
 
       toast.success("Template caricato con successo!");
-      setFormData({ name: "", description: "", template_type: "", file: null });
+      setFormData({ name: "", description: "", template_type: "registro_didattico", file: null });
       
       // Reset file input
       const fileInput = document.getElementById("file-upload") as HTMLInputElement;
@@ -202,6 +205,18 @@ const TemplateManager = () => {
     }
   };
 
+  const groupedTemplates = templates.reduce((acc, template) => {
+    if (!acc[template.template_type]) {
+      acc[template.template_type] = [];
+    }
+    acc[template.template_type].push(template);
+    return acc;
+  }, {} as Record<string, Template[]>);
+
+  const getCategoryInfo = (type: string) => {
+    return TEMPLATE_CATEGORIES.find(cat => cat.value === type) || TEMPLATE_CATEGORIES[6];
+  };
+
   return (
     <div className="space-y-6">
       {/* Upload Form */}
@@ -235,7 +250,7 @@ const TemplateManager = () => {
                   <SelectValue placeholder="Seleziona tipo" />
                 </SelectTrigger>
                 <SelectContent>
-                  {templateTypes.map((type) => (
+                  {TEMPLATE_CATEGORIES.map((type) => (
                     <SelectItem key={type.value} value={type.value}>
                       {type.label}
                     </SelectItem>
@@ -301,44 +316,69 @@ const TemplateManager = () => {
             Nessun template disponibile. Carica il primo!
           </p>
         ) : (
-          <div className="space-y-3">
-            {templates.map((template) => (
-              <Card key={template.id} className="p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div className="flex-1">
-                    <h4 className="font-semibold text-foreground">{template.name}</h4>
-                    <p className="text-sm text-muted-foreground">
-                      {templateTypes.find((t) => t.value === template.template_type)?.label} - 
-                      Versione {template.version}
-                    </p>
-                    {template.description && (
-                      <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
-                    )}
-                    <p className="text-xs text-muted-foreground mt-1">
-                      File: {template.file_name}
-                    </p>
+          <div className="space-y-6">
+            {Object.entries(groupedTemplates).map(([type, categoryTemplates]) => {
+              const categoryInfo = getCategoryInfo(type);
+              return (
+                <div key={type} className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <span className={`px-3 py-1 rounded-full text-sm font-semibold ${categoryInfo.color}`}>
+                      {categoryInfo.label}
+                    </span>
+                    <span className="text-sm text-muted-foreground">
+                      ({categoryTemplates.length} {categoryTemplates.length === 1 ? 'template' : 'template'})
+                    </span>
                   </div>
                   
-                  <div className="flex gap-2">
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => handleDownload(template)}
-                    >
-                      <Download className="h-4 w-4" />
-                    </Button>
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setDeleteId(template.id)}
-                      className="text-destructive hover:text-destructive"
-                    >
-                      <Trash2 className="h-4 w-4" />
-                    </Button>
+                  <div className="space-y-2 ml-4">
+                    {categoryTemplates.map((template) => (
+                      <Card key={template.id} className="p-4 hover:shadow-md transition-shadow border-l-4 border-l-primary">
+                        <div className="flex items-center justify-between">
+                          <div className="flex-1">
+                            <h4 className="font-semibold text-foreground">{template.name}</h4>
+                            {template.description && (
+                              <p className="text-sm text-muted-foreground mt-1">{template.description}</p>
+                            )}
+                            <div className="flex gap-2 mt-2 flex-wrap items-center">
+                              <span className="px-2 py-1 bg-secondary text-secondary-foreground rounded text-xs font-medium">
+                                v{template.version}
+                              </span>
+                              <span className="text-xs text-muted-foreground">
+                                {new Date(template.created_at).toLocaleDateString('it-IT', { 
+                                  day: '2-digit', 
+                                  month: 'short', 
+                                  year: 'numeric' 
+                                })}
+                              </span>
+                              <span className="text-xs text-muted-foreground">• {template.file_name}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex gap-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDownload(template)}
+                              className="hover:bg-primary hover:text-primary-foreground"
+                            >
+                              <Download className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => setDeleteId(template.id)}
+                              className="text-destructive hover:bg-destructive hover:text-destructive-foreground"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </Card>
+                    ))}
                   </div>
                 </div>
-              </Card>
-            ))}
+              );
+            })}
           </div>
         )}
       </Card>
