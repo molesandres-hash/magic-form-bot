@@ -5,6 +5,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Sparkles, ChevronRight, ChevronLeft, FileText, Folder, Users } from "lucide-react";
 import { toast } from "sonner";
 import WizardProgress from "./WizardProgress";
+import { supabase } from "@/integrations/supabase/client";
 
 interface InputStepWizardProps {
   onComplete: (data: any) => void;
@@ -47,64 +48,36 @@ const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {
 
   const handleExtract = async () => {
     if (!participantsData.trim()) {
-      toast.error("Completa tutti gli step prima di estrarre i dati");
+      toast.error("Completa tutti e 3 gli step prima di estrarre i dati");
       return;
     }
 
     setIsProcessing(true);
     
     try {
-      // TODO: Replace with actual Lovable AI extraction
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const { data, error } = await supabase.functions.invoke('extract-course-data', {
+        body: {
+          courseData,
+          modulesData,
+          participantsData
+        }
+      });
       
-      // Mock extracted data
-      const mockData = {
-        corso: {
-          id: "21342",
-          titolo: "Corso di Formazione Professionale",
-          tipo: "Aula",
-          data_inizio: "19/08/2025",
-          data_fine: "23/08/2025",
-          ore_totali: "40",
-        },
-        modulo: {
-          id: "13993",
-          titolo: "Modulo Base"
-        },
-        partecipanti: [
-          {
-            id: "18145",
-            nome: "Mario",
-            cognome: "Rossi",
-            codice_fiscale: "RSSMRA80A01H501Z",
-            email: "mario.rossi@example.com",
-            telefono: "3331234567"
-          },
-          {
-            id: "18146",
-            nome: "Laura",
-            cognome: "Bianchi",
-            codice_fiscale: "BNCLRA85B42H501W",
-            email: "laura.bianchi@example.com",
-            telefono: "3339876543"
-          }
-        ],
-        sessioni: [
-          {
-            data: "19/08/2025",
-            ora_inizio: "09:00",
-            ora_fine: "13:00"
-          },
-          {
-            data: "19/08/2025",
-            ora_inizio: "14:00",
-            ora_fine: "18:00"
-          }
-        ]
-      };
-
-      toast.success("Dati estratti con successo!");
-      onComplete(mockData);
+      if (error) {
+        console.error("Extraction error:", error);
+        toast.error(`Errore estrazione: ${error.message}`);
+        return;
+      }
+      
+      // Mostra warnings se presenti
+      if (data.metadata?.warnings?.length > 0) {
+        toast.warning(`Attenzione: ${data.metadata.warnings.length} avvisi rilevati`);
+        console.warn("Extraction warnings:", data.metadata.warnings);
+      }
+      
+      toast.success(`Dati estratti! Completamento: ${data.metadata?.completamento_percentuale || 0}%`);
+      onComplete(data);
+      
     } catch (error) {
       toast.error("Errore durante l'estrazione dei dati");
       console.error(error);

@@ -1,0 +1,227 @@
+export interface CourseData {
+  corso: Corso;
+  modulo: Modulo;
+  sede: Sede;
+  ente: Ente;
+  trainer: Trainer;
+  direttore: Direttore;
+  supervisore: Supervisore;
+  responsabile_cert: ResponsabileCert;
+  partecipanti: Partecipante[];
+  partecipanti_count: number;
+  sessioni: Sessione[];
+  verbale?: Verbale;
+  registro: Registro;
+  calendario_fad?: CalendarioFAD;
+  metadata: Metadata;
+}
+
+export interface Corso {
+  id: string;
+  titolo: string;
+  tipo: string;
+  data_inizio: string;
+  data_fine: string;
+  anno: string;
+  durata_totale: string;
+  ore_totali: string;
+  ore_rendicontabili: string;
+  stato: string;
+  capienza: string;
+  capienza_numero: number;
+  capienza_totale: number;
+  programma: string;
+}
+
+export interface Modulo {
+  id: string;
+  titolo: string;
+  numero_sessioni: number;
+}
+
+export interface Sede {
+  tipo: string;
+  nome: string;
+  modalita: string;
+  indirizzo: string;
+}
+
+export interface Ente {
+  nome: string;
+  id: string;
+  indirizzo: string;
+  accreditato: {
+    nome: string;
+    via: string;
+    numero_civico: string;
+    comune: string;
+    cap: string;
+    provincia: string;
+  };
+}
+
+export interface Trainer {
+  nome_completo: string;
+  nome: string;
+  cognome: string;
+}
+
+export interface Direttore {
+  nome_completo: string;
+  nome: string;
+  cognome: string;
+  firma?: string;
+}
+
+export interface Supervisore {
+  nome_completo: string;
+  nome: string;
+  cognome: string;
+  qualifica: string;
+}
+
+export interface ResponsabileCert {
+  nome: string;
+  cognome: string;
+  nome_completo: string;
+  data_nascita: string;
+  citta_nascita: string;
+  provincia_nascita: string;
+  citta_residenza: string;
+  via_residenza: string;
+  numero_civico: string;
+  indirizzo_completo: string;
+  documento_identita: string;
+  firma?: string;
+}
+
+export interface Partecipante {
+  numero: number;
+  id: string;
+  nome: string;
+  cognome: string;
+  nome_completo: string;
+  codice_fiscale: string;
+  telefono: string;
+  cellulare: string;
+  email: string;
+  programma: string;
+  ufficio: string;
+  case_manager: string;
+  benefits: string;
+  frequenza: string;
+  _validations?: {
+    cf_valid: boolean;
+    email_valid: boolean;
+    phone_valid: boolean;
+  };
+}
+
+export interface Sessione {
+  numero: number;
+  data_completa: string;
+  giorno: string;
+  mese: string;
+  mese_numero: string;
+  anno: string;
+  giorno_settimana: string;
+  ora_inizio_giornata: string;
+  ora_fine_giornata: string;
+  sede: string;
+  tipo_sede: string;
+  lezioni: Lezione[];
+  presenze: Presenza[];
+  ore_allievo_giorno: string;
+  ore_allievo_progressivo: string;
+  firma_direttore: string;
+}
+
+export interface Lezione {
+  numero: number;
+  ora_inizio: string;
+  ora_fine: string;
+  tipo: string;
+  argomento: string;
+  docente: string;
+  codocente?: string;
+  tutor?: string;
+  firma_docente?: string;
+  firma_codocente?: string;
+  firma_tutor?: string;
+}
+
+export interface Presenza {
+  partecipante_id: string;
+  partecipante_numero: number;
+  nome_completo: string;
+  mattino: {
+    presente: boolean;
+    assente: boolean;
+    firma?: string;
+  };
+  pomeriggio: {
+    presente: boolean;
+    assente: boolean;
+    firma?: string;
+  };
+  note?: string;
+  giustificato?: boolean;
+}
+
+export interface Verbale {
+  data: string;
+  ora: string;
+  luogo: string;
+  data_completa: string;
+  prova: {
+    descrizione: string;
+    tipo: string;
+    durata: string;
+    modalita: string;
+  };
+  criteri: {
+    descrizione: string;
+    indicatori: string;
+    peso: string;
+  };
+  esiti: {
+    positivi: string[];
+    negativi: string[];
+    positivi_testo: string;
+    negativi_testo: string;
+  };
+  protocollo_siuf: string;
+  timbro?: string;
+}
+
+export interface Registro {
+  numero_pagine: string;
+  data_vidimazione: string;
+  luogo_vidimazione: string;
+}
+
+export interface CalendarioFAD {
+  modalita: string;
+  strumenti: string;
+  obiettivi: string;
+  valutazione: string;
+  eventi: EventoFAD[];
+}
+
+export interface EventoFAD {
+  data: string;
+  ora_inizio: string;
+  ora_fine: string;
+  materia: string;
+  docente: string;
+  note: string;
+}
+
+export interface Metadata {
+  data_estrazione: string;
+  versione_sistema: string;
+  utente: string;
+  completamento_percentuale: number;
+  campi_mancanti: string[];
+  warnings: string[];
+}

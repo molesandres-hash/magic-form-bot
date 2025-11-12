@@ -1,1 +1,4 @@
 project_id = "ilvggdumzrjeqmtsbutw"
+
+[functions.extract-course-data]
+verify_jwt = false

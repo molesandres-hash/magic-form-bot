@@ -6,35 +6,20 @@ import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import InputStepWizard from "@/components/steps/InputStepWizard";
-import ExtractionStep from "@/components/steps/ExtractionStep";
-import CompletionStep from "@/components/steps/CompletionStep";
+import CompletionStepExpanded from "@/components/steps/CompletionStepExpanded";
 import GenerationStep from "@/components/steps/GenerationStep";
 import { useAuth } from "@/hooks/useAuth";
+import type { CourseData } from "@/types/courseData";
 
-type Step = "input" | "extraction" | "completion" | "generation";
+type Step = "input" | "completion" | "generation";
 
-interface ExtractedData {
-  corso?: {
-    id: string;
-    titolo: string;
-    tipo: string;
-    data_inizio: string;
-    data_fine: string;
-  };
-  partecipanti?: Array<{
-    nome: string;
-    cognome: string;
-    codice_fiscale: string;
-    email: string;
-  }>;
-  [key: string]: any;
-}
+// Removed unused ExtractedData interface - using CourseData from types instead
 
 const Index = () => {
   const navigate = useNavigate();
   const { user, session, loading: authLoading } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>("input");
-  const [extractedData, setExtractedData] = useState<ExtractedData | null>(null);
+  const [extractedData, setExtractedData] = useState<CourseData | null>(null);
   const [completedData, setCompletedData] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
 
@@ -68,13 +53,12 @@ const Index = () => {
   // No loading screen needed - app is accessible without auth
 
   const steps = [
-    { id: "input", label: "Incolla Dati", icon: FileText, completed: ["extraction", "completion", "generation"].includes(currentStep) },
-    { id: "extraction", label: "Estrazione AI", icon: Sparkles, completed: ["completion", "generation"].includes(currentStep) },
+    { id: "input", label: "Incolla Dati", icon: FileText, completed: ["completion", "generation"].includes(currentStep) },
     { id: "completion", label: "Completa Dati", icon: CheckCircle, completed: currentStep === "generation" },
     { id: "generation", label: "Genera Documenti", icon: Download, completed: false },
   ];
 
-  const handleInputComplete = (data: ExtractedData) => {
+  const handleInputComplete = (data: CourseData) => {
     setExtractedData(data);
     setCurrentStep("completion");
   };
@@ -170,14 +154,8 @@ const Index = () => {
           {currentStep === "input" && (
             <InputStepWizard onComplete={handleInputComplete} />
           )}
-          {currentStep === "extraction" && extractedData && (
-            <ExtractionStep 
-              data={extractedData} 
-              onComplete={() => setCurrentStep("completion")} 
-            />
-          )}
           {currentStep === "completion" && extractedData && (
-            <CompletionStep 
+            <CompletionStepExpanded 
               extractedData={extractedData}
               onComplete={handleCompletionComplete}
               onBack={() => setCurrentStep("input")}
