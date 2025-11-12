@@ -8,9 +8,7 @@ const corsHeaders = {
 const MESI_ITALIANI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 const GIORNI_ITALIANI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
 
-// ============================================
 // VALIDATORS
-// ============================================
 function validateCodiceFiscale(cf: string): boolean {
   if (!cf || cf.length !== 16) return false;
   const regex = /^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$/;
@@ -29,9 +27,7 @@ function validatePhone(phone: string): boolean {
   return /^0?\d{9,10}$/.test(cleaned);
 }
 
-// ============================================
 // PROCESSORS
-// ============================================
 function parseCapienza(capienza: string): { current: number; total: number } {
   const match = capienza.match(/(\d+)\/(\d+)/);
   if (match) {
@@ -46,11 +42,6 @@ function parseDate(dateStr: string): Date {
     return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
   }
   return new Date();
-}
-
-function parseTime(timeStr: string): number {
-  const parts = timeStr.split(':');
-  return parts.length > 0 ? parseInt(parts[0]) : 0;
 }
 
 function processCorso(corso: any): any {
@@ -91,56 +82,23 @@ function processPartecipanti(partecipanti: any[]): any[] {
   }));
 }
 
-function generateLezioni(oraInizio: string, oraFine: string, docente: string): any[] {
-  const start = parseTime(oraInizio);
-  const end = parseTime(oraFine);
-  
-  const lezioni = [];
-  let lezione_num = 1;
-  
-  for (let hour = start; hour < end; hour++) {
-    // Salta pausa pranzo 13:00-14:00
-    if (hour === 13) continue;
-    
-    const tipo = hour < 13 ? "Teoria" : "Pratica";
-    
-    lezioni.push({
-      numero: lezione_num++,
-      ora_inizio: `${hour.toString().padStart(2, '0')}:00`,
-      ora_fine: `${(hour + 1).toString().padStart(2, '0')}:00`,
-      tipo,
-      argomento: "",
-      docente,
-      codocente: "",
-      tutor: "",
-      firma_docente: "",
-      firma_codocente: "",
-      firma_tutor: ""
-    });
-  }
-  
-  return lezioni;
+// Helper per determinare se una sessione è FAD
+function isFAD(tipo_sede: string, sede: string): boolean {
+  const tipo = (tipo_sede || "").toLowerCase();
+  const sedeLower = (sede || "").toLowerCase();
+  return tipo.includes("online") || tipo.includes("fad") || 
+         sedeLower.includes("online") || sedeLower.includes("fad");
 }
 
-function generateSessioni(sessioni_raw: any[], partecipanti: any[], trainer: any): any[] {
+// Filtra solo sessioni in presenza
+function filterSessioniPresenza(sessioni_raw: any[]): any[] {
+  return sessioni_raw.filter(sess => !isFAD(sess.tipo_sede || "", sess.sede || ""));
+}
+
+// Genera sessioni semplificate (no lezioni, no presenze)
+function generateSessioni(sessioni_raw: any[]): any[] {
   return sessioni_raw.map((sess, idx) => {
     const date = parseDate(sess.data);
-    
-    const lezioni = generateLezioni(
-      sess.ora_inizio || "09:00",
-      sess.ora_fine || "18:00",
-      trainer.nome_completo
-    );
-    
-    const presenze = partecipanti.map(p => ({
-      partecipante_id: p.id,
-      partecipante_numero: p.numero,
-      nome_completo: p.nome_completo,
-      mattino: { presente: false, assente: true, firma: "" },
-      pomeriggio: { presente: false, assente: true, firma: "" },
-      note: "",
-      giustificato: false
-    }));
     
     return {
       numero: idx + 1,
@@ -154,11 +112,7 @@ function generateSessioni(sessioni_raw: any[], partecipanti: any[], trainer: any
       ora_fine_giornata: sess.ora_fine || "18:00",
       sede: sess.sede || "",
       tipo_sede: sess.tipo_sede || "",
-      lezioni,
-      presenze,
-      ore_allievo_giorno: "",
-      ore_allievo_progressivo: "",
-      firma_direttore: ""
+      is_fad: isFAD(sess.tipo_sede || "", sess.sede || "")
     };
   });
 }
@@ -198,7 +152,7 @@ function generateMetadata(data: any): any {
   
   return {
     data_estrazione: new Date().toISOString(),
-    versione_sistema: "1.0.0",
+    versione_sistema: "2.0.0",
     utente: "",
     completamento_percentuale,
     campi_mancanti,
@@ -206,9 +160,7 @@ function generateMetadata(data: any): any {
   };
 }
 
-// ============================================
 // MAIN HANDLER
-// ============================================
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -244,14 +196,14 @@ Analizza i dati forniti e estrai tutte le informazioni relative a:
 - Ente erogatore (nome, ID, indirizzo)
 - Docenti/trainer (nome completo)
 - Partecipanti (array con ID, nome, cognome, CF, email, telefono, programma, ufficio, case manager, benefits)
-- Sessioni (date, orari giornalieri)
+- Sessioni (date, orari giornalieri, tipo sede)
 
 IMPORTANTE:
 - Se un dato non è presente, usa "" (stringa vuota)
 - Per le date usa formato DD/MM/YYYY
 - Per gli orari usa formato HH:MM
 - Estrai TUTTI i partecipanti dall'elenco
-- Identifica gli slot orari dalle sessioni`
+- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile`
           },
           {
             role: "user",
@@ -398,63 +350,35 @@ ${participantsData}`
     const extractedData = JSON.parse(toolCall.function.arguments);
     console.log("Extracted raw data:", JSON.stringify(extractedData, null, 2));
 
-    // Post-processing
+    // Post-processing dei dati estratti
+    const sessioni_raw = extractedData.sessioni_raw || [];
+    const sessioni_presenza = filterSessioniPresenza(sessioni_raw);
+    
     const corso = processCorso(extractedData.corso || {});
     const trainer = processTrainer(extractedData.trainer || { nome_completo: "" });
     const partecipanti = processPartecipanti(extractedData.partecipanti || []);
-    const sessioni = generateSessioni(extractedData.sessioni_raw || [], partecipanti, trainer);
+    const sessioni = generateSessioni(sessioni_raw);
+    const sessioni_presenza_processed = generateSessioni(sessioni_presenza);
     const modulo = processModulo(extractedData.modulo || {}, sessioni);
+    
+    // Calcola numero pagine: (numero_sessioni_presenza * 2) + 1
+    const numero_pagine = (sessioni_presenza_processed.length * 2) + 1;
 
     // Build complete data structure
     const completeData = {
       corso,
       modulo,
       sede: extractedData.sede || { tipo: "", nome: "", modalita: "", indirizzo: "" },
-      ente: {
-        ...(extractedData.ente || {}),
-        accreditato: {
-          nome: "",
-          via: "",
-          numero_civico: "",
-          comune: "",
-          cap: "",
-          provincia: ""
-        }
-      },
+      ente: extractedData.ente || { nome: "", id: "", indirizzo: "" },
       trainer,
-      direttore: {
-        nome_completo: "",
-        nome: "",
-        cognome: "",
-        firma: ""
-      },
-      supervisore: {
-        nome_completo: "",
-        nome: "",
-        cognome: "",
-        qualifica: "Supervisore"
-      },
-      responsabile_cert: {
-        nome: "",
-        cognome: "",
-        nome_completo: "",
-        data_nascita: "",
-        citta_nascita: "",
-        provincia_nascita: "",
-        citta_residenza: "",
-        via_residenza: "",
-        numero_civico: "",
-        indirizzo_completo: "",
-        documento_identita: "",
-        firma: ""
-      },
       partecipanti,
       partecipanti_count: partecipanti.length,
       sessioni,
+      sessioni_presenza: sessioni_presenza_processed,
       verbale: {
         data: "",
         ora: "",
-        luogo: "Milano",
+        luogo: "",
         data_completa: "",
         prova: {
           descrizione: "",
@@ -471,54 +395,40 @@ ${participantsData}`
           positivi: [],
           negativi: [],
           positivi_testo: "",
-          negativi_testo: "nessuno"
+          negativi_testo: ""
         },
         protocollo_siuf: "",
         timbro: ""
       },
       registro: {
-        numero_pagine: "",
-        data_vidimazione: "",
-        luogo_vidimazione: "Milano"
+        numero_pagine: numero_pagine.toString(),
+        data_vidimazione: corso.data_fine || "",
+        luogo_vidimazione: ""
       },
       calendario_fad: {
         modalita: "",
         strumenti: "",
         obiettivi: "",
         valutazione: "",
-        eventi: sessioni.map(s => ({
-          data: s.data_completa,
-          ora_inizio: s.ora_inizio_giornata,
-          ora_fine: s.ora_fine_giornata,
-          materia: "",
-          docente: trainer.nome_completo,
-          note: s.sede
-        }))
+        eventi: []
       },
       metadata: generateMetadata({ corso, modulo, partecipanti, sessioni })
     };
 
-    console.log("Extraction complete. Warnings:", completeData.metadata.warnings.length);
+    console.log("Complete data:", JSON.stringify(completeData, null, 2));
 
-    return new Response(
-      JSON.stringify(completeData),
-      { 
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
-      }
-    );
+    return new Response(JSON.stringify(completeData), {
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+      status: 200,
+    });
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Error in extract-course-data:", error);
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
     return new Response(
-      JSON.stringify({ 
-        error: "Errore estrazione AI",
-        details: errorMessage
-      }),
-      { 
+      JSON.stringify({ error: error.message || "Errore interno" }),
+      {
         status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" }
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
       }
     );
   }

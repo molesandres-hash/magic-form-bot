@@ -4,12 +4,15 @@ export interface CourseData {
   sede: Sede;
   ente: Ente;
   trainer: Trainer;
-  direttore: Direttore;
-  supervisore: Supervisore;
-  responsabile_cert: ResponsabileCert;
+  // Riferimenti a DB per enti e responsabili
+  ente_accreditato_id?: string;
+  direttore_id?: string;
+  supervisore_id?: string;
+  responsabile_cert_id?: string;
   partecipanti: Partecipante[];
   partecipanti_count: number;
   sessioni: Sessione[];
+  sessioni_presenza: Sessione[];
   verbale?: Verbale;
   registro: Registro;
   calendario_fad?: CalendarioFAD;
@@ -66,32 +69,30 @@ export interface Trainer {
   cognome: string;
 }
 
-export interface Direttore {
-  nome_completo: string;
+// Interfacce per DB
+export interface EnteAccreditato {
+  id: string;
   nome: string;
-  cognome: string;
-  firma?: string;
-}
-
-export interface Supervisore {
-  nome_completo: string;
-  nome: string;
-  cognome: string;
-  qualifica: string;
-}
-
-export interface ResponsabileCert {
-  nome: string;
-  cognome: string;
-  nome_completo: string;
-  data_nascita: string;
-  citta_nascita: string;
-  provincia_nascita: string;
-  citta_residenza: string;
-  via_residenza: string;
+  via: string;
   numero_civico: string;
-  indirizzo_completo: string;
-  documento_identita: string;
+  comune: string;
+  cap: string;
+  provincia: string;
+}
+
+export interface ResponsabileCorso {
+  id: string;
+  tipo: 'direttore' | 'supervisore' | 'responsabile_cert';
+  nome: string;
+  cognome: string;
+  qualifica?: string;
+  data_nascita?: string;
+  citta_nascita?: string;
+  provincia_nascita?: string;
+  citta_residenza?: string;
+  via_residenza?: string;
+  numero_civico_residenza?: string;
+  documento_identita?: string;
   firma?: string;
 }
 
@@ -129,44 +130,9 @@ export interface Sessione {
   ora_fine_giornata: string;
   sede: string;
   tipo_sede: string;
-  lezioni: Lezione[];
-  presenze: Presenza[];
-  ore_allievo_giorno: string;
-  ore_allievo_progressivo: string;
-  firma_direttore: string;
+  is_fad: boolean;
 }
 
-export interface Lezione {
-  numero: number;
-  ora_inizio: string;
-  ora_fine: string;
-  tipo: string;
-  argomento: string;
-  docente: string;
-  codocente?: string;
-  tutor?: string;
-  firma_docente?: string;
-  firma_codocente?: string;
-  firma_tutor?: string;
-}
-
-export interface Presenza {
-  partecipante_id: string;
-  partecipante_numero: number;
-  nome_completo: string;
-  mattino: {
-    presente: boolean;
-    assente: boolean;
-    firma?: string;
-  };
-  pomeriggio: {
-    presente: boolean;
-    assente: boolean;
-    firma?: string;
-  };
-  note?: string;
-  giustificato?: boolean;
-}
 
 export interface Verbale {
   data: string;

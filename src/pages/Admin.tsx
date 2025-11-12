@@ -3,9 +3,11 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Upload, Settings, LogOut, Shield } from "lucide-react";
 import { toast } from "sonner";
 import TemplateManager from "@/components/admin/TemplateManager";
+import { EntiResponsabiliManager } from "@/components/admin/EntiResponsabiliManager";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -120,16 +122,35 @@ const Admin = () => {
                 <Settings className="h-8 w-8 text-white" />
               </div>
               <div>
-                <h2 className="text-2xl font-bold text-foreground">Gestione Template</h2>
+                <h2 className="text-2xl font-bold text-foreground">Area Amministrazione</h2>
                 <p className="text-muted-foreground">
-                  Carica e gestisci i template Word utilizzati per generare i documenti formativi
+                  Gestisci template, enti accreditati e responsabili dei corsi
                 </p>
               </div>
             </div>
           </Card>
 
-          {/* Template Manager */}
-          <TemplateManager />
+          {/* Tabs */}
+          <Tabs defaultValue="templates" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="templates">
+                <FileText className="w-4 h-4 mr-2" />
+                Template Documenti
+              </TabsTrigger>
+              <TabsTrigger value="enti">
+                <Settings className="w-4 h-4 mr-2" />
+                Enti e Responsabili
+              </TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="templates" className="mt-6">
+              <TemplateManager />
+            </TabsContent>
+            
+            <TabsContent value="enti" className="mt-6">
+              <EntiResponsabiliManager />
+            </TabsContent>
+          </Tabs>
         </div>
       </div>
     </div>

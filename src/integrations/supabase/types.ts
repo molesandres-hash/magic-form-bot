@@ -56,6 +56,42 @@ export type Database = {
         }
         Relationships: []
       }
+      enti_accreditati: {
+        Row: {
+          cap: string
+          comune: string
+          created_at: string
+          id: string
+          nome: string
+          numero_civico: string
+          provincia: string
+          updated_at: string
+          via: string
+        }
+        Insert: {
+          cap: string
+          comune: string
+          created_at?: string
+          id?: string
+          nome: string
+          numero_civico: string
+          provincia: string
+          updated_at?: string
+          via: string
+        }
+        Update: {
+          cap?: string
+          comune?: string
+          created_at?: string
+          id?: string
+          nome?: string
+          numero_civico?: string
+          provincia?: string
+          updated_at?: string
+          via?: string
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           created_at: string
@@ -77,6 +113,60 @@ export type Database = {
           full_name?: string | null
           id?: string
           updated_at?: string
+        }
+        Relationships: []
+      }
+      responsabili_corso: {
+        Row: {
+          citta_nascita: string | null
+          citta_residenza: string | null
+          cognome: string
+          created_at: string
+          data_nascita: string | null
+          documento_identita: string | null
+          firma: string | null
+          id: string
+          nome: string
+          numero_civico_residenza: string | null
+          provincia_nascita: string | null
+          qualifica: string | null
+          tipo: Database["public"]["Enums"]["app_role"]
+          updated_at: string
+          via_residenza: string | null
+        }
+        Insert: {
+          citta_nascita?: string | null
+          citta_residenza?: string | null
+          cognome: string
+          created_at?: string
+          data_nascita?: string | null
+          documento_identita?: string | null
+          firma?: string | null
+          id?: string
+          nome: string
+          numero_civico_residenza?: string | null
+          provincia_nascita?: string | null
+          qualifica?: string | null
+          tipo: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          via_residenza?: string | null
+        }
+        Update: {
+          citta_nascita?: string | null
+          citta_residenza?: string | null
+          cognome?: string
+          created_at?: string
+          data_nascita?: string | null
+          documento_identita?: string | null
+          firma?: string | null
+          id?: string
+          nome?: string
+          numero_civico_residenza?: string | null
+          provincia_nascita?: string | null
+          qualifica?: string | null
+          tipo?: Database["public"]["Enums"]["app_role"]
+          updated_at?: string
+          via_residenza?: string | null
         }
         Relationships: []
       }
