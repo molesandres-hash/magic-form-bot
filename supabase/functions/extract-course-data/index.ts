@@ -122,7 +122,7 @@ function countFilledFields(data: any): number {
   
   if (data.corso?.id) count++;
   if (data.corso?.titolo) count++;
-  if (data.modulo?.id) count++;
+  if (data.moduli?.length > 0) count += data.moduli.length;
   if (data.partecipanti?.length > 0) count += data.partecipanti.length;
   if (data.sessioni?.length > 0) count += data.sessioni.length;
   
@@ -191,14 +191,20 @@ serve(async (req) => {
             content: `Sei un esperto di estrazione dati da gestionali formativi italiani.
 Analizza i dati forniti e estrai tutte le informazioni relative a:
 - Corso (ID, titolo, tipo, date, durata, capienza, stato, programma)
-- Modulo/Sezione (ID, titolo)
+- Moduli/Sezioni (ARRAY - uno o più moduli, ciascuno con: ID, ID Corso, ID Sezione, titolo, date inizio/fine, ore totali, durata, capienza, stato, tipo sede, provider)
 - Sede (tipo, nome, modalità, indirizzo)
 - Ente erogatore (nome, ID, indirizzo)
 - Docenti/trainer (nome completo)
 - Partecipanti (array con ID, nome, cognome, CF, email, telefono, programma, ufficio, case manager, benefits)
-- Sessioni (date, orari giornalieri, tipo sede)
 
-IMPORTANTE:
+IMPORTANTE PER MODULI:
+- Se ci sono MULTIPLI MODULI (2-6), estrai TUTTI i moduli nell'array "moduli"
+- Ogni modulo DEVE avere: id, id_corso, id_sezione, titolo, data_inizio, data_fine, ore_totali, provider
+- Ogni modulo ha le SUE sessioni specifiche nell'array "sessioni_raw" del modulo
+- I partecipanti sono CONDIVISI tra tutti i moduli (un unico array)
+- Se c'è UN SOLO modulo, crea comunque un array con 1 elemento
+
+IMPORTANTE GENERALE:
 - Se un dato non è presente, usa "" (stringa vuota)
 - Per le date usa formato DD/MM/YYYY
 - Per gli orari usa formato HH:MM
@@ -245,13 +251,40 @@ ${participantsData}`
                     },
                     required: ["id", "titolo"]
                   },
-                  modulo: {
-                    type: "object",
-                    properties: {
-                      id: { type: "string" },
-                      titolo: { type: "string" }
-                    },
-                    required: ["id", "titolo"]
+                  moduli: {
+                    type: "array",
+                    items: {
+                      type: "object",
+                      properties: {
+                        id: { type: "string" },
+                        id_corso: { type: "string" },
+                        id_sezione: { type: "string" },
+                        titolo: { type: "string" },
+                        data_inizio: { type: "string" },
+                        data_fine: { type: "string" },
+                        ore_totali: { type: "string" },
+                        durata: { type: "string" },
+                        ore_rendicontabili: { type: "string" },
+                        capienza: { type: "string" },
+                        stato: { type: "string" },
+                        tipo_sede: { type: "string" },
+                        provider: { type: "string" },
+                        sessioni_raw: {
+                          type: "array",
+                          items: {
+                            type: "object",
+                            properties: {
+                              data: { type: "string" },
+                              ora_inizio: { type: "string" },
+                              ora_fine: { type: "string" },
+                              sede: { type: "string" },
+                              tipo_sede: { type: "string" }
+                            }
+                          }
+                        }
+                      },
+                      required: ["id", "id_corso", "id_sezione", "titolo"]
+                    }
                   },
                   sede: {
                     type: "object",
@@ -311,7 +344,7 @@ ${participantsData}`
                     }
                   }
                 },
-                required: ["corso", "modulo", "partecipanti", "sessioni_raw"]
+                required: ["corso", "moduli", "partecipanti"]
               }
             }
           }
@@ -351,30 +384,69 @@ ${participantsData}`
     console.log("Extracted raw data:", JSON.stringify(extractedData, null, 2));
 
     // Post-processing dei dati estratti
-    const sessioni_raw = extractedData.sessioni_raw || [];
-    const sessioni_presenza = filterSessioniPresenza(sessioni_raw);
+    
+    // Retrocompatibilità: convertire singolo modulo in array
+    let moduliRaw = extractedData.moduli || [];
+    if (extractedData.modulo && !extractedData.moduli) {
+      // Vecchio formato con singolo modulo
+      moduliRaw = [extractedData.modulo];
+    }
+    if (!Array.isArray(moduliRaw)) {
+      moduliRaw = [moduliRaw];
+    }
     
     const corso = processCorso(extractedData.corso || {});
     const trainer = processTrainer(extractedData.trainer || { nome_completo: "" });
     const partecipanti = processPartecipanti(extractedData.partecipanti || []);
-    const sessioni = generateSessioni(sessioni_raw);
-    const sessioni_presenza_processed = generateSessioni(sessioni_presenza);
-    const modulo = processModulo(extractedData.modulo || {}, sessioni);
     
-    // Calcola numero pagine: (numero_sessioni_presenza * 2) + 1
-    const numero_pagine = (sessioni_presenza_processed.length * 2) + 1;
+    // Processa ogni modulo con le sue sessioni
+    const moduli_processati = moduliRaw.map((mod: any) => {
+      const sessioni_modulo_raw = mod.sessioni_raw || [];
+      const sessioni_modulo = generateSessioni(sessioni_modulo_raw);
+      const sessioni_presenza_modulo_raw = filterSessioniPresenza(sessioni_modulo_raw);
+      const sessioni_presenza_modulo = generateSessioni(sessioni_presenza_modulo_raw);
+      const { current, total } = parseCapienza(mod.capienza || "0/0");
+      
+      return {
+        id: mod.id || "",
+        titolo: mod.titolo || "",
+        id_corso: mod.id_corso || "",
+        id_sezione: mod.id_sezione || "",
+        data_inizio: mod.data_inizio || "",
+        data_fine: mod.data_fine || "",
+        ore_totali: mod.ore_totali || "",
+        durata: mod.durata || "",
+        ore_rendicontabili: mod.ore_rendicontabili || "",
+        capienza: mod.capienza || "0/0",
+        capienza_numero: current,
+        capienza_totale: total,
+        stato: mod.stato || "",
+        tipo_sede: mod.tipo_sede || "",
+        provider: mod.provider || "",
+        numero_sessioni: sessioni_modulo.length,
+        sessioni: sessioni_modulo,
+        sessioni_presenza: sessioni_presenza_modulo
+      };
+    });
+    
+    // Calcola aggregati per l'intero corso
+    const sessioni_totali = moduli_processati.flatMap((m: any) => m.sessioni);
+    const sessioni_presenza_totali = moduli_processati.flatMap((m: any) => m.sessioni_presenza);
+    
+    // Calcola numero pagine: (numero_sessioni_presenza_totali * 2) + 1
+    const numero_pagine = (sessioni_presenza_totali.length * 2) + 1;
 
     // Build complete data structure
     const completeData = {
       corso,
-      modulo,
+      moduli: moduli_processati,
       sede: extractedData.sede || { tipo: "", nome: "", modalita: "", indirizzo: "" },
       ente: extractedData.ente || { nome: "", id: "", indirizzo: "" },
       trainer,
       partecipanti,
       partecipanti_count: partecipanti.length,
-      sessioni,
-      sessioni_presenza: sessioni_presenza_processed,
+      sessioni: sessioni_totali,
+      sessioni_presenza: sessioni_presenza_totali,
       verbale: {
         data: "",
         ora: "",
@@ -412,7 +484,12 @@ ${participantsData}`
         valutazione: "",
         eventi: []
       },
-      metadata: generateMetadata({ corso, modulo, partecipanti, sessioni })
+      metadata: generateMetadata({ 
+        corso, 
+        moduli: moduli_processati, 
+        partecipanti, 
+        sessioni: sessioni_totali 
+      })
     };
 
     console.log("Complete data:", JSON.stringify(completeData, null, 2));

@@ -125,7 +125,7 @@ export default function CompletionStepExpanded({ extractedData, onComplete, onBa
           </div>
         )}
 
-        <Accordion type="multiple" defaultValue={["selezione", "preview"]} className="space-y-4">
+        <Accordion type="multiple" defaultValue={["selezione", "moduli", "preview"]} className="space-y-4">
           {/* Selezione Enti e Responsabili */}
           <AccordionItem value="selezione" className="border rounded-lg px-6">
             <AccordionTrigger className="hover:no-underline">
@@ -227,10 +227,89 @@ export default function CompletionStepExpanded({ extractedData, onComplete, onBa
             </AccordionContent>
           </AccordionItem>
 
+          {/* Moduli del Corso */}
+          <AccordionItem value="moduli" className="border rounded-lg px-6">
+            <AccordionTrigger className="hover:no-underline">
+              <span className="text-lg font-semibold">📚 Moduli del Corso ({formData.moduli.length})</span>
+            </AccordionTrigger>
+            <AccordionContent className="space-y-4 pt-4">
+              <Accordion type="single" collapsible className="w-full space-y-2">
+                {formData.moduli.map((modulo, idx) => (
+                  <AccordionItem key={modulo.id} value={`modulo-${idx}`} className="border rounded-md">
+                    <AccordionTrigger className="px-4 hover:no-underline">
+                      <div className="flex items-center gap-3 flex-wrap">
+                        <span className="font-semibold">Modulo {idx + 1}</span>
+                        <span className="text-sm text-muted-foreground truncate max-w-[200px]">
+                          {modulo.titolo}
+                        </span>
+                        <span className="text-xs bg-primary/10 px-2 py-1 rounded">
+                          ID Corso: {modulo.id_corso}
+                        </span>
+                        <span className="text-xs bg-secondary/10 px-2 py-1 rounded">
+                          ID Sezione: {modulo.id_sezione}
+                        </span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent>
+                      <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
+                        <div>
+                          <p className="text-sm font-medium">Date</p>
+                          <p className="text-sm text-muted-foreground">
+                            {modulo.data_inizio} - {modulo.data_fine}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Ore Totali</p>
+                          <p className="text-sm text-muted-foreground">{modulo.ore_totali}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Sessioni</p>
+                          <p className="text-sm text-muted-foreground">
+                            {modulo.numero_sessioni} totali ({modulo.sessioni_presenza.length} in presenza)
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Capienza</p>
+                          <p className="text-sm text-muted-foreground">{modulo.capienza}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Provider</p>
+                          <p className="text-sm text-muted-foreground">{modulo.provider}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm font-medium">Stato</p>
+                          <p className="text-sm text-muted-foreground">{modulo.stato}</p>
+                        </div>
+                      </div>
+                      
+                      {/* Lista sessioni del modulo */}
+                      <div className="mt-4 px-4">
+                        <p className="text-sm font-semibold mb-2">Sessioni ({modulo.sessioni.length}):</p>
+                        <div className="space-y-1 max-h-48 overflow-y-auto">
+                          {modulo.sessioni.map((sess, sIdx) => (
+                            <div key={sIdx} className="text-xs p-2 bg-background rounded flex justify-between items-center">
+                              <span className="font-medium">{sess.data_completa}</span>
+                              <span className="text-muted-foreground">{sess.ora_inizio_giornata} - {sess.ora_fine_giornata}</span>
+                              <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                sess.is_fad ? "bg-blue-100 text-blue-700" : "bg-green-100 text-green-700"
+                              }`}>
+                                {sess.is_fad ? "FAD" : "Presenza"}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    </AccordionContent>
+                  </AccordionItem>
+                ))}
+              </Accordion>
+            </AccordionContent>
+          </AccordionItem>
+
           {/* Preview Dati Estratti */}
           <AccordionItem value="preview" className="border rounded-lg px-6">
             <AccordionTrigger className="hover:no-underline">
-              <span className="text-lg font-semibold">👁️ Preview Dati Estratti</span>
+              <span className="text-lg font-semibold">👁️ Riepilogo Dati Corso</span>
             </AccordionTrigger>
             <AccordionContent className="space-y-4 pt-4">
               <div className="grid grid-cols-2 gap-4 text-sm">
@@ -243,10 +322,17 @@ export default function CompletionStepExpanded({ extractedData, onComplete, onBa
                 </div>
                 
                 <div>
-                  <h4 className="font-semibold text-foreground mb-2">📖 Modulo</h4>
-                  <p><span className="text-muted-foreground">ID:</span> {formData.modulo.id}</p>
-                  <p><span className="text-muted-foreground">Titolo:</span> {formData.modulo.titolo}</p>
-                  <p><span className="text-muted-foreground">Sessioni:</span> {formData.modulo.numero_sessioni}</p>
+                  <h4 className="font-semibold text-foreground mb-2">📖 Moduli</h4>
+                  <p><span className="text-muted-foreground">Totale moduli:</span> {formData.moduli.length}</p>
+                  <p><span className="text-muted-foreground">Ore totali corso:</span> {
+                    formData.moduli.reduce((sum, mod) => {
+                      const ore = parseInt(mod.ore_totali) || 0;
+                      return sum + ore;
+                    }, 0)
+                  } ore</p>
+                  <p><span className="text-muted-foreground">Sessioni totali:</span> {
+                    formData.moduli.reduce((sum, mod) => sum + mod.numero_sessioni, 0)
+                  }</p>
                 </div>
                 
                 <div>
@@ -259,8 +345,8 @@ export default function CompletionStepExpanded({ extractedData, onComplete, onBa
                 </div>
                 
                 <div>
-                  <h4 className="font-semibold text-foreground mb-2">📅 Sessioni</h4>
-                  <p><span className="text-muted-foreground">Totale:</span> {formData.sessioni.length}</p>
+                  <h4 className="font-semibold text-foreground mb-2">📅 Registro</h4>
+                  <p><span className="text-muted-foreground">Sessioni totali:</span> {formData.sessioni.length}</p>
                   <p><span className="text-muted-foreground">In presenza:</span> {formData.sessioni_presenza.length}</p>
                   <p><span className="text-muted-foreground">Pagine registro:</span> {formData.registro.numero_pagine}</p>
                 </div>
