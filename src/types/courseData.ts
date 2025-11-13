@@ -1,6 +1,6 @@
 export interface CourseData {
   corso: Corso;
-  modulo: Modulo;
+  moduli: Modulo[];
   sede: Sede;
   ente: Ente;
   trainer: Trainer;
@@ -40,6 +40,23 @@ export interface Modulo {
   id: string;
   titolo: string;
   numero_sessioni: number;
+  // Dati specifici per gestire multipli moduli
+  id_corso: string;              // Es: "50039"
+  id_sezione: string;            // Es: "144176"
+  data_inizio: string;           // Es: "22/09/2025"
+  data_fine: string;             // Es: "26/09/2025"
+  ore_totali: string;            // Es: "20 hours"
+  durata: string;                // Es: "20 hours"
+  ore_rendicontabili: string;    // Es: "20 hours"
+  capienza: string;              // Es: "4/5"
+  capienza_numero: number;       // Es: 4
+  capienza_totale: number;       // Es: 5
+  stato: string;                 // Es: "Aperto"
+  tipo_sede: string;             // Es: "Ufficio", "Online"
+  provider: string;              // Es: "Andres Moles"
+  // Sessioni specifiche del modulo
+  sessioni: Sessione[];          // Sessioni di QUESTO modulo
+  sessioni_presenza: Sessione[]; // Solo sessioni in presenza di QUESTO modulo
 }
 
 export interface Sede {
