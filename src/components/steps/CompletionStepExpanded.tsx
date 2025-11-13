@@ -215,7 +215,6 @@ export default function CompletionStepExpanded({ extractedData, onComplete, onBa
                       <SelectValue placeholder="Seleziona responsabile certificazione" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Nessuno</SelectItem>
                       {responsabiliCert.map(resp => (
                         <SelectItem key={resp.id} value={resp.id}>
                           {resp.nome} {resp.cognome}
