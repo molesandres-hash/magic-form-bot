@@ -40,9 +40,15 @@ export default function CompletionStepExpanded({ extractedData, onComplete, onBa
       setEnti(entiRes.data || []);
       const responsabili = responsabiliRes.data || [];
       
-      setDirettori(responsabili.filter(r => r.tipo === 'direttore'));
-      setSupervisori(responsabili.filter(r => r.tipo === 'supervisore'));
-      setResponsabiliCert(responsabili.filter(r => r.tipo === 'responsabile_cert'));
+      // Cast tipo from string to union literal type
+      const typedResponsabili = responsabili.map(r => ({
+        ...r,
+        tipo: r.tipo as 'direttore' | 'supervisore' | 'responsabile_cert'
+      }));
+      
+      setDirettori(typedResponsabili.filter(r => r.tipo === 'direttore'));
+      setSupervisori(typedResponsabili.filter(r => r.tipo === 'supervisore'));
+      setResponsabiliCert(typedResponsabili.filter(r => r.tipo === 'responsabile_cert'));
     } catch (error: any) {
       toast.error("Errore caricamento dati: " + error.message);
     } finally {
