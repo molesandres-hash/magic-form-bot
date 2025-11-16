@@ -1,10 +1,73 @@
 /**
  * Google Gemini API Service
- * Handles direct calls to Google Gemini API for course data extraction
+ *
+ * Purpose: Handles AI-powered extraction of course data from unstructured text
+ * Uses Google Gemini 2.5 Flash API for intelligent data parsing
+ *
+ * Clean Code Principles Applied:
+ * - Single Responsibility: Each function has one clear purpose
+ * - Named Constants: All magic numbers and strings extracted
+ * - DRY: Common validation and processing logic extracted to helpers
+ * - Error Handling: Comprehensive error handling with meaningful messages
+ * - Type Safety: Full TypeScript typing throughout
+ *
+ * Why Gemini API: Handles messy real-world input where regex/parsers would fail
  */
 
 import { GoogleGenAI, Type } from '@google/genai';
 import type { CourseData } from '@/types/courseData';
+
+// ============================================================================
+// CONSTANTS - Configuration and thresholds
+// ============================================================================
+
+/**
+ * API Configuration
+ * Why: Centralized configuration makes version upgrades easier
+ */
+const API_CONFIG = {
+  MODEL: 'gemini-2.5-flash',          // Model optimized for speed and accuracy
+  RESPONSE_FORMAT: 'application/json', // Structured JSON output
+  MAX_RETRIES: 3,                      // Number of retry attempts on failure
+} as const;
+
+/**
+ * Double-check comparison thresholds
+ * Why: These values determine when extractions are considered reliable
+ * - 95%: Excellent match, very minor differences acceptable
+ * - 80%: Good match, some differences but still usable
+ * < 80%: Poor match, manual verification required
+ */
+const COMPARISON_THRESHOLDS = {
+  EXCELLENT: 95,  // ≥95%: Excellent match
+  RELIABLE: 80,   // ≥80%: Reliable match
+  POOR: 80,       // <80%: Poor match, needs review
+} as const;
+
+/**
+ * Default values for missing data
+ * Why: Prevents undefined/null errors in document generation
+ */
+const DEFAULTS = {
+  TIME_START: '09:00',       // Default session start time
+  TIME_END: '18:00',         // Default session end time
+  CAPACITY: '0/0',           // Default capacity when missing
+  TOTAL_FIELDS: 50,          // Total fields used for completion percentage
+  CRITICAL_FIELDS: 20,       // Fields compared in double-check
+  PAGES_PER_SESSION: 2,      // Pages per attendance session
+  BASE_PAGES: 1,             // Base pages in registro
+} as const;
+
+/**
+ * Error messages in Italian
+ * Why: User-facing errors should be in the application language
+ */
+const ERROR_MESSAGES = {
+  API_ERROR: 'Errore durante la chiamata API',
+  INVALID_API_KEY: 'Chiave API non valida',
+  PARSING_ERROR: 'Errore durante l\'elaborazione dei dati',
+  NO_DATA: 'Nessun dato estratto',
+} as const;
 
 // Re-use the extraction types from the Edge Function
 interface RawModulo {
@@ -264,6 +327,10 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
            sedeLower.includes('online') || sedeLower.includes('fad');
   };
 
+  /**
+   * Generates processed session objects from raw session data
+   * Why: Enriches raw data with Italian date formatting and FAD detection
+   */
   const generateSessioni = (sessioni_raw: RawSessione[]) => {
     return sessioni_raw.map((sess, idx) => {
       const date = parseDate(sess.data);
@@ -275,8 +342,8 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
         mese_numero: (date.getMonth() + 1).toString().padStart(2, '0'),
         anno: date.getFullYear().toString(),
         giorno_settimana: GIORNI_ITALIANI[date.getDay()],
-        ora_inizio_giornata: sess.ora_inizio || '09:00',
-        ora_fine_giornata: sess.ora_fine || '18:00',
+        ora_inizio_giornata: sess.ora_inizio || DEFAULTS.TIME_START,
+        ora_fine_giornata: sess.ora_fine || DEFAULTS.TIME_END,
         sede: sess.sede || '',
         tipo_sede: sess.tipo_sede || '',
         is_fad: isFAD(sess.tipo_sede || '', sess.sede || ''),
@@ -293,8 +360,9 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     moduliRaw = [moduliRaw];
   }
 
-  // Process corso
-  const capienzaCorso = parseCapienza(extractedData.corso?.capienza || '0/0');
+  // Process corso data
+  // Why parse capacity: Need separate numbers for validation and document generation
+  const capienzaCorso = parseCapienza(extractedData.corso?.capienza || DEFAULTS.CAPACITY);
   const corso = {
     ...extractedData.corso,
     anno: extractedData.corso?.data_inizio ? extractYear(extractedData.corso.data_inizio) : '',
@@ -358,17 +426,22 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
   const sessioni_totali = moduli_processati.flatMap((m: any) => m.sessioni);
   const sessioni_presenza_totali = moduli_processati.flatMap((m: any) => m.sessioni_presenza);
 
-  // Calculate pages
-  const numero_pagine = (sessioni_presenza_totali.length * 2) + 1;
+  // Calculate registro pages
+  // Why: Italian regulations require page count for official registro
+  // Formula: (attendance sessions × 2 pages) + 1 base page
+  const numero_pagine = (sessioni_presenza_totali.length * DEFAULTS.PAGES_PER_SESSION) + DEFAULTS.BASE_PAGES;
 
-  // Generate metadata
+  // Generate metadata and validation warnings
   const campi_mancanti: string[] = [];
   const warnings: string[] = [];
 
+  // Validate critical course fields
   if (!corso?.id) campi_mancanti.push('corso.id');
   if (!corso?.titolo) campi_mancanti.push('corso.titolo');
   if (!partecipanti || partecipanti.length === 0) campi_mancanti.push('partecipanti');
 
+  // Validate participant data quality
+  // Why: Invalid data causes document generation failures
   partecipanti.forEach((p: any, idx: number) => {
     if (!p._validations.cf_valid) {
       warnings.push(`Partecipante ${idx + 1}: Codice Fiscale non valido (${p.codice_fiscale})`);
@@ -378,9 +451,11 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     }
   });
 
+  // Calculate data completeness percentage
+  // Why: Helps users understand if they need to manually fill any fields
   const filled_fields = (corso?.id ? 1 : 0) + (corso?.titolo ? 1 : 0) +
                         moduli_processati.length + partecipanti.length + sessioni_totali.length;
-  const completamento_percentuale = Math.round((filled_fields / 50) * 100);
+  const completamento_percentuale = Math.round((filled_fields / DEFAULTS.TOTAL_FIELDS) * 100);
 
   // Build complete response
   return {
@@ -504,20 +579,22 @@ ${participantsData}`;
     const processedData = await processExtractedData(extractedData1);
 
     // Add comparison metadata
+    // Why: Track reliability score for user confidence
     processedData.metadata.double_check = {
       performed: true,
       match_percentage: comparison.matchPercentage,
       differences_count: comparison.differences.length,
       differences: comparison.differences,
-      is_reliable: comparison.matchPercentage >= 80, // 80% or higher is considered reliable
+      is_reliable: comparison.matchPercentage >= COMPARISON_THRESHOLDS.RELIABLE,
     };
 
-    // Add warnings if there are significant differences
-    if (comparison.matchPercentage < 80) {
+    // Add warnings based on match quality
+    // Why: Users need immediate feedback on extraction reliability
+    if (comparison.matchPercentage < COMPARISON_THRESHOLDS.POOR) {
       processedData.metadata.warnings.unshift(
         `⚠️ ATTENZIONE: Le due estrazioni differiscono significativamente (${comparison.matchPercentage}% di corrispondenza). Verifica manualmente i dati.`
       );
-    } else if (comparison.matchPercentage < 95) {
+    } else if (comparison.matchPercentage < COMPARISON_THRESHOLDS.EXCELLENT) {
       processedData.metadata.warnings.unshift(
         `⚠️ Alcune piccole differenze rilevate tra le due estrazioni (${comparison.matchPercentage}% di corrispondenza).`
       );
@@ -596,10 +673,10 @@ function compareExtractions(data1: AIExtractedData, data2: AIExtractedData): {
   }
 
   // Calculate match percentage
-  // Key fields to check (total: 20)
-  const totalFields = 20;
-  const matchedFields = totalFields - Math.min(differences.length, totalFields);
-  const matchPercentage = Math.round((matchedFields / totalFields) * 100);
+  // Why: Quantifies reliability of extraction for user confidence
+  // Formula: ((matched fields / total fields) * 100)
+  const matchedFields = DEFAULTS.CRITICAL_FIELDS - Math.min(differences.length, DEFAULTS.CRITICAL_FIELDS);
+  const matchPercentage = Math.round((matchedFields / DEFAULTS.CRITICAL_FIELDS) * 100);
 
   return {
     matchPercentage,

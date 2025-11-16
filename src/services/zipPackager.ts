@@ -1,6 +1,17 @@
 /**
  * ZIP Packager Service
- * Creates organized ZIP archives with all course documents
+ *
+ * Purpose: Creates organized ZIP archives containing all course documents
+ * Generates a complete package with Word docs, Excel files, README, and metadata
+ *
+ * Clean Code Principles Applied:
+ * - Single Responsibility: Each function creates one type of file
+ * - DRY: Common Excel generation logic extracted to helpers
+ * - Named Constants: Magic numbers and strings extracted
+ * - Error Handling: Comprehensive error handling with logging
+ * - Organization: Logical folder structure (Documenti/, Excel/)
+ *
+ * Why ZIP: Users need all documents together for offline storage/submission
  */
 
 import JSZip from 'jszip';
@@ -14,85 +25,180 @@ import {
 } from './wordDocumentGenerator';
 import * as XLSX from 'xlsx';
 
+// ============================================================================
+// CONSTANTS - Folder structure and configuration
+// ============================================================================
+
+/**
+ * ZIP Archive structure
+ * Why: Standardized folder names for consistent user experience
+ */
+const FOLDER_STRUCTURE = {
+  DOCUMENTS: 'Documenti',  // Word documents folder
+  EXCEL: 'Excel',          // Excel files folder
+} as const;
+
+/**
+ * File naming patterns
+ * Why: Consistent naming makes files easy to identify
+ */
+const FILE_PREFIX = {
+  REGISTRO: 'Registro_Didattico',
+  VERBALE_PART: 'Verbale_Partecipazione',
+  VERBALE_SCRUT: 'Verbale_Scrutinio',
+  FAD: 'Modello_A_FAD',
+  PARTICIPANTS: 'Partecipanti',
+  ATTENDANCE: 'Registro_Presenze',
+  REPORT: 'Report_Completo',
+} as const;
+
+/**
+ * Excel column widths for consistent formatting
+ * Why: Prevents text truncation in generated spreadsheets
+ */
+const EXCEL_COLUMN_WIDTHS = {
+  TINY: 8,      // Numbers, checkmarks
+  SMALL: 12,    // Dates, short text
+  MEDIUM: 15,   // Names, codes
+  LARGE: 20,    // Addresses
+  XLARGE: 25,   // Titles
+  XXLARGE: 30,  // Emails, long text
+  XXXLARGE: 40, // Very long fields
+  MEGA: 50,     // Full descriptions
+} as const;
+
 /**
  * Creates a complete ZIP package with all course documents
- * Organized in folders: Documenti/, Excel/, and README.txt
+ *
+ * Purpose: Bundles all generated documents into one downloadable archive
+ * Structure: Organized folders (Documenti/, Excel/) + README + metadata.json
+ *
+ * Why: Users need a single file containing all documents for submission/archival
+ *
+ * @param data - Complete course data
+ * @throws Error if document generation or ZIP creation fails
  */
 export async function createCompleteZIPPackage(data: CourseData): Promise<void> {
-  const zip = new JSZip();
-  const courseId = data.corso?.id || 'N_A';
-  const courseTitle = data.corso?.titolo || 'Corso';
+  try {
+    const zip = new JSZip();
+    const courseId = data.corso?.id || 'N_A';
+    const courseTitle = data.corso?.titolo || 'Corso';
 
-  // Create folder structure
-  const documentiFolder = zip.folder('Documenti');
-  const excelFolder = zip.folder('Excel');
+    // Create logical folder structure
+    // Why: Separates document types for better organization
+    const documentiFolder = zip.folder(FOLDER_STRUCTURE.DOCUMENTS);
+    const excelFolder = zip.folder(FOLDER_STRUCTURE.EXCEL);
 
-  // 1. Generate and add Word documents
-  console.log('Generating Word documents...');
+    // ========================================================================
+    // STEP 1: Generate and add Word documents
+    // ========================================================================
+    console.log('Generating Word documents...');
 
-  // Registro Didattico
-  const registroBlob = await generateRegistroDidattico(data);
-  documentiFolder?.file(`Registro_Didattico_${courseId}.docx`, registroBlob);
+    // Registro Didattico - Educational register (always generated)
+    const registroBlob = await generateRegistroDidattico(data);
+    documentiFolder?.file(`${FILE_PREFIX.REGISTRO}_${courseId}.docx`, registroBlob);
 
-  // Verbale Partecipazione
-  const verbalePartBlob = await generateVerbalePartecipazione(data);
-  documentiFolder?.file(`Verbale_Partecipazione_${courseId}.docx`, verbalePartBlob);
+    // Verbale Partecipazione - Participation report (always generated)
+    const verbalePartBlob = await generateVerbalePartecipazione(data);
+    documentiFolder?.file(`${FILE_PREFIX.VERBALE_PART}_${courseId}.docx`, verbalePartBlob);
 
-  // Verbale Scrutinio
-  const verbaleScrutBlob = await generateVerbaleScrutinio(data);
-  documentiFolder?.file(`Verbale_Scrutinio_${courseId}.docx`, verbaleScrutBlob);
+    // Verbale Scrutinio - Examination report (always generated)
+    const verbaleScrutBlob = await generateVerbaleScrutinio(data);
+    documentiFolder?.file(`${FILE_PREFIX.VERBALE_SCRUT}_${courseId}.docx`, verbaleScrutBlob);
 
-  // Modello FAD (if applicable)
-  const hasFADSessions = (data.sessioni || []).some((s) => s.is_fad);
-  if (hasFADSessions || data.corso?.tipo?.toLowerCase().includes('fad')) {
-    const fadBlob = await generateModelloFAD(data);
-    documentiFolder?.file(`Modello_A_FAD_${courseId}.docx`, fadBlob);
+    // Modello FAD - E-learning calendar (conditional: only if FAD sessions exist)
+    // Why conditional: Not all courses have distance learning components
+    if (shouldGenerateFAD(data)) {
+      const fadBlob = await generateModelloFAD(data);
+      documentiFolder?.file(`${FILE_PREFIX.FAD}_${courseId}.docx`, fadBlob);
+    }
+
+    // ========================================================================
+    // STEP 2: Generate and add Excel files
+    // ========================================================================
+    console.log('Generating Excel files...');
+
+    // Participants list - Detailed participant information
+    const participantsExcel = generateParticipantsExcelBlob(data);
+    excelFolder?.file(`${FILE_PREFIX.PARTICIPANTS}_${courseId}.xlsx`, participantsExcel);
+
+    // Attendance register - Empty template for marking attendance
+    const attendanceExcel = generateAttendanceExcelBlob(data);
+    excelFolder?.file(`${FILE_PREFIX.ATTENDANCE}_${courseId}.xlsx`, attendanceExcel);
+
+    // Complete report - All course data in spreadsheet format
+    const reportExcel = generateCourseReportExcelBlob(data);
+    excelFolder?.file(`${FILE_PREFIX.REPORT}_${courseId}.xlsx`, reportExcel);
+
+    // ========================================================================
+    // STEP 3: Create README file
+    // ========================================================================
+    // Why: Users need instructions and package contents overview
+    const readmeContent = generateREADME(data);
+    zip.file('README.txt', readmeContent);
+
+    // ========================================================================
+    // STEP 4: Create metadata JSON file
+    // ========================================================================
+    // Why: Machine-readable metadata for future processing/archival
+    const metadataContent = JSON.stringify(
+      {
+        corso: data.corso,
+        metadata: data.metadata,
+        generato_il: new Date().toISOString(),
+        sistema_versione: data.metadata?.versione_sistema || '2.1.0',
+      },
+      null,
+      2
+    );
+    zip.file('metadata.json', metadataContent);
+
+    // ========================================================================
+    // STEP 5: Generate and download ZIP archive
+    // ========================================================================
+    console.log('Creating ZIP archive...');
+    const zipBlob = await zip.generateAsync({ type: 'blob' });
+
+    // Generate filename with course ID, sanitized title, and date
+    const zipFilename = `Corso_${courseId}_${sanitizeFilename(courseTitle)}_${formatDate(new Date())}.zip`;
+    saveAs(zipBlob, zipFilename);
+
+    console.log('ZIP package created successfully!');
+  } catch (error: any) {
+    console.error('Error creating ZIP package:', error);
+    throw new Error(`Errore durante la creazione del pacchetto ZIP: ${error.message}`);
   }
-
-  // 2. Generate and add Excel files
-  console.log('Generating Excel files...');
-
-  // Participants Excel
-  const participantsExcel = generateParticipantsExcelBlob(data);
-  excelFolder?.file(`Partecipanti_${courseId}.xlsx`, participantsExcel);
-
-  // Attendance Excel
-  const attendanceExcel = generateAttendanceExcelBlob(data);
-  excelFolder?.file(`Registro_Presenze_${courseId}.xlsx`, attendanceExcel);
-
-  // Course Report Excel
-  const reportExcel = generateCourseReportExcelBlob(data);
-  excelFolder?.file(`Report_Completo_${courseId}.xlsx`, reportExcel);
-
-  // 3. Create README file
-  const readmeContent = generateREADME(data);
-  zip.file('README.txt', readmeContent);
-
-  // 4. Create metadata JSON file
-  const metadataContent = JSON.stringify(
-    {
-      corso: data.corso,
-      metadata: data.metadata,
-      generato_il: new Date().toISOString(),
-      sistema_versione: data.metadata?.versione_sistema || '2.1.0',
-    },
-    null,
-    2
-  );
-  zip.file('metadata.json', metadataContent);
-
-  // 5. Generate ZIP and download
-  console.log('Creating ZIP archive...');
-  const zipBlob = await zip.generateAsync({ type: 'blob' });
-
-  const zipFilename = `Corso_${courseId}_${sanitizeFilename(courseTitle)}_${formatDate(new Date())}.zip`;
-  saveAs(zipBlob, zipFilename);
-
-  console.log('ZIP package created successfully!');
 }
+
+// ============================================================================
+// HELPER FUNCTIONS - Utility functions for ZIP creation
+// ============================================================================
+
+/**
+ * Determines if FAD (distance learning) document should be generated
+ * Why: Not all courses have FAD components, saves unnecessary file generation
+ *
+ * @param data - Course data
+ * @returns true if course has FAD sessions
+ */
+function shouldGenerateFAD(data: CourseData): boolean {
+  const hasFADSessions = (data.sessioni || []).some((session) => session.is_fad);
+  const isFADCourse = data.corso?.tipo?.toLowerCase().includes('fad');
+  return hasFADSessions || isFADCourse;
+}
+
+// ============================================================================
+// EXCEL GENERATION HELPERS - Create Excel blobs for ZIP packaging
+// ============================================================================
 
 /**
  * Generates participants Excel as Blob (for ZIP packaging)
+ *
+ * Purpose: Creates Excel with full participant roster and validation status
+ * Why Blob: Needed for ZIP archive, not direct download
+ *
+ * @param data - Course data with participants
+ * @returns Excel file as Blob
  */
 function generateParticipantsExcelBlob(data: CourseData): Blob {
   const participantsData = (data.partecipanti || []).map((p) => ({
