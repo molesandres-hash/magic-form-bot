@@ -1,57 +1,192 @@
+/**
+ * Document Generation Step
+ * Final step where users can download all generated documents
+ */
+
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Download, FileText, CheckCircle, ChevronLeft } from "lucide-react";
+import { Download, FileText, CheckCircle, ChevronLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import type { CourseData } from "@/types/courseData";
+import {
+  generateRegistroDidattico,
+  generateVerbalePartecipazione,
+  generateVerbaleScrutinio,
+  generateModelloFAD,
+  downloadWordDocument,
+} from "@/services/wordDocumentGenerator";
+import {
+  generateParticipantsExcel,
+  generateAttendanceExcel,
+  generateCourseReportExcel,
+} from "@/services/excelGenerator";
+import { createCompleteZIPPackage } from "@/services/zipPackager";
 
 interface GenerationStepProps {
-  data: any;
+  data: CourseData;
   onBack: () => void;
 }
 
 const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
-  const [isGenerating, setIsGenerating] = useState(false);
-  const [generatedDocs, setGeneratedDocs] = useState<any[]>([]);
+  const [isGenerating, setIsGenerating] = useState<string | null>(null);
+  const [isGeneratingZIP, setIsGeneratingZIP] = useState(false);
+
+  // Determine which documents should be available
+  const hasFADSessions = (data.sessioni || []).some((s) => s.is_fad);
+  const shouldGenerateFAD = hasFADSessions || data.corso?.tipo?.toLowerCase().includes('fad');
 
   const documents = [
     {
       id: "registro",
-      name: `Registro_ID_${data.corso?.id}.docx`,
+      name: `Registro_Didattico_${data.corso?.id}.docx`,
       type: "Registro Didattico e Presenze",
       icon: "📋",
       generated: true,
+      category: "word",
     },
     {
       id: "verbale",
-      name: `Verbale_Corso_ID_${data.corso?.id}.docx`,
+      name: `Verbale_Partecipazione_${data.corso?.id}.docx`,
       type: "Verbale di Partecipazione",
       icon: "📄",
       generated: true,
+      category: "word",
     },
     {
-      id: "verbale_esame",
-      name: `Verbale_Ammissione_Esame_ID_${data.corso?.id}.pdf`,
+      id: "verbale_scrutinio",
+      name: `Verbale_Scrutinio_${data.corso?.id}.docx`,
       type: "Verbale Scrutinio",
       icon: "📝",
       generated: true,
+      category: "word",
     },
     {
       id: "fad",
       name: `Modello_A_FAD_${data.corso?.id}.docx`,
-      type: "Calendario E-Learning",
+      type: "Calendario E-Learning (FAD)",
       icon: "💻",
-      generated: data.corso?.tipo === "e-learning",
+      generated: shouldGenerateFAD,
+      category: "word",
+    },
+    {
+      id: "excel_partecipanti",
+      name: `Partecipanti_${data.corso?.id}.xlsx`,
+      type: "Elenco Partecipanti (Excel)",
+      icon: "📊",
+      generated: true,
+      category: "excel",
+    },
+    {
+      id: "excel_presenze",
+      name: `Presenze_${data.corso?.id}.xlsx`,
+      type: "Registro Presenze (Excel)",
+      icon: "📅",
+      generated: true,
+      category: "excel",
+    },
+    {
+      id: "excel_report",
+      name: `Report_Completo_${data.corso?.id}.xlsx`,
+      type: "Report Completo (Excel)",
+      icon: "📈",
+      generated: true,
+      category: "excel",
     },
   ];
 
-  const handleDownload = (docId: string) => {
-    toast.success(`Download di ${docId} iniziato`);
-    // In a real implementation, this would trigger the actual file download
+  /**
+   * Handles individual document download
+   */
+  const handleDownload = async (docId: string) => {
+    setIsGenerating(docId);
+
+    try {
+      switch (docId) {
+        case "registro":
+          {
+            const blob = await generateRegistroDidattico(data);
+            await downloadWordDocument(blob, documents.find((d) => d.id === docId)!.name);
+            toast.success("Registro Didattico scaricato!");
+          }
+          break;
+
+        case "verbale":
+          {
+            const blob = await generateVerbalePartecipazione(data);
+            await downloadWordDocument(blob, documents.find((d) => d.id === docId)!.name);
+            toast.success("Verbale di Partecipazione scaricato!");
+          }
+          break;
+
+        case "verbale_scrutinio":
+          {
+            const blob = await generateVerbaleScrutinio(data);
+            await downloadWordDocument(blob, documents.find((d) => d.id === docId)!.name);
+            toast.success("Verbale Scrutinio scaricato!");
+          }
+          break;
+
+        case "fad":
+          {
+            const blob = await generateModelloFAD(data);
+            await downloadWordDocument(blob, documents.find((d) => d.id === docId)!.name);
+            toast.success("Modello A FAD scaricato!");
+          }
+          break;
+
+        case "excel_partecipanti":
+          generateParticipantsExcel(data);
+          toast.success("Excel Partecipanti scaricato!");
+          break;
+
+        case "excel_presenze":
+          generateAttendanceExcel(data);
+          toast.success("Excel Presenze scaricato!");
+          break;
+
+        case "excel_report":
+          generateCourseReportExcel(data);
+          toast.success("Report Excel scaricato!");
+          break;
+
+        default:
+          toast.error("Documento non trovato");
+      }
+    } catch (error: any) {
+      console.error("Error downloading document:", error);
+      toast.error("Errore durante il download", {
+        description: error.message || "Riprova",
+      });
+    } finally {
+      setIsGenerating(null);
+    }
   };
 
-  const handleDownloadAll = () => {
-    toast.success("Download di tutti i documenti iniziato");
-    // In a real implementation, this would create a ZIP and download all files
+  /**
+   * Handles downloading all documents as ZIP
+   */
+  const handleDownloadAll = async () => {
+    setIsGeneratingZIP(true);
+
+    try {
+      toast.info("Generazione ZIP in corso...", {
+        description: "Potrebbe richiedere alcuni secondi",
+      });
+
+      await createCompleteZIPPackage(data);
+
+      toast.success("ZIP scaricato con successo!", {
+        description: "Tutti i documenti sono stati inclusi",
+      });
+    } catch (error: any) {
+      console.error("Error creating ZIP:", error);
+      toast.error("Errore durante la creazione del ZIP", {
+        description: error.message || "Riprova",
+      });
+    } finally {
+      setIsGeneratingZIP(false);
+    }
   };
 
   return (
@@ -65,7 +200,7 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
                   <CheckCircle className="h-6 w-6 text-success" />
                 </div>
                 <div>
-                  <h2 className="text-2xl font-bold text-foreground">Documenti Generati!</h2>
+                  <h2 className="text-2xl font-bold text-foreground">Documenti Pronti!</h2>
                   <p className="text-muted-foreground">Tutti i documenti sono pronti per il download</p>
                 </div>
               </div>
@@ -88,7 +223,9 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
                 <div className="text-xs text-muted-foreground">Partecipanti</div>
               </div>
               <div>
-                <div className="text-2xl font-bold text-primary">{documents.filter(d => d.generated).length}</div>
+                <div className="text-2xl font-bold text-primary">
+                  {documents.filter((d) => d.generated).length}
+                </div>
                 <div className="text-xs text-muted-foreground">Documenti</div>
               </div>
               <div>
@@ -98,30 +235,80 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
             </div>
           </Card>
 
-          {/* Documents List */}
+          {/* Word Documents Section */}
           <div className="space-y-3">
-            <h3 className="font-semibold text-foreground mb-4">Documenti Disponibili</h3>
-            {documents.filter(doc => doc.generated).map((doc) => (
-              <Card key={doc.id} className="p-4 hover:shadow-md transition-shadow">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4 flex-1">
-                    <div className="text-3xl">{doc.icon}</div>
-                    <div className="flex-1">
-                      <h4 className="font-semibold text-foreground">{doc.name}</h4>
-                      <p className="text-sm text-muted-foreground">{doc.type}</p>
+            <h3 className="font-semibold text-foreground mb-4">📄 Documenti Word</h3>
+            {documents
+              .filter((doc) => doc.category === "word" && doc.generated)
+              .map((doc) => (
+                <Card key={doc.id} className="p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="text-3xl">{doc.icon}</div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-foreground">{doc.name}</h4>
+                        <p className="text-sm text-muted-foreground">{doc.type}</p>
+                      </div>
                     </div>
+                    <Button
+                      onClick={() => handleDownload(doc.id)}
+                      variant="outline"
+                      className="gap-2"
+                      disabled={isGenerating === doc.id}
+                    >
+                      {isGenerating === doc.id ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generazione...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4" />
+                          Scarica
+                        </>
+                      )}
+                    </Button>
                   </div>
-                  <Button
-                    onClick={() => handleDownload(doc.id)}
-                    variant="outline"
-                    className="gap-2"
-                  >
-                    <Download className="h-4 w-4" />
-                    Scarica
-                  </Button>
-                </div>
-              </Card>
-            ))}
+                </Card>
+              ))}
+          </div>
+
+          {/* Excel Documents Section */}
+          <div className="space-y-3">
+            <h3 className="font-semibold text-foreground mb-4">📊 Fogli Excel</h3>
+            {documents
+              .filter((doc) => doc.category === "excel" && doc.generated)
+              .map((doc) => (
+                <Card key={doc.id} className="p-4 hover:shadow-md transition-shadow">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4 flex-1">
+                      <div className="text-3xl">{doc.icon}</div>
+                      <div className="flex-1">
+                        <h4 className="font-semibold text-foreground">{doc.name}</h4>
+                        <p className="text-sm text-muted-foreground">{doc.type}</p>
+                      </div>
+                    </div>
+                    <Button
+                      onClick={() => handleDownload(doc.id)}
+                      variant="outline"
+                      className="gap-2"
+                      disabled={isGenerating === doc.id}
+                    >
+                      {isGenerating === doc.id ? (
+                        <>
+                          <Loader2 className="h-4 w-4 animate-spin" />
+                          Generazione...
+                        </>
+                      ) : (
+                        <>
+                          <Download className="h-4 w-4" />
+                          Scarica
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                </Card>
+              ))}
           </div>
 
           {/* Actions */}
@@ -129,15 +316,21 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
             <Button
               onClick={handleDownloadAll}
               className="flex-1 h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+              disabled={isGeneratingZIP}
             >
-              <Download className="mr-2 h-5 w-5" />
-              Scarica Tutti i Documenti (ZIP)
+              {isGeneratingZIP ? (
+                <>
+                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                  Creazione ZIP in corso...
+                </>
+              ) : (
+                <>
+                  <Download className="mr-2 h-5 w-5" />
+                  Scarica Tutti i Documenti (ZIP)
+                </>
+              )}
             </Button>
-            <Button
-              onClick={() => window.location.reload()}
-              variant="outline"
-              className="flex-1 h-12"
-            >
+            <Button onClick={() => window.location.reload()} variant="outline" className="flex-1 h-12">
               <FileText className="mr-2 h-5 w-5" />
               Nuovo Corso
             </Button>
@@ -159,7 +352,7 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
         </Card>
         <Card className="p-4 bg-card">
           <h4 className="font-semibold text-sm mb-2 text-foreground">📊 Documenti</h4>
-          <p className="text-2xl font-bold text-accent">{documents.filter(d => d.generated).length}</p>
+          <p className="text-2xl font-bold text-accent">{documents.filter((d) => d.generated).length}</p>
           <p className="text-xs text-muted-foreground mt-1">Generati automaticamente</p>
         </Card>
       </div>
