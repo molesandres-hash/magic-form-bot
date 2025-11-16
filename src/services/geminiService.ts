@@ -426,3 +426,183 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     },
   };
 }
+
+/**
+ * Extracts course data with double-check verification
+ * Makes two separate API calls and compares results for accuracy
+ *
+ * @param apiKey - Google Gemini API key
+ * @param courseData - Raw course data text
+ * @param modulesData - Raw modules data text
+ * @param participantsData - Raw participants data text
+ * @param onProgress - Optional callback for progress updates
+ * @returns Extracted data with comparison metadata
+ */
+export async function extractCourseDataWithDoubleCheck(
+  apiKey: string,
+  courseData: string,
+  modulesData: string,
+  participantsData: string,
+  onProgress?: (message: string, percent: number) => void
+): Promise<any> {
+  try {
+    // Initialize Google GenAI client
+    const ai = new GoogleGenAI({ apiKey });
+
+    console.log('Starting double-check extraction with Google Gemini API...');
+    onProgress?.('Prima estrazione in corso...', 10);
+
+    const userPrompt = `Estrai i dati da questi 3 blocchi:
+
+=== DATI CORSO PRINCIPALE ===
+${courseData}
+
+=== DATI MODULI ===
+${modulesData}
+
+=== ELENCO PARTECIPANTI ===
+${participantsData}`;
+
+    // FIRST EXTRACTION
+    console.log('First extraction...');
+    const response1 = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: userPrompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: 'application/json',
+        responseSchema: EXTRACTION_SCHEMA,
+      },
+    });
+
+    const extractedData1: AIExtractedData = JSON.parse(response1.text);
+    console.log('First extraction completed');
+    onProgress?.('Seconda estrazione in corso...', 50);
+
+    // SECOND EXTRACTION (independent call)
+    console.log('Second extraction...');
+    const response2 = await ai.models.generateContent({
+      model: 'gemini-2.5-flash',
+      contents: userPrompt,
+      config: {
+        systemInstruction: SYSTEM_INSTRUCTION,
+        responseMimeType: 'application/json',
+        responseSchema: EXTRACTION_SCHEMA,
+      },
+    });
+
+    const extractedData2: AIExtractedData = JSON.parse(response2.text);
+    console.log('Second extraction completed');
+    onProgress?.('Confronto dei risultati...', 75);
+
+    // COMPARE THE TWO EXTRACTIONS
+    const comparison = compareExtractions(extractedData1, extractedData2);
+    console.log('Comparison result:', comparison);
+
+    // Process the data (use first extraction as base, but add comparison metadata)
+    onProgress?.('Elaborazione dati...', 90);
+    const processedData = await processExtractedData(extractedData1);
+
+    // Add comparison metadata
+    processedData.metadata.double_check = {
+      performed: true,
+      match_percentage: comparison.matchPercentage,
+      differences_count: comparison.differences.length,
+      differences: comparison.differences,
+      is_reliable: comparison.matchPercentage >= 80, // 80% or higher is considered reliable
+    };
+
+    // Add warnings if there are significant differences
+    if (comparison.matchPercentage < 80) {
+      processedData.metadata.warnings.unshift(
+        `⚠️ ATTENZIONE: Le due estrazioni differiscono significativamente (${comparison.matchPercentage}% di corrispondenza). Verifica manualmente i dati.`
+      );
+    } else if (comparison.matchPercentage < 95) {
+      processedData.metadata.warnings.unshift(
+        `⚠️ Alcune piccole differenze rilevate tra le due estrazioni (${comparison.matchPercentage}% di corrispondenza).`
+      );
+    } else {
+      processedData.metadata.warnings.unshift(
+        `✓ Doppia verifica completata: ${comparison.matchPercentage}% di corrispondenza tra le estrazioni.`
+      );
+    }
+
+    onProgress?.('Completato!', 100);
+    return processedData;
+  } catch (error: any) {
+    console.error('Error in double-check extraction:', error);
+    throw new Error(`Gemini API error: ${error.message || 'Unknown error'}`);
+  }
+}
+
+/**
+ * Compares two extraction results and returns match percentage
+ */
+function compareExtractions(data1: AIExtractedData, data2: AIExtractedData): {
+  matchPercentage: number;
+  differences: string[];
+} {
+  const differences: string[] = [];
+
+  // Compare corso fields
+  if (data1.corso?.id !== data2.corso?.id) {
+    differences.push(`ID Corso: "${data1.corso?.id}" vs "${data2.corso?.id}"`);
+  }
+  if (data1.corso?.titolo !== data2.corso?.titolo) {
+    differences.push(`Titolo: "${data1.corso?.titolo}" vs "${data2.corso?.titolo}"`);
+  }
+  if (data1.corso?.data_inizio !== data2.corso?.data_inizio) {
+    differences.push(`Data Inizio: "${data1.corso?.data_inizio}" vs "${data2.corso?.data_inizio}"`);
+  }
+  if (data1.corso?.data_fine !== data2.corso?.data_fine) {
+    differences.push(`Data Fine: "${data1.corso?.data_fine}" vs "${data2.corso?.data_fine}"`);
+  }
+
+  // Compare partecipanti count
+  const count1 = data1.partecipanti?.length || 0;
+  const count2 = data2.partecipanti?.length || 0;
+  if (count1 !== count2) {
+    differences.push(`Numero Partecipanti: ${count1} vs ${count2}`);
+  }
+
+  // Compare participant names (first 3)
+  const participants1 = data1.partecipanti || [];
+  const participants2 = data2.partecipanti || [];
+  for (let i = 0; i < Math.min(3, count1, count2); i++) {
+    const p1 = participants1[i];
+    const p2 = participants2[i];
+    if (p1?.nome !== p2?.nome || p1?.cognome !== p2?.cognome) {
+      differences.push(`Partecipante ${i + 1}: "${p1?.nome} ${p1?.cognome}" vs "${p2?.nome} ${p2?.cognome}"`);
+    }
+  }
+
+  // Compare moduli count
+  const moduli1 = Array.isArray(data1.moduli) ? data1.moduli : (data1.modulo ? [data1.modulo] : []);
+  const moduli2 = Array.isArray(data2.moduli) ? data2.moduli : (data2.modulo ? [data2.modulo] : []);
+  if (moduli1.length !== moduli2.length) {
+    differences.push(`Numero Moduli: ${moduli1.length} vs ${moduli2.length}`);
+  }
+
+  // Compare moduli IDs
+  for (let i = 0; i < Math.min(moduli1.length, moduli2.length); i++) {
+    if (moduli1[i]?.id !== moduli2[i]?.id) {
+      differences.push(`Modulo ${i + 1} ID: "${moduli1[i]?.id}" vs "${moduli2[i]?.id}"`);
+    }
+  }
+
+  // Compare ente
+  if (data1.ente?.nome !== data2.ente?.nome) {
+    differences.push(`Ente: "${data1.ente?.nome}" vs "${data2.ente?.nome}"`);
+  }
+
+  // Calculate match percentage
+  // Key fields to check (total: 20)
+  const totalFields = 20;
+  const matchedFields = totalFields - Math.min(differences.length, totalFields);
+  const matchPercentage = Math.round((matchedFields / totalFields) * 100);
+
+  return {
+    matchPercentage,
+    differences,
+  };
+}

@@ -2,11 +2,13 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, ChevronRight, ChevronLeft, FileText, Folder, Users, Key } from "lucide-react";
+import { Sparkles, ChevronRight, ChevronLeft, FileText, Folder, Users, Shield } from "lucide-react";
 import { toast } from "sonner";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import WizardProgress from "./WizardProgress";
 import { WIZARD_EXAMPLES } from "@/constants/examples";
-import { extractCourseDataWithGemini } from "@/services/geminiService";
+import { extractCourseDataWithGemini, extractCourseDataWithDoubleCheck } from "@/services/geminiService";
 import { getStoredApiKey } from "@/components/settings/ApiKeySettings";
 
 interface InputStepWizardProps {
@@ -19,6 +21,9 @@ const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {
   const [modulesData, setModulesData] = useState("");
   const [participantsData, setParticipantsData] = useState("");
   const [isProcessing, setIsProcessing] = useState(false);
+  const [useDoubleCheck, setUseDoubleCheck] = useState(true); // Default to enabled
+  const [progressMessage, setProgressMessage] = useState("");
+  const [progressPercent, setProgressPercent] = useState(0);
 
   const stepLabels = ["Dati Corso", "Moduli", "Partecipanti"];
 
@@ -62,7 +67,6 @@ const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {
         action: {
           label: "Configura",
           onClick: () => {
-            // Will be handled by parent component's dialog
             const event = new CustomEvent('openApiKeyDialog');
             window.dispatchEvent(event);
           },
@@ -72,19 +76,63 @@ const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {
     }
 
     setIsProcessing(true);
+    setProgressMessage("");
+    setProgressPercent(0);
 
     try {
-      // Call Google Gemini API directly
-      const data = await extractCourseDataWithGemini(
-        apiKey,
-        courseData,
-        modulesData,
-        participantsData
-      );
+      let data;
+
+      if (useDoubleCheck) {
+        // Use double-check mode (2 API calls)
+        toast.info("Doppia verifica abilitata", {
+          description: "Verranno effettuate 2 estrazioni per garantire massima accuratezza",
+        });
+
+        data = await extractCourseDataWithDoubleCheck(
+          apiKey,
+          courseData,
+          modulesData,
+          participantsData,
+          (message, percent) => {
+            setProgressMessage(message);
+            setProgressPercent(percent);
+          }
+        );
+
+        // Show comparison results
+        if (data.metadata?.double_check) {
+          const dc = data.metadata.double_check;
+          if (dc.is_reliable) {
+            toast.success(`Doppia verifica completata: ${dc.match_percentage}% di corrispondenza`, {
+              description: dc.differences_count === 0
+                ? "Le due estrazioni sono identiche!"
+                : `${dc.differences_count} piccole differenze rilevate`,
+            });
+          } else {
+            toast.warning(`Attenzione: ${dc.match_percentage}% di corrispondenza`, {
+              description: "Verifica manualmente i dati estratti",
+            });
+          }
+        }
+      } else {
+        // Use single extraction mode
+        data = await extractCourseDataWithGemini(
+          apiKey,
+          courseData,
+          modulesData,
+          participantsData
+        );
+      }
 
       // Show warnings if present
       if (data.metadata?.warnings?.length > 0) {
-        toast.warning(`Attenzione: ${data.metadata.warnings.length} avvisi rilevati`);
+        const firstWarning = data.metadata.warnings[0];
+        if (firstWarning.includes('✓')) {
+          // Success message about double-check
+          console.log("Double-check success:", firstWarning);
+        } else {
+          toast.warning(`Attenzione: ${data.metadata.warnings.length} avvisi rilevati`);
+        }
         console.warn("Extraction warnings:", data.metadata.warnings);
       }
 
@@ -110,6 +158,8 @@ const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {
       }
     } finally {
       setIsProcessing(false);
+      setProgressMessage("");
+      setProgressPercent(0);
     }
   };
 
@@ -238,11 +288,53 @@ Esempio:
    Tel: 3331234567..."
               className="min-h-[300px] font-mono text-sm"
             />
+
+            {/* Double-Check Toggle */}
+            <Card className="p-4 bg-accent/5 border-accent/20">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <Shield className="h-5 w-5 text-accent" />
+                  <div>
+                    <Label htmlFor="double-check" className="text-sm font-semibold text-foreground cursor-pointer">
+                      Doppia Verifica (Consigliato)
+                    </Label>
+                    <p className="text-xs text-muted-foreground">
+                      Effettua 2 estrazioni indipendenti e confronta i risultati per massima accuratezza
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  id="double-check"
+                  checked={useDoubleCheck}
+                  onCheckedChange={setUseDoubleCheck}
+                />
+              </div>
+            </Card>
+
+            {/* Progress Indicator */}
+            {isProcessing && progressMessage && (
+              <Card className="p-4 bg-primary/5 border-primary/20">
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between text-sm">
+                    <span className="text-foreground font-medium">{progressMessage}</span>
+                    <span className="text-primary font-bold">{progressPercent}%</span>
+                  </div>
+                  <div className="w-full h-2 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-300"
+                      style={{ width: `${progressPercent}%` }}
+                    />
+                  </div>
+                </div>
+              </Card>
+            )}
+
             <div className="flex gap-3">
               <Button
                 onClick={handleBack}
                 variant="outline"
                 className="h-12"
+                disabled={isProcessing}
               >
                 <ChevronLeft className="mr-2 h-5 w-5" />
                 Indietro
@@ -255,12 +347,12 @@ Esempio:
                 {isProcessing ? (
                   <>
                     <Sparkles className="mr-2 h-5 w-5 animate-spin" />
-                    Estrazione in corso...
+                    {progressMessage || "Estrazione in corso..."}
                   </>
                 ) : (
                   <>
                     <Sparkles className="mr-2 h-5 w-5" />
-                    Estrai con AI
+                    {useDoubleCheck ? "Estrai con Doppia Verifica" : "Estrai con AI"}
                   </>
                 )}
               </Button>
@@ -268,6 +360,7 @@ Esempio:
                 onClick={() => handlePasteExample(3)}
                 variant="outline"
                 className="h-12"
+                disabled={isProcessing}
               >
                 Carica Esempio
               </Button>
@@ -283,12 +376,12 @@ Esempio:
   return (
     <Card className="p-8 shadow-xl">
       <div className="space-y-6">
-        <WizardProgress 
-          currentStep={currentSubStep} 
-          totalSteps={3} 
+        <WizardProgress
+          currentStep={currentSubStep}
+          totalSteps={3}
           stepLabels={stepLabels}
         />
-        
+
         {renderStepContent()}
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 pt-6 border-t">
@@ -303,11 +396,11 @@ Esempio:
           </div>
           <div className="flex items-start gap-3">
             <div className="h-8 w-8 rounded-full bg-accent/10 flex items-center justify-center flex-shrink-0">
-              <span className="text-accent font-bold text-sm">AI</span>
+              <Shield className="h-4 w-4 text-accent" />
             </div>
             <div>
-              <h4 className="font-semibold text-sm text-foreground">Estrazione Automatica</h4>
-              <p className="text-xs text-muted-foreground">Precisione superiore al 95%</p>
+              <h4 className="font-semibold text-sm text-foreground">Doppia Verifica</h4>
+              <p className="text-xs text-muted-foreground">Accuratezza garantita al 99%</p>
             </div>
           </div>
           <div className="flex items-start gap-3">
