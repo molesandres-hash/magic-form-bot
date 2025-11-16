@@ -2,11 +2,12 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Textarea } from "@/components/ui/textarea";
-import { Sparkles, ChevronRight, ChevronLeft, FileText, Folder, Users } from "lucide-react";
+import { Sparkles, ChevronRight, ChevronLeft, FileText, Folder, Users, Key } from "lucide-react";
 import { toast } from "sonner";
 import WizardProgress from "./WizardProgress";
-import { supabase } from "@/integrations/supabase/client";
 import { WIZARD_EXAMPLES } from "@/constants/examples";
+import { extractCourseDataWithGemini } from "@/services/geminiService";
+import { getStoredApiKey } from "@/components/settings/ApiKeySettings";
 
 interface InputStepWizardProps {
   onComplete: (data: any) => void;
@@ -53,35 +54,60 @@ const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {
       return;
     }
 
-    setIsProcessing(true);
-    
-    try {
-      const { data, error } = await supabase.functions.invoke('extract-course-data', {
-        body: {
-          courseData,
-          modulesData,
-          participantsData
-        }
+    // Check for API key
+    const apiKey = getStoredApiKey();
+    if (!apiKey) {
+      toast.error("Configurare prima la chiave API Google Gemini", {
+        description: "Clicca sul pulsante 'API Key' in alto per configurarla",
+        action: {
+          label: "Configura",
+          onClick: () => {
+            // Will be handled by parent component's dialog
+            const event = new CustomEvent('openApiKeyDialog');
+            window.dispatchEvent(event);
+          },
+        },
       });
-      
-      if (error) {
-        console.error("Extraction error:", error);
-        toast.error(`Errore estrazione: ${error.message}`);
-        return;
-      }
-      
-      // Mostra warnings se presenti
+      return;
+    }
+
+    setIsProcessing(true);
+
+    try {
+      // Call Google Gemini API directly
+      const data = await extractCourseDataWithGemini(
+        apiKey,
+        courseData,
+        modulesData,
+        participantsData
+      );
+
+      // Show warnings if present
       if (data.metadata?.warnings?.length > 0) {
         toast.warning(`Attenzione: ${data.metadata.warnings.length} avvisi rilevati`);
         console.warn("Extraction warnings:", data.metadata.warnings);
       }
-      
+
       toast.success(`Dati estratti! Completamento: ${data.metadata?.completamento_percentuale || 0}%`);
       onComplete(data);
-      
-    } catch (error) {
-      toast.error("Errore durante l'estrazione dei dati");
-      console.error(error);
+
+    } catch (error: any) {
+      console.error("Extraction error:", error);
+
+      // Provide helpful error messages
+      if (error.message?.includes('API key')) {
+        toast.error("Chiave API non valida", {
+          description: "Verifica che la chiave API sia corretta",
+        });
+      } else if (error.message?.includes('quota')) {
+        toast.error("Quota API esaurita", {
+          description: "Hai raggiunto il limite di richieste giornaliere",
+        });
+      } else {
+        toast.error("Errore durante l'estrazione dei dati", {
+          description: error.message || "Riprova tra qualche secondo",
+        });
+      }
     } finally {
       setIsProcessing(false);
     }
