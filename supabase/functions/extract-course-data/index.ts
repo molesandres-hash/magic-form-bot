@@ -1,194 +1,173 @@
+/**
+ * Edge Function: extract-course-data
+ *
+ * Extracts structured course data from unformatted text using AI
+ * Uses Lovable AI Gateway with Google Gemini 2.5 Flash model
+ *
+ * @endpoint POST /extract-course-data
+ * @param {ExtractionRequest} body - Course, modules, and participants data as text
+ * @returns {ExtractionResponse} Structured course data with validations
+ */
+
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import type {
+  ExtractionRequest,
+  ExtractionResponse,
+  AIExtractedData,
+  RawModulo,
+} from './types.ts';
+import {
+  processCorso,
+  processTrainer,
+  processPartecipanti,
+  processModulo,
+  generateMetadata,
+} from './utils.ts';
+
+// ============================================================================
+// CORS HEADERS
+// ============================================================================
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const MESI_ITALIANI = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
-const GIORNI_ITALIANI = ['Domenica', 'Lunedì', 'Martedì', 'Mercoledì', 'Giovedì', 'Venerdì', 'Sabato'];
+// ============================================================================
+// AI TOOL DEFINITION
+// ============================================================================
 
-// VALIDATORS
-function validateCodiceFiscale(cf: string): boolean {
-  if (!cf || cf.length !== 16) return false;
-  const regex = /^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$/;
-  return regex.test(cf.toUpperCase());
-}
-
-function validateEmail(email: string): boolean {
-  if (!email) return false;
-  const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return regex.test(email);
-}
-
-function validatePhone(phone: string): boolean {
-  if (!phone) return false;
-  const cleaned = phone.replace(/[\s\-]/g, '');
-  return /^0?\d{9,10}$/.test(cleaned);
-}
-
-// PROCESSORS
-function parseCapienza(capienza: string): { current: number; total: number } {
-  const match = capienza.match(/(\d+)\/(\d+)/);
-  if (match) {
-    return { current: parseInt(match[1]), total: parseInt(match[2]) };
-  }
-  return { current: 0, total: 0 };
-}
-
-function parseDate(dateStr: string): Date {
-  const parts = dateStr.split('/');
-  if (parts.length === 3) {
-    return new Date(parseInt(parts[2]), parseInt(parts[1]) - 1, parseInt(parts[0]));
-  }
-  return new Date();
-}
-
-function processCorso(corso: any): any {
-  return {
-    ...corso,
-    anno: corso.data_inizio ? corso.data_inizio.split('/')[2] : "",
-    capienza_numero: parseCapienza(corso.capienza || "0/0").current,
-    capienza_totale: parseCapienza(corso.capienza || "0/0").total
-  };
-}
-
-function processModulo(modulo: any, sessioni: any[]): any {
-  return {
-    ...modulo,
-    numero_sessioni: sessioni.length
-  };
-}
-
-function processTrainer(trainer: any): any {
-  const parts = (trainer.nome_completo || "").split(' ');
-  return {
-    ...trainer,
-    nome: parts[0] || "",
-    cognome: parts.slice(1).join(' ') || ""
-  };
-}
-
-function processPartecipanti(partecipanti: any[]): any[] {
-  return partecipanti.map((p, index) => ({
-    numero: index + 1,
-    ...p,
-    nome_completo: `${p.nome} ${p.cognome}`,
-    _validations: {
-      cf_valid: validateCodiceFiscale(p.codice_fiscale),
-      email_valid: validateEmail(p.email),
-      phone_valid: validatePhone(p.telefono)
-    }
-  }));
-}
-
-// Helper per determinare se una sessione è FAD
-function isFAD(tipo_sede: string, sede: string): boolean {
-  const tipo = (tipo_sede || "").toLowerCase();
-  const sedeLower = (sede || "").toLowerCase();
-  return tipo.includes("online") || tipo.includes("fad") || 
-         sedeLower.includes("online") || sedeLower.includes("fad");
-}
-
-// Filtra solo sessioni in presenza
-function filterSessioniPresenza(sessioni_raw: any[]): any[] {
-  return sessioni_raw.filter(sess => !isFAD(sess.tipo_sede || "", sess.sede || ""));
-}
-
-// Genera sessioni semplificate (no lezioni, no presenze)
-function generateSessioni(sessioni_raw: any[]): any[] {
-  return sessioni_raw.map((sess, idx) => {
-    const date = parseDate(sess.data);
-    
-    return {
-      numero: idx + 1,
-      data_completa: sess.data,
-      giorno: date.getDate().toString(),
-      mese: MESI_ITALIANI[date.getMonth()],
-      mese_numero: (date.getMonth() + 1).toString().padStart(2, '0'),
-      anno: date.getFullYear().toString(),
-      giorno_settimana: GIORNI_ITALIANI[date.getDay()],
-      ora_inizio_giornata: sess.ora_inizio || "09:00",
-      ora_fine_giornata: sess.ora_fine || "18:00",
-      sede: sess.sede || "",
-      tipo_sede: sess.tipo_sede || "",
-      is_fad: isFAD(sess.tipo_sede || "", sess.sede || "")
-    };
-  });
-}
-
-function countFilledFields(data: any): number {
-  let count = 0;
-  
-  if (data.corso?.id) count++;
-  if (data.corso?.titolo) count++;
-  if (data.moduli?.length > 0) count += data.moduli.length;
-  if (data.partecipanti?.length > 0) count += data.partecipanti.length;
-  if (data.sessioni?.length > 0) count += data.sessioni.length;
-  
-  return count;
-}
-
-function generateMetadata(data: any): any {
-  const campi_mancanti: string[] = [];
-  const warnings: string[] = [];
-  
-  if (!data.corso?.id) campi_mancanti.push("corso.id");
-  if (!data.corso?.titolo) campi_mancanti.push("corso.titolo");
-  if (!data.partecipanti || data.partecipanti.length === 0) campi_mancanti.push("partecipanti");
-  
-  data.partecipanti?.forEach((p: any, idx: number) => {
-    if (!p._validations.cf_valid) {
-      warnings.push(`Partecipante ${idx + 1}: Codice Fiscale non valido (${p.codice_fiscale})`);
-    }
-    if (!p._validations.email_valid) {
-      warnings.push(`Partecipante ${idx + 1}: Email non valida (${p.email})`);
-    }
-  });
-  
-  const total_fields = 50;
-  const filled_fields = countFilledFields(data);
-  const completamento_percentuale = Math.round((filled_fields / total_fields) * 100);
-  
-  return {
-    data_estrazione: new Date().toISOString(),
-    versione_sistema: "2.0.0",
-    utente: "",
-    completamento_percentuale,
-    campi_mancanti,
-    warnings
-  };
-}
-
-// MAIN HANDLER
-serve(async (req) => {
-  if (req.method === 'OPTIONS') {
-    return new Response(null, { headers: corsHeaders });
-  }
-
-  try {
-    const { courseData, modulesData, participantsData } = await req.json();
-    
-    console.log("Starting extraction with Lovable AI...");
-    
-    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
-    if (!LOVABLE_API_KEY) {
-      throw new Error("LOVABLE_API_KEY non configurata");
-    }
-
-    // Call Lovable AI with tool calling for structured output
-    const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
-        "Content-Type": "application/json",
+/**
+ * Tool definition for AI function calling
+ * Defines the schema for extracting course data
+ */
+const EXTRACTION_TOOL = {
+  type: "function",
+  function: {
+    name: "extract_course_data",
+    description: "Estrae tutti i dati del corso, modulo, partecipanti e sessioni",
+    parameters: {
+      type: "object",
+      properties: {
+        corso: {
+          type: "object",
+          properties: {
+            id: { type: "string" },
+            titolo: { type: "string" },
+            tipo: { type: "string" },
+            data_inizio: { type: "string" },
+            data_fine: { type: "string" },
+            durata_totale: { type: "string" },
+            ore_totali: { type: "string" },
+            ore_rendicontabili: { type: "string" },
+            stato: { type: "string" },
+            capienza: { type: "string" },
+            programma: { type: "string" }
+          },
+          required: ["id", "titolo"]
+        },
+        moduli: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              id_corso: { type: "string" },
+              id_sezione: { type: "string" },
+              titolo: { type: "string" },
+              data_inizio: { type: "string" },
+              data_fine: { type: "string" },
+              ore_totali: { type: "string" },
+              durata: { type: "string" },
+              ore_rendicontabili: { type: "string" },
+              capienza: { type: "string" },
+              stato: { type: "string" },
+              tipo_sede: { type: "string" },
+              provider: { type: "string" },
+              sessioni_raw: {
+                type: "array",
+                items: {
+                  type: "object",
+                  properties: {
+                    data: { type: "string" },
+                    ora_inizio: { type: "string" },
+                    ora_fine: { type: "string" },
+                    sede: { type: "string" },
+                    tipo_sede: { type: "string" }
+                  }
+                }
+              }
+            },
+            required: ["id", "id_corso", "id_sezione", "titolo"]
+          }
+        },
+        sede: {
+          type: "object",
+          properties: {
+            tipo: { type: "string" },
+            nome: { type: "string" },
+            modalita: { type: "string" },
+            indirizzo: { type: "string" }
+          }
+        },
+        ente: {
+          type: "object",
+          properties: {
+            nome: { type: "string" },
+            id: { type: "string" },
+            indirizzo: { type: "string" }
+          }
+        },
+        trainer: {
+          type: "object",
+          properties: {
+            nome_completo: { type: "string" }
+          }
+        },
+        partecipanti: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              id: { type: "string" },
+              nome: { type: "string" },
+              cognome: { type: "string" },
+              codice_fiscale: { type: "string" },
+              telefono: { type: "string" },
+              cellulare: { type: "string" },
+              email: { type: "string" },
+              programma: { type: "string" },
+              ufficio: { type: "string" },
+              case_manager: { type: "string" },
+              benefits: { type: "string" },
+              frequenza: { type: "string" }
+            },
+            required: ["id", "nome", "cognome"]
+          }
+        },
+        sessioni_raw: {
+          type: "array",
+          items: {
+            type: "object",
+            properties: {
+              data: { type: "string" },
+              ora_inizio: { type: "string" },
+              ora_fine: { type: "string" },
+              sede: { type: "string" },
+              tipo_sede: { type: "string" }
+            }
+          }
+        }
       },
-      body: JSON.stringify({
-        model: "google/gemini-2.5-flash",
-        messages: [
-          {
-            role: "system",
-            content: `Sei un esperto di estrazione dati da gestionali formativi italiani.
+      required: ["corso", "moduli", "partecipanti"]
+    }
+  }
+};
+
+/**
+ * System prompt for AI extraction
+ */
+const SYSTEM_PROMPT = `Sei un esperto di estrazione dati da gestionali formativi italiani.
 Analizza i dati forniti e estrai tutte le informazioni relative a:
 - Corso (ID, titolo, tipo, date, durata, capienza, stato, programma)
 - Moduli/Sezioni (ARRAY - uno o più moduli, ciascuno con: ID, ID Corso, ID Sezione, titolo, date inizio/fine, ore totali, durata, capienza, stato, tipo sede, provider)
@@ -209,7 +188,43 @@ IMPORTANTE GENERALE:
 - Per le date usa formato DD/MM/YYYY
 - Per gli orari usa formato HH:MM
 - Estrai TUTTI i partecipanti dall'elenco
-- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile`
+- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile`;
+
+// ============================================================================
+// MAIN HANDLER
+// ============================================================================
+
+serve(async (req) => {
+  // Handle CORS preflight
+  if (req.method === 'OPTIONS') {
+    return new Response(null, { headers: corsHeaders });
+  }
+
+  try {
+    // Parse request body
+    const { courseData, modulesData, participantsData }: ExtractionRequest = await req.json();
+
+    console.log("Starting extraction with Lovable AI...");
+
+    // Validate API key
+    const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
+    if (!LOVABLE_API_KEY) {
+      throw new Error("LOVABLE_API_KEY non configurata");
+    }
+
+    // Call Lovable AI Gateway with Gemini 2.5 Flash
+    const aiResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${LOVABLE_API_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model: "google/gemini-2.5-flash",
+        messages: [
+          {
+            role: "system",
+            content: SYSTEM_PROMPT
           },
           {
             role: "user",
@@ -225,219 +240,73 @@ ${modulesData}
 ${participantsData}`
           }
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "extract_course_data",
-              description: "Estrae tutti i dati del corso, modulo, partecipanti e sessioni",
-              parameters: {
-                type: "object",
-                properties: {
-                  corso: {
-                    type: "object",
-                    properties: {
-                      id: { type: "string" },
-                      titolo: { type: "string" },
-                      tipo: { type: "string" },
-                      data_inizio: { type: "string" },
-                      data_fine: { type: "string" },
-                      durata_totale: { type: "string" },
-                      ore_totali: { type: "string" },
-                      ore_rendicontabili: { type: "string" },
-                      stato: { type: "string" },
-                      capienza: { type: "string" },
-                      programma: { type: "string" }
-                    },
-                    required: ["id", "titolo"]
-                  },
-                  moduli: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        id_corso: { type: "string" },
-                        id_sezione: { type: "string" },
-                        titolo: { type: "string" },
-                        data_inizio: { type: "string" },
-                        data_fine: { type: "string" },
-                        ore_totali: { type: "string" },
-                        durata: { type: "string" },
-                        ore_rendicontabili: { type: "string" },
-                        capienza: { type: "string" },
-                        stato: { type: "string" },
-                        tipo_sede: { type: "string" },
-                        provider: { type: "string" },
-                        sessioni_raw: {
-                          type: "array",
-                          items: {
-                            type: "object",
-                            properties: {
-                              data: { type: "string" },
-                              ora_inizio: { type: "string" },
-                              ora_fine: { type: "string" },
-                              sede: { type: "string" },
-                              tipo_sede: { type: "string" }
-                            }
-                          }
-                        }
-                      },
-                      required: ["id", "id_corso", "id_sezione", "titolo"]
-                    }
-                  },
-                  sede: {
-                    type: "object",
-                    properties: {
-                      tipo: { type: "string" },
-                      nome: { type: "string" },
-                      modalita: { type: "string" },
-                      indirizzo: { type: "string" }
-                    }
-                  },
-                  ente: {
-                    type: "object",
-                    properties: {
-                      nome: { type: "string" },
-                      id: { type: "string" },
-                      indirizzo: { type: "string" }
-                    }
-                  },
-                  trainer: {
-                    type: "object",
-                    properties: {
-                      nome_completo: { type: "string" }
-                    }
-                  },
-                  partecipanti: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        id: { type: "string" },
-                        nome: { type: "string" },
-                        cognome: { type: "string" },
-                        codice_fiscale: { type: "string" },
-                        telefono: { type: "string" },
-                        cellulare: { type: "string" },
-                        email: { type: "string" },
-                        programma: { type: "string" },
-                        ufficio: { type: "string" },
-                        case_manager: { type: "string" },
-                        benefits: { type: "string" },
-                        frequenza: { type: "string" }
-                      },
-                      required: ["id", "nome", "cognome"]
-                    }
-                  },
-                  sessioni_raw: {
-                    type: "array",
-                    items: {
-                      type: "object",
-                      properties: {
-                        data: { type: "string" },
-                        ora_inizio: { type: "string" },
-                        ora_fine: { type: "string" },
-                        sede: { type: "string" },
-                        tipo_sede: { type: "string" }
-                      }
-                    }
-                  }
-                },
-                required: ["corso", "moduli", "partecipanti"]
-              }
-            }
-          }
-        ],
+        tools: [EXTRACTION_TOOL],
         tool_choice: { type: "function", function: { name: "extract_course_data" } }
       }),
     });
 
-    if (!response.ok) {
-      if (response.status === 429) {
+    // Handle API errors
+    if (!aiResponse.ok) {
+      if (aiResponse.status === 429) {
         return new Response(
           JSON.stringify({ error: "Rate limit exceeded. Riprova tra qualche secondo." }),
           { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      if (response.status === 402) {
+      if (aiResponse.status === 402) {
         return new Response(
           JSON.stringify({ error: "Crediti Lovable AI esauriti. Contatta l'amministratore." }),
           { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       }
-      const errorText = await response.text();
-      console.error("AI gateway error:", response.status, errorText);
+      const errorText = await aiResponse.text();
+      console.error("AI gateway error:", aiResponse.status, errorText);
       throw new Error("Errore chiamata AI gateway");
     }
 
-    const aiResponse = await response.json();
-    console.log("AI Response:", JSON.stringify(aiResponse, null, 2));
-    
+    // Parse AI response
+    const aiData = await aiResponse.json();
+    console.log("AI Response:", JSON.stringify(aiData, null, 2));
+
     // Extract tool call result
-    const toolCall = aiResponse.choices[0]?.message?.tool_calls?.[0];
+    const toolCall = aiData.choices[0]?.message?.tool_calls?.[0];
     if (!toolCall) {
       throw new Error("Nessun tool call nella risposta AI");
     }
-    
-    const extractedData = JSON.parse(toolCall.function.arguments);
+
+    const extractedData: AIExtractedData = JSON.parse(toolCall.function.arguments);
     console.log("Extracted raw data:", JSON.stringify(extractedData, null, 2));
 
-    // Post-processing dei dati estratti
-    
-    // Retrocompatibilità: convertire singolo modulo in array
-    let moduliRaw = extractedData.moduli || [];
+    // ========================================================================
+    // POST-PROCESSING
+    // ========================================================================
+
+    // Handle backward compatibility: convert single modulo to array
+    let moduliRaw: RawModulo[] = extractedData.moduli || [];
     if (extractedData.modulo && !extractedData.moduli) {
-      // Vecchio formato con singolo modulo
       moduliRaw = [extractedData.modulo];
     }
     if (!Array.isArray(moduliRaw)) {
       moduliRaw = [moduliRaw];
     }
-    
-    const corso = processCorso(extractedData.corso || {});
+
+    // Process all data
+    const corso = processCorso(extractedData.corso || {} as any);
     const trainer = processTrainer(extractedData.trainer || { nome_completo: "" });
     const partecipanti = processPartecipanti(extractedData.partecipanti || []);
-    
-    // Processa ogni modulo con le sue sessioni
-    const moduli_processati = moduliRaw.map((mod: any) => {
-      const sessioni_modulo_raw = mod.sessioni_raw || [];
-      const sessioni_modulo = generateSessioni(sessioni_modulo_raw);
-      const sessioni_presenza_modulo_raw = filterSessioniPresenza(sessioni_modulo_raw);
-      const sessioni_presenza_modulo = generateSessioni(sessioni_presenza_modulo_raw);
-      const { current, total } = parseCapienza(mod.capienza || "0/0");
-      
-      return {
-        id: mod.id || "",
-        titolo: mod.titolo || "",
-        id_corso: mod.id_corso || "",
-        id_sezione: mod.id_sezione || "",
-        data_inizio: mod.data_inizio || "",
-        data_fine: mod.data_fine || "",
-        ore_totali: mod.ore_totali || "",
-        durata: mod.durata || "",
-        ore_rendicontabili: mod.ore_rendicontabili || "",
-        capienza: mod.capienza || "0/0",
-        capienza_numero: current,
-        capienza_totale: total,
-        stato: mod.stato || "",
-        tipo_sede: mod.tipo_sede || "",
-        provider: mod.provider || "",
-        numero_sessioni: sessioni_modulo.length,
-        sessioni: sessioni_modulo,
-        sessioni_presenza: sessioni_presenza_modulo
-      };
-    });
-    
-    // Calcola aggregati per l'intero corso
-    const sessioni_totali = moduli_processati.flatMap((m: any) => m.sessioni);
-    const sessioni_presenza_totali = moduli_processati.flatMap((m: any) => m.sessioni_presenza);
-    
-    // Calcola numero pagine: (numero_sessioni_presenza_totali * 2) + 1
+
+    // Process each modulo with its sessions
+    const moduli_processati = moduliRaw.map(processModulo);
+
+    // Aggregate sessions across all modules
+    const sessioni_totali = moduli_processati.flatMap(m => m.sessioni);
+    const sessioni_presenza_totali = moduli_processati.flatMap(m => m.sessioni_presenza);
+
+    // Calculate number of pages: (numero_sessioni_presenza_totali * 2) + 1
     const numero_pagine = (sessioni_presenza_totali.length * 2) + 1;
 
-    // Build complete data structure
-    const completeData = {
+    // Build complete response structure
+    const completeData: ExtractionResponse = {
       corso,
       moduli: moduli_processati,
       sede: extractedData.sede || { tipo: "", nome: "", modalita: "", indirizzo: "" },
@@ -484,11 +353,11 @@ ${participantsData}`
         valutazione: "",
         eventi: []
       },
-      metadata: generateMetadata({ 
-        corso, 
-        moduli: moduli_processati, 
-        partecipanti, 
-        sessioni: sessioni_totali 
+      metadata: generateMetadata({
+        corso,
+        moduli: moduli_processati,
+        partecipanti,
+        sessioni: sessioni_totali
       })
     };
 
@@ -499,10 +368,11 @@ ${participantsData}`
       status: 200,
     });
 
-  } catch (error: any) {
+  } catch (error: unknown) {
+    const errorMessage = error instanceof Error ? error.message : "Errore interno";
     console.error("Error in extract-course-data:", error);
     return new Response(
-      JSON.stringify({ error: error.message || "Errore interno" }),
+      JSON.stringify({ error: errorMessage }),
       {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
