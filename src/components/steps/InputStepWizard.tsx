@@ -6,6 +6,7 @@ import { Sparkles, ChevronRight, ChevronLeft, FileText, Folder, Users } from "lu
 import { toast } from "sonner";
 import WizardProgress from "./WizardProgress";
 import { supabase } from "@/integrations/supabase/client";
+import { WIZARD_EXAMPLES } from "@/constants/examples";
 
 interface InputStepWizardProps {
   onComplete: (data: any) => void;
@@ -87,27 +88,10 @@ const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {
   };
 
   const handlePasteExample = (step: number) => {
-    const examples = {
-      1: `ID Corso: 21342
-Titolo: Corso di Formazione Professionale Avanzato
-Date corso: dal 19/08/2025 al 23/08/2025
-Ore totali: 40
-Sede: Aula Formativa - Via Roma 123, Milano
-Stato: Confermato`,
-      2: `Sezione: 13993
-Modulo: Modulo Base Operativo
-Orari: 09:00-13:00 / 14:00-18:00
-Trainer: Dott. Giovanni Verdi
-Provider: Ente Formazione Professionale`,
-      3: `PARTECIPANTI:
-1. Mario Rossi - CF: RSSMRA80A01H501Z - Email: mario.rossi@example.com - Tel: 3331234567
-2. Laura Bianchi - CF: BNCLRA85B42H501W - Email: laura.bianchi@example.com - Tel: 3339876543`
-    };
-    
-    if (step === 1) setCourseData(examples[1]);
-    if (step === 2) setModulesData(examples[2]);
-    if (step === 3) setParticipantsData(examples[3]);
-    
+    if (step === 1) setCourseData(WIZARD_EXAMPLES[1]);
+    if (step === 2) setModulesData(WIZARD_EXAMPLES[2]);
+    if (step === 3) setParticipantsData(WIZARD_EXAMPLES[3]);
+
     toast.success("Esempio caricato!");
   };
 
