@@ -12,6 +12,36 @@ import { saveAs } from 'file-saver';
 import type { CourseData } from '@/types/courseData';
 
 // ============================================================================
+// TYPES
+// ============================================================================
+
+interface ExportData {
+  version: string;
+  exportedAt: string;
+  exportedBy: string;
+  data: CourseData;
+}
+
+interface AutoSaveData {
+  savedAt: string;
+  data: CourseData;
+}
+
+interface ExportHistoryItem {
+  exportedAt: string;
+  courseId: string;
+  courseName: string;
+  participantsCount: number;
+  sessionsCount: number;
+}
+
+interface ValidationResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+}
+
+// ============================================================================
 // CONSTANTS
 // ============================================================================
 
@@ -34,7 +64,7 @@ const MAX_HISTORY_ITEMS = 10; // Keep last 10 exports in history
  * @param data - Course data to export
  * @param filename - Optional custom filename
  */
-export function exportDataAsJSON(data: any, filename?: string): void {
+export function exportDataAsJSON(data: CourseData, filename?: string): void {
   try {
     // Create export object with metadata
     const exportData = {
@@ -71,7 +101,7 @@ export function exportDataAsJSON(data: any, filename?: string): void {
  * Includes extraction metadata, warnings, and completeness info
  */
 export function exportExtractedDataWithMetadata(
-  data: any,
+  data: CourseData,
   extractionMetadata?: {
     source: string;
     templateUsed: string;
@@ -110,7 +140,7 @@ export function exportExtractedDataWithMetadata(
  * @param file - JSON file to import
  * @returns Validated course data
  */
-export async function importDataFromJSON(file: File): Promise<any> {
+export async function importDataFromJSON(file: File): Promise<CourseData> {
   try {
     // Read file
     const text = await file.text();
@@ -146,11 +176,7 @@ export async function importDataFromJSON(file: File): Promise<any> {
  * Validates imported JSON structure
  * Checks for required fields and data integrity
  */
-function validateImportedJSON(data: any): {
-  isValid: boolean;
-  errors: string[];
-  warnings: string[];
-} {
+function validateImportedJSON(data: unknown): ValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
 
@@ -204,7 +230,7 @@ function validateImportedJSON(data: any): {
  * Auto-saves data to localStorage as backup
  * Prevents data loss on browser crash/refresh
  */
-export function autoSaveData(data: any): void {
+export function autoSaveData(data: CourseData): void {
   try {
     const autoSaveData = {
       savedAt: new Date().toISOString(),
@@ -222,10 +248,7 @@ export function autoSaveData(data: any): void {
 /**
  * Loads auto-saved data from localStorage
  */
-export function loadAutoSavedData(): {
-  data: any;
-  savedAt: string;
-} | null {
+export function loadAutoSavedData(): AutoSaveData | null {
   try {
     const saved = localStorage.getItem(STORAGE_KEYS.AUTO_SAVE);
     if (!saved) return null;
@@ -269,7 +292,7 @@ export function hasAutoSavedData(): boolean {
 /**
  * Saves export to history
  */
-function saveToExportHistory(exportData: any): void {
+function saveToExportHistory(exportData: ExportData): void {
   try {
     const history = getExportHistory();
 
@@ -299,7 +322,7 @@ function saveToExportHistory(exportData: any): void {
 /**
  * Gets export history
  */
-export function getExportHistory(): any[] {
+export function getExportHistory(): ExportHistoryItem[] {
   try {
     const history = localStorage.getItem(STORAGE_KEYS.EXPORT_HISTORY);
     return history ? JSON.parse(history) : [];
@@ -326,7 +349,7 @@ export function clearExportHistory(): void {
 /**
  * Creates a backup copy with timestamp
  */
-export function createBackup(data: any, label?: string): void {
+export function createBackup(data: CourseData, label?: string): void {
   const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
   const courseId = data.corso?.id || 'NA';
   const backupLabel = label ? `_${label}` : '';
@@ -338,7 +361,7 @@ export function createBackup(data: any, label?: string): void {
 /**
  * Compares two data objects and returns differences
  */
-export function compareData(data1: any, data2: any): {
+export function compareData(data1: CourseData, data2: CourseData): {
   hasDifferences: boolean;
   differences: string[];
 } {
@@ -372,7 +395,7 @@ export function compareData(data1: any, data2: any): {
 /**
  * Sanitizes data for export (removes internal fields)
  */
-export function sanitizeDataForExport(data: any): any {
+export function sanitizeDataForExport(data: CourseData): CourseData {
   const sanitized = JSON.parse(JSON.stringify(data));
 
   // Remove internal validation fields

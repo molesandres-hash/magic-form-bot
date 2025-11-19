@@ -12,9 +12,7 @@
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import {
   CheckCircle2,
@@ -22,9 +20,6 @@ import {
   XCircle,
   Download,
   Upload,
-  Edit3,
-  Save,
-  X,
   FileJson,
   Copy,
   Eye,
@@ -72,14 +67,15 @@ const DataPreviewStep = ({
   onContinue,
   onBack,
 }: DataPreviewStepProps) => {
-  const [editMode, setEditMode] = useState<string | null>(null);
   const [editedData, setEditedData] = useState(data);
   const [showRawJSON, setShowRawJSON] = useState(false);
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
+  const [lastSaveTime, setLastSaveTime] = useState<Date>(new Date());
 
   // Auto-save on data change
   useEffect(() => {
     autoSaveData(editedData);
+    setLastSaveTime(new Date());
   }, [editedData]);
 
   // Validate data on mount and when data changes
@@ -153,23 +149,6 @@ const DataPreviewStep = ({
   };
 
   /**
-   * Handles field edit
-   */
-  const handleEditField = (path: string, value: any) => {
-    const keys = path.split('.');
-    const newData = JSON.parse(JSON.stringify(editedData));
-
-    let current = newData;
-    for (let i = 0; i < keys.length - 1; i++) {
-      current = current[keys[i]];
-    }
-    current[keys[keys.length - 1]] = value;
-
-    setEditedData(newData);
-    onDataChange(newData);
-  };
-
-  /**
    * Handles JSON export
    */
   const handleExport = () => {
@@ -211,18 +190,6 @@ const DataPreviewStep = ({
       toast.success('JSON copiato negli appunti!');
     } catch (error) {
       toast.error('Impossibile copiare negli appunti');
-    }
-  };
-
-  /**
-   * Restores auto-saved data
-   */
-  const handleRestoreAutoSave = () => {
-    const autoSaved = loadAutoSavedData();
-    if (autoSaved) {
-      setEditedData(autoSaved.data);
-      onDataChange(autoSaved.data);
-      toast.success(`Dati ripristinati (salvati: ${new Date(autoSaved.savedAt).toLocaleString('it-IT')})`);
     }
   };
 
@@ -562,7 +529,7 @@ const DataPreviewStep = ({
       {/* Auto-save Indicator */}
       <p className="text-xs text-center text-muted-foreground">
         💾 Salvataggio automatico attivo • Ultima modifica:{' '}
-        {new Date().toLocaleTimeString('it-IT')}
+        {lastSaveTime.toLocaleTimeString('it-IT')}
       </p>
     </div>
   );

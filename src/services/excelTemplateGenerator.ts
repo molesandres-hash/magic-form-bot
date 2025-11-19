@@ -14,6 +14,31 @@ import { saveAs } from 'file-saver';
 import type { ExcelColumnDefinition } from '@/types/templateConfig';
 
 // ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/** Lunch break start hour (13:00) */
+const LUNCH_BREAK_START_HOUR = 13;
+
+/** Lunch break end hour (14:00) */
+const LUNCH_BREAK_END_HOUR = 14;
+
+/** Minutes per hour */
+const MINUTES_PER_HOUR = 60;
+
+/** TIPOLOGIA value for office/in-person sessions */
+const TIPOLOGIA_OFFICE = '1';
+
+/** TIPOLOGIA value for online/FAD sessions */
+const TIPOLOGIA_ONLINE = '4';
+
+/** SVOLGIMENTO value for office sessions */
+const SVOLGIMENTO_OFFICE = '1';
+
+/** SVOLGIMENTO value for online sessions */
+const SVOLGIMENTO_ONLINE = '';
+
+// ============================================================================
 // TYPES
 // ============================================================================
 
@@ -59,8 +84,8 @@ function determineTipologiaAndSvolgimento(luogo: string): {
     luogoLower.includes('presenza');
 
   return {
-    tipologia: isOffice ? '1' : '4',
-    svolgimento: isOffice ? '1' : '',
+    tipologia: isOffice ? TIPOLOGIA_OFFICE : TIPOLOGIA_ONLINE,
+    svolgimento: isOffice ? SVOLGIMENTO_OFFICE : SVOLGIMENTO_ONLINE,
   };
 }
 
@@ -82,9 +107,49 @@ function splitIntoHourlyBlocks(
 ): Array<{ ora_inizio: string; ora_fine: string; durata: string }> {
   const blocks: Array<{ ora_inizio: string; ora_fine: string; durata: string }> = [];
 
+  // Validate input
+  if (!oraInizio || !oraFine) {
+    console.warn('Missing start or end time');
+    return blocks;
+  }
+
+  // Validate time format
+  const timeRegex = /^\d{1,2}:\d{2}$/;
+  if (!timeRegex.test(oraInizio) || !timeRegex.test(oraFine)) {
+    console.warn('Invalid time format. Expected HH:MM');
+    return blocks;
+  }
+
   // Parse times
-  const [startHour, startMin] = oraInizio.split(':').map(Number);
-  const [endHour, endMin] = oraFine.split(':').map(Number);
+  const startParts = oraInizio.split(':').map(Number);
+  const endParts = oraFine.split(':').map(Number);
+
+  if (startParts.some(isNaN) || endParts.some(isNaN)) {
+    console.warn('Invalid time values');
+    return blocks;
+  }
+
+  const [startHour, startMin] = startParts;
+  const [endHour, endMin] = endParts;
+
+  // Validate hour/minute ranges
+  if (startHour < 0 || startHour > 23 || endHour < 0 || endHour > 23 ||
+      startMin < 0 || startMin > 59 || endMin < 0 || endMin > 59) {
+    console.warn('Invalid hour or minute values');
+    return blocks;
+  }
+
+  // Check if end time is after start time
+  const startMinutes = startHour * 60 + startMin;
+  const endMinutes = endHour * 60 + endMin;
+  if (endMinutes <= startMinutes) {
+    console.warn('End time must be after start time');
+    return blocks;
+  }
+
+  // Lunch break constants (in minutes since midnight)
+  const LUNCH_START = LUNCH_BREAK_START_HOUR * MINUTES_PER_HOUR; // 780 minutes (13:00)
+  const LUNCH_END = LUNCH_BREAK_END_HOUR * MINUTES_PER_HOUR;     // 840 minutes (14:00)
 
   let currentHour = startHour;
   let currentMin = startMin;
@@ -103,8 +168,15 @@ function splitIntoHourlyBlocks(
     const blockStart = `${String(currentHour).padStart(2, '0')}:${String(currentMin).padStart(2, '0')}`;
     const blockEnd = `${String(nextHour).padStart(2, '0')}:${String(nextMin).padStart(2, '0')}`;
 
-    // SKIP LUNCH BREAK (13:00-14:00)
-    if (!(currentHour === 13 && nextHour === 14)) {
+    // Convert current block times to minutes for comparison
+    const blockStartMinutes = currentHour * 60 + currentMin;
+    const blockEndMinutes = nextHour * 60 + nextMin;
+
+    // Skip if block overlaps with lunch break (13:00-14:00)
+    // A block overlaps if it starts before lunch ends AND ends after lunch starts
+    const overlapsLunch = blockStartMinutes < LUNCH_END && blockEndMinutes > LUNCH_START;
+
+    if (!overlapsLunch) {
       blocks.push({
         ora_inizio: blockStart,
         ora_fine: blockEnd,
@@ -130,7 +202,24 @@ export function processSessionsIntoRows(
 ): ExcelRowData[] {
   const rows: ExcelRowData[] = [];
 
-  sessions.forEach((session) => {
+  // Validate inputs
+  if (!sessions || !Array.isArray(sessions)) {
+    console.warn('Invalid sessions array');
+    return rows;
+  }
+
+  sessions.forEach((session, index) => {
+    // Validate session data
+    if (!session) {
+      console.warn(`Session at index ${index} is null or undefined`);
+      return;
+    }
+
+    if (!session.data || !session.ora_inizio || !session.ora_fine || !session.luogo) {
+      console.warn(`Session at index ${index} is missing required fields`, session);
+      return;
+    }
+
     const { tipologia, svolgimento } = determineTipologiaAndSvolgimento(session.luogo);
 
     // Split into hourly blocks
@@ -138,15 +227,15 @@ export function processSessionsIntoRows(
 
     blocks.forEach((block) => {
       rows.push({
-        ID_SEZIONE: idSezione,
-        DATA_LEZIONE: session.data,
+        ID_SEZIONE: idSezione || '',
+        DATA_LEZIONE: session.data || '',
         TOTALE_ORE: block.durata,
         ORA_INIZIO: block.ora_inizio,
         ORA_FINE: block.ora_fine,
         TIPOLOGIA: tipologia,
-        CODICE_FISCALE_DOCENTE: codiceFiscaleDocente,
-        MATERIA: materia,
-        CONTENUTI_MATERIA: materia, // Same as MATERIA as per requirements
+        CODICE_FISCALE_DOCENTE: codiceFiscaleDocente || '',
+        MATERIA: materia || '',
+        CONTENUTI_MATERIA: materia || '', // Same as MATERIA as per requirements
         SVOLGIMENTO_SEDE_LEZIONE: svolgimento,
       });
     });

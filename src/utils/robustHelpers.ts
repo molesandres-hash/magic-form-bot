@@ -9,6 +9,20 @@
  */
 
 import { toast } from 'sonner';
+import type { CourseData } from '@/types/courseData';
+
+// ============================================================================
+// CONSTANTS
+// ============================================================================
+
+/** Default maximum retry attempts for failed operations */
+const DEFAULT_MAX_RETRY_ATTEMPTS = 3;
+
+/** Default delay in milliseconds before retry */
+const DEFAULT_RETRY_DELAY_MS = 1000;
+
+/** Default backoff multiplier for exponential backoff */
+const DEFAULT_BACKOFF_MULTIPLIER = 2;
 
 // ============================================================================
 // SAFE DATA ACCESS
@@ -105,9 +119,9 @@ export async function withRetry<T>(
   options: RetryOptions = {}
 ): Promise<T> {
   const {
-    maxAttempts = 3,
-    delayMs = 1000,
-    backoffMultiplier = 2,
+    maxAttempts = DEFAULT_MAX_RETRY_ATTEMPTS,
+    delayMs = DEFAULT_RETRY_DELAY_MS,
+    backoffMultiplier = DEFAULT_BACKOFF_MULTIPLIER,
     onRetry,
   } = options;
 
@@ -241,8 +255,8 @@ export function normalizeEmail(email: string): string {
  * Validates and normalizes course data
  * Returns normalized data with validation warnings
  */
-export function validateAndNormalizeData(data: any): {
-  normalizedData: any;
+export function validateAndNormalizeData(data: CourseData): {
+  normalizedData: CourseData;
   warnings: string[];
   errors: string[];
 } {
@@ -323,7 +337,7 @@ export function validateAndNormalizeData(data: any): {
 /**
  * Attempts to recover data from multiple sources
  */
-export function recoverData(): any | null {
+export function recoverData(): CourseData | null {
   const sources = [
     // 1. Auto-save
     () => {
