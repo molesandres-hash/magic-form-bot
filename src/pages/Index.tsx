@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Sparkles, CheckCircle, Download, LogOut, Settings, Key } from "lucide-react";
+import { FileText, Sparkles, CheckCircle, Download, LogOut, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
@@ -8,7 +8,7 @@ import { toast } from "sonner";
 import InputStepWizard from "@/components/steps/InputStepWizard";
 import CompletionStepExpanded from "@/components/steps/CompletionStepExpanded";
 import GenerationStep from "@/components/steps/GenerationStep";
-import ApiKeyDialog from "@/components/dialogs/ApiKeyDialog";
+import SettingsDialog from "@/components/dialogs/SettingsDialog";
 import { useAuth } from "@/hooks/useAuth";
 import type { CourseData } from "@/types/courseData";
 
@@ -23,7 +23,7 @@ const Index = () => {
   const [extractedData, setExtractedData] = useState<CourseData | null>(null);
   const [completedData, setCompletedData] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
-  const [showApiKeyDialog, setShowApiKeyDialog] = useState(false);
+  const [showSettingsDialog, setShowSettingsDialog] = useState(false);
 
   // Removed authentication requirement for main page
 
@@ -88,9 +88,9 @@ const Index = () => {
               </div>
             </div>
             <div className="flex gap-2">
-              <Button variant="outline" onClick={() => setShowApiKeyDialog(true)}>
-                <Key className="mr-2 h-4 w-4" />
-                API Key
+              <Button variant="outline" onClick={() => setShowSettingsDialog(true)}>
+                <Settings className="mr-2 h-4 w-4" />
+                Impostazioni
               </Button>
               {user ? (
                 <>
@@ -176,8 +176,8 @@ const Index = () => {
         </div>
       </div>
 
-      {/* API Key Dialog */}
-      <ApiKeyDialog open={showApiKeyDialog} onOpenChange={setShowApiKeyDialog} />
+      {/* Settings Dialog */}
+      <SettingsDialog open={showSettingsDialog} onOpenChange={setShowSettingsDialog} />
     </div>
   );
 };
