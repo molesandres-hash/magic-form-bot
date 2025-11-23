@@ -61,7 +61,7 @@ export function EntiResponsabiliManager() {
 
       setEnti(entiRes.data || []);
       setResponsabili(responsabiliRes.data || []);
-    } catch (error: any) {
+    } catch (error: Error) {
       toast.error("Errore caricamento dati: " + error.message);
     } finally {
       setLoading(false);

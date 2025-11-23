@@ -1,18 +1,19 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { FileText, Sparkles, CheckCircle, Download, LogOut, Settings } from "lucide-react";
+import { FileText, Sparkles, CheckCircle, Download, LogOut, Settings, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import InputStepWizard from "@/components/steps/InputStepWizard";
+import AdditionalDataStep, { AdditionalData } from "@/components/steps/AdditionalDataStep";
 import CompletionStepExpanded from "@/components/steps/CompletionStepExpanded";
 import GenerationStep from "@/components/steps/GenerationStep";
 import SettingsDialog from "@/components/dialogs/SettingsDialog";
 import { useAuth } from "@/hooks/useAuth";
 import type { CourseData } from "@/types/courseData";
 
-type Step = "input" | "completion" | "generation";
+type Step = "input" | "additional" | "completion" | "generation";
 
 // Removed unused ExtractedData interface - using CourseData from types instead
 
@@ -21,6 +22,7 @@ const Index = () => {
   const { user, session, loading: authLoading } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>("input");
   const [extractedData, setExtractedData] = useState<CourseData | null>(null);
+  const [additionalData, setAdditionalData] = useState<AdditionalData | null>(null);
   const [completedData, setCompletedData] = useState<any>(null);
   const [isAdmin, setIsAdmin] = useState(false);
   const [showSettingsDialog, setShowSettingsDialog] = useState(false);
@@ -35,14 +37,14 @@ const Index = () => {
 
   const checkAdminRole = async () => {
     if (!user) return;
-    
+
     const { data } = await supabase
       .from("user_roles")
       .select("role")
       .eq("user_id", user.id)
       .eq("role", "admin")
       .maybeSingle();
-    
+
     setIsAdmin(!!data);
   };
 
@@ -55,13 +57,51 @@ const Index = () => {
   // No loading screen needed - app is accessible without auth
 
   const steps = [
-    { id: "input", label: "Incolla Dati", icon: FileText, completed: ["completion", "generation"].includes(currentStep) },
+    { id: "input", label: "Incolla Dati", icon: FileText, completed: ["additional", "completion", "generation"].includes(currentStep) },
+    { id: "additional", label: "Dati Aggiuntivi", icon: UserCheck, completed: ["completion", "generation"].includes(currentStep) },
     { id: "completion", label: "Completa Dati", icon: CheckCircle, completed: currentStep === "generation" },
     { id: "generation", label: "Genera Documenti", icon: Download, completed: false },
   ];
 
   const handleInputComplete = (data: CourseData) => {
     setExtractedData(data);
+    setCurrentStep("additional");
+  };
+
+  const handleAdditionalComplete = (data: AdditionalData) => {
+    setAdditionalData(data);
+
+    // Merge additional data into extracted data
+    if (extractedData) {
+      const updatedData = {
+        ...extractedData,
+        trainer: {
+          ...extractedData.trainer,
+          nome: data.nomeDocente || extractedData.trainer?.nome,
+          cognome: data.cognomeDocente || extractedData.trainer?.cognome,
+          codice_fiscale: data.codiceFiscaleDocente || extractedData.trainer?.codice_fiscale,
+          nome_completo: `${data.nomeDocente || ''} ${data.cognomeDocente || ''}`.trim() || extractedData.trainer?.nome_completo,
+        },
+        sede: {
+          ...extractedData.sede,
+          nome: data.sedeAccreditata || extractedData.sede?.nome,
+          indirizzo: data.indirizzoSede || extractedData.sede?.indirizzo,
+        },
+        ente: {
+          ...extractedData.ente,
+          nome: data.nomeEnte || extractedData.ente?.nome,
+          indirizzo: data.indirizzoEnte || extractedData.ente?.indirizzo,
+        },
+        fad_info: {
+          ...extractedData.fad_info,
+          piattaforma: data.piattaforma || extractedData.fad_info?.piattaforma,
+          link_zoom: data.linkZoom, // Add link zoom if supported in types
+        },
+        // Add note if supported
+      };
+      setExtractedData(updatedData);
+    }
+
     setCurrentStep("completion");
   };
 
@@ -121,10 +161,10 @@ const Index = () => {
           <div className="flex items-center justify-between relative">
             {/* Progress Line */}
             <div className="absolute left-0 right-0 top-6 h-0.5 bg-muted -z-10">
-              <div 
+              <div
                 className="h-full bg-gradient-to-r from-primary to-accent transition-all duration-500"
-                style={{ 
-                  width: `${(steps.findIndex(s => s.id === currentStep) / (steps.length - 1)) * 100}%` 
+                style={{
+                  width: `${(steps.findIndex(s => s.id === currentStep) / (steps.length - 1)) * 100}%`
                 }}
               />
             </div>
@@ -136,7 +176,7 @@ const Index = () => {
 
               return (
                 <div key={step.id} className="flex flex-col items-center gap-2 relative z-10">
-                  <div 
+                  <div
                     className={`
                       h-12 w-12 rounded-full flex items-center justify-center transition-all duration-300
                       ${isActive ? "bg-gradient-to-br from-primary to-accent shadow-lg scale-110" : ""}
@@ -160,15 +200,34 @@ const Index = () => {
           {currentStep === "input" && (
             <InputStepWizard onComplete={handleInputComplete} />
           )}
-          {currentStep === "completion" && extractedData && (
-            <CompletionStepExpanded 
-              extractedData={extractedData}
-              onComplete={handleCompletionComplete}
+
+          {currentStep === "additional" && extractedData && (
+            <AdditionalDataStep
+              onComplete={handleAdditionalComplete}
               onBack={() => setCurrentStep("input")}
+              initialData={{
+                codiceFiscaleDocente: extractedData.trainer?.codice_fiscale,
+                nomeDocente: extractedData.trainer?.nome,
+                cognomeDocente: extractedData.trainer?.cognome,
+                sedeAccreditata: extractedData.sede?.nome,
+                indirizzoSede: extractedData.sede?.indirizzo,
+                nomeEnte: extractedData.ente?.nome,
+                indirizzoEnte: extractedData.ente?.indirizzo,
+                piattaforma: extractedData.fad_info?.piattaforma,
+              }}
             />
           )}
+
+          {currentStep === "completion" && extractedData && (
+            <CompletionStepExpanded
+              extractedData={extractedData}
+              onComplete={handleCompletionComplete}
+              onBack={() => setCurrentStep("additional")}
+            />
+          )}
+
           {currentStep === "generation" && completedData && (
-            <GenerationStep 
+            <GenerationStep
               data={completedData}
               onBack={() => setCurrentStep("completion")}
             />

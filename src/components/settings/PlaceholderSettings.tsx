@@ -307,7 +307,7 @@ const PlaceholderSettings = () => {
                     <Label htmlFor="new-type">Tipo</Label>
                     <Select
                       value={newPlaceholder.type}
-                      onValueChange={(value: any) =>
+                      onValueChange={(value: CustomPlaceholder['type']) =>
                         setNewPlaceholder((p) => ({ ...p, type: value }))
                       }
                     >
@@ -327,7 +327,7 @@ const PlaceholderSettings = () => {
                     <Label htmlFor="new-category">Categoria</Label>
                     <Select
                       value={newPlaceholder.category}
-                      onValueChange={(value: any) =>
+                      onValueChange={(value: CustomPlaceholder['category']) =>
                         setNewPlaceholder((p) => ({ ...p, category: value }))
                       }
                     >

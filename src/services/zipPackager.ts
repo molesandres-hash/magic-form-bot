@@ -1,3 +1,4 @@
+
 /**
  * ZIP Packager Service
  *
@@ -24,19 +25,18 @@ import {
   generateModelloFAD,
 } from './wordDocumentGenerator';
 import * as XLSX from 'xlsx';
+import { loadFolderStructureSettings } from '@/components/settings/FolderStructureSettings';
+import {
+  SYSTEM_TEMPLATES,
+  createLocalTemplateGenerator,
+  createDbTemplateGenerator,
+  type TemplateGenerator
+} from './templateRegistry';
+import { supabase } from '@/integrations/supabase/client';
 
 // ============================================================================
 // CONSTANTS - Folder structure and configuration
 // ============================================================================
-
-/**
- * ZIP Archive structure
- * Why: Standardized folder names for consistent user experience
- */
-const FOLDER_STRUCTURE = {
-  DOCUMENTS: 'Documenti',  // Word documents folder
-  EXCEL: 'Excel',          // Excel files folder
-} as const;
 
 /**
  * File naming patterns
@@ -50,21 +50,6 @@ const FILE_PREFIX = {
   PARTICIPANTS: 'Partecipanti',
   ATTENDANCE: 'Registro_Presenze',
   REPORT: 'Report_Completo',
-} as const;
-
-/**
- * Excel column widths for consistent formatting
- * Why: Prevents text truncation in generated spreadsheets
- */
-const EXCEL_COLUMN_WIDTHS = {
-  TINY: 8,      // Numbers, checkmarks
-  SMALL: 12,    // Dates, short text
-  MEDIUM: 15,   // Names, codes
-  LARGE: 20,    // Addresses
-  XLARGE: 25,   // Titles
-  XXLARGE: 30,  // Emails, long text
-  XXXLARGE: 40, // Very long fields
-  MEGA: 50,     // Full descriptions
 } as const;
 
 /**
@@ -83,75 +68,90 @@ export async function createCompleteZIPPackage(data: CourseData): Promise<void> 
     const zip = new JSZip();
     const courseId = data.corso?.id || 'N_A';
     const courseTitle = data.corso?.titolo || 'Corso';
+    const settings = loadFolderStructureSettings();
 
-    // Create logical folder structure
-    // Why: Separates document types for better organization
-    const documentiFolder = zip.folder(FOLDER_STRUCTURE.DOCUMENTS);
-    const excelFolder = zip.folder(FOLDER_STRUCTURE.EXCEL);
+    // 1. Resolve all available templates (System, Local, DB)
+    const templateMap = await resolveAllTemplates();
 
-    // ========================================================================
-    // STEP 1: Generate and add Word documents
-    // ========================================================================
-    console.log('Generating Word documents...');
-
-    // Registro Didattico - Educational register (always generated)
-    const registroBlob = await generateRegistroDidattico(data);
-    documentiFolder?.file(`${FILE_PREFIX.REGISTRO}_${courseId}.docx`, registroBlob);
-
-    // Verbale Partecipazione - Participation report (always generated)
-    const verbalePartBlob = await generateVerbalePartecipazione(data);
-    documentiFolder?.file(`${FILE_PREFIX.VERBALE_PART}_${courseId}.docx`, verbalePartBlob);
-
-    // Verbale Scrutinio - Examination report (always generated)
-    const verbaleScrutBlob = await generateVerbaleScrutinio(data);
-    documentiFolder?.file(`${FILE_PREFIX.VERBALE_SCRUT}_${courseId}.docx`, verbaleScrutBlob);
-
-    // Modello FAD - E-learning calendar (conditional: only if FAD sessions exist)
-    // Why conditional: Not all courses have distance learning components
-    if (shouldGenerateFAD(data)) {
-      const fadBlob = await generateModelloFAD(data);
-      documentiFolder?.file(`${FILE_PREFIX.FAD}_${courseId}.docx`, fadBlob);
+    // 2. Create Root Folder (if configured)
+    // Default pattern: "{ID_CORSO} - {NOME_CORSO}" if not specified
+    let rootFolder = zip;
+    if (settings.rootFolderName) {
+      const rootName = settings.rootFolderName
+        .replace('{ID_CORSO}', courseId)
+        .replace('{NOME_CORSO}', sanitizeFilename(courseTitle));
+      rootFolder = zip.folder(rootName) || zip;
+    } else {
+      // Default behavior: Use course ID and title
+      const rootName = `${courseId} - ${sanitizeFilename(courseTitle)}`;
+      rootFolder = zip.folder(rootName) || zip;
     }
 
-    // ========================================================================
-    // STEP 2: Generate and add Excel files
-    // ========================================================================
-    console.log('Generating Excel files...');
+    // 3. Iterate configured folders
+    for (const folderDef of settings.folders) {
+      if (!folderDef.enabled) continue;
 
-    // Participants list - Detailed participant information
-    const participantsExcel = generateParticipantsExcelBlob(data);
-    excelFolder?.file(`${FILE_PREFIX.PARTICIPANTS}_${courseId}.xlsx`, participantsExcel);
+      const zipFolder = rootFolder.folder(folderDef.name);
+      if (!zipFolder) continue;
 
-    // Attendance register - Empty template for marking attendance
-    const attendanceExcel = generateAttendanceExcelBlob(data);
-    excelFolder?.file(`${FILE_PREFIX.ATTENDANCE}_${courseId}.xlsx`, attendanceExcel);
+      // 3a. Generate assigned templates
+      if (folderDef.assignedTemplates) {
+        for (const templateId of folderDef.assignedTemplates) {
+          const templateInfo = templateMap.get(templateId);
+          if (templateInfo) {
+            console.log(`Generating template ${templateInfo.name} for folder ${folderDef.name}...`);
+            try {
+              const blob = await templateInfo.generator(data);
+              if (blob) {
+                // Use configured filename or default
+                const filename = `${templateInfo.filename}_${courseId}.docx`;
+                zipFolder.file(filename, blob);
+              }
+            } catch (err) {
+              console.error(`Failed to generate template ${templateId}`, err);
+            }
+          }
+        }
+      }
 
-    // Complete report - All course data in spreadsheet format
-    const reportExcel = generateCourseReportExcelBlob(data);
-    excelFolder?.file(`${FILE_PREFIX.REPORT}_${courseId}.xlsx`, reportExcel);
+      // 3b. Generate Excel files (Legacy support or if explicitly assigned)
+      // For now, if folder accepts 'xlsx', we put standard Excel files there
+      // TODO: Make Excel files also configurable templates
+      if (folderDef.fileTypes.includes('xlsx')) {
+        // Participants list
+        const participantsExcel = generateParticipantsExcelBlob(data);
+        zipFolder.file(`${FILE_PREFIX.PARTICIPANTS}_${courseId}.xlsx`, participantsExcel);
 
-    // ========================================================================
-    // STEP 3: Create README file
-    // ========================================================================
-    // Why: Users need instructions and package contents overview
-    const readmeContent = generateREADME(data);
-    zip.file('README.txt', readmeContent);
+        // Attendance register
+        const attendanceExcel = generateAttendanceExcelBlob(data);
+        zipFolder.file(`${FILE_PREFIX.ATTENDANCE}_${courseId}.xlsx`, attendanceExcel);
 
-    // ========================================================================
-    // STEP 4: Create metadata JSON file
-    // ========================================================================
-    // Why: Machine-readable metadata for future processing/archival
-    const metadataContent = JSON.stringify(
-      {
-        corso: data.corso,
-        metadata: data.metadata,
-        generato_il: new Date().toISOString(),
-        sistema_versione: data.metadata?.versione_sistema || '2.1.0',
-      },
-      null,
-      2
-    );
-    zip.file('metadata.json', metadataContent);
+        // Complete report
+        const reportExcel = generateCourseReportExcelBlob(data);
+        zipFolder.file(`${FILE_PREFIX.REPORT}_${courseId}.xlsx`, reportExcel);
+      }
+    }
+
+    // 4. Add README (if enabled)
+    if (settings.generateReadme) {
+      const readmeContent = generateREADME(data);
+      rootFolder.file('README.txt', readmeContent);
+    }
+
+    // 5. Add Metadata (if enabled)
+    if (settings.generateMetadata) {
+      const metadataContent = JSON.stringify(
+        {
+          corso: data.corso,
+          metadata: data.metadata,
+          generato_il: new Date().toISOString(),
+          sistema_versione: data.metadata?.versione_sistema || '2.1.0',
+        },
+        null,
+        2
+      );
+      rootFolder.file('metadata.json', metadataContent);
+    }
 
     // ========================================================================
     // STEP 5: Generate and download ZIP archive
@@ -171,8 +171,74 @@ export async function createCompleteZIPPackage(data: CourseData): Promise<void> 
 }
 
 // ============================================================================
-// HELPER FUNCTIONS - Utility functions for ZIP creation
+// HELPER FUNCTIONS
 // ============================================================================
+
+interface ResolvedTemplate {
+  id: string;
+  name: string;
+  filename: string;
+  generator: TemplateGenerator;
+}
+
+/**
+ * Resolves all available templates into a map for easy lookup
+ */
+async function resolveAllTemplates(): Promise<Map<string, ResolvedTemplate>> {
+  const map = new Map<string, ResolvedTemplate>();
+
+  // 1. System Templates
+  Object.values(SYSTEM_TEMPLATES).forEach(t => {
+    map.set(t.id, {
+      id: t.id,
+      name: t.name,
+      filename: t.filename,
+      generator: t.generator
+    });
+  });
+
+  // 2. Local Templates
+  try {
+    const response = await fetch('/templates/manifest.json');
+    if (response.ok) {
+      const manifest = await response.json();
+      if (manifest.templates) {
+        manifest.templates.forEach((t: any) => {
+          map.set(t.id, {
+            id: t.id,
+            name: t.name,
+            filename: t.name, // Use name as filename base
+            generator: createLocalTemplateGenerator(t.path, t.filename)
+          });
+        });
+      }
+    }
+  } catch (e) {
+    console.error("Failed to load local templates manifest", e);
+  }
+
+  // 3. DB Templates
+  try {
+    const { data, error } = await supabase
+      .from("document_templates")
+      .select("*");
+
+    if (!error && data) {
+      data.forEach((t: any) => {
+        map.set(t.id, {
+          id: t.id,
+          name: t.name,
+          filename: t.name,
+          generator: createDbTemplateGenerator(t.file_path, t.file_name)
+        });
+      });
+    }
+  } catch (e) {
+    console.error("Failed to load DB templates", e);
+  }
+
+  return map;
+}
 
 /**
  * Determines if FAD (distance learning) document should be generated
@@ -324,27 +390,8 @@ Versione Sistema: ${data.metadata?.versione_sistema || '2.1.0'}
 CONTENUTO DEL PACCHETTO
 ========================================
 
-Cartella "Documenti/":
-- Registro_Didattico_${courseId}.docx
-  Registro didattico con elenco partecipanti e sessioni
-
-- Verbale_Partecipazione_${courseId}.docx
-  Verbale di partecipazione al corso
-
-- Verbale_Scrutinio_${courseId}.docx
-  Verbale di scrutinio finale
-
-${(data.sessioni || []).some((s) => s.is_fad) ? `- Modello_A_FAD_${courseId}.docx\n  Calendario formazione a distanza (FAD)\n` : ''}
-
-Cartella "Excel/":
-- Partecipanti_${courseId}.xlsx
-  Elenco completo partecipanti con dati di contatto
-
-- Registro_Presenze_${courseId}.xlsx
-  Foglio presenze da compilare per ogni sessione
-
-- Report_Completo_${courseId}.xlsx
-  Report completo con tutti i dati del corso
+Il contenuto di questo pacchetto è stato generato dinamicamente
+in base alla configurazione del sistema.
 
 File Root:
 - README.txt

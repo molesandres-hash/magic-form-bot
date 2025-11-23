@@ -84,7 +84,7 @@ class ErrorBoundary extends Component<Props, State> {
   /**
    * Attempts to extract any data from the error context
    */
-  extractDataFromError(error: Error): any | null {
+  extractDataFromError(error: Error): unknown | null {
     // This is a placeholder - implement based on your app's state management
     try {
       // Try to get data from localStorage auto-save

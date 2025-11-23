@@ -37,6 +37,15 @@ interface Template {
   created_at: string;
 }
 
+interface LocalTemplate {
+  id: string;
+  name: string;
+  filename: string;
+  path: string;
+  size: number;
+  lastModified: string;
+}
+
 const TEMPLATE_CATEGORIES = [
   { value: "registro_didattico", label: "📋 Registro Didattico", color: "bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200" },
   { value: "modulo_a_fad", label: "📝 Modulo A - FAD", color: "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200" },
@@ -49,10 +58,11 @@ const TEMPLATE_CATEGORIES = [
 
 const TemplateManager = () => {
   const [templates, setTemplates] = useState<Template[]>([]);
+  const [localTemplates, setLocalTemplates] = useState<LocalTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
   const [deleteId, setDeleteId] = useState<string | null>(null);
-  
+
   const [formData, setFormData] = useState({
     name: "",
     description: "",
@@ -66,6 +76,7 @@ const TemplateManager = () => {
 
   const loadTemplates = async () => {
     try {
+      // Load DB templates
       const { data, error } = await supabase
         .from("document_templates")
         .select("*")
@@ -73,7 +84,19 @@ const TemplateManager = () => {
 
       if (error) throw error;
       setTemplates(data || []);
-    } catch (error: any) {
+
+      // Load local templates
+      try {
+        const response = await fetch('/templates/manifest.json');
+        if (response.ok) {
+          const manifest = await response.json();
+          setLocalTemplates(manifest.templates || []);
+        }
+      } catch (e) {
+        console.log("No local templates manifest found");
+      }
+
+    } catch (error: Error) {
       toast.error("Errore nel caricamento dei template");
       console.error(error);
     } finally {
@@ -95,7 +118,7 @@ const TemplateManager = () => {
 
   const handleUpload = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     if (!formData.file || !formData.name || !formData.template_type) {
       toast.error("Compila tutti i campi obbligatori");
       return;
@@ -137,13 +160,13 @@ const TemplateManager = () => {
 
       toast.success("Template caricato con successo!");
       setFormData({ name: "", description: "", template_type: "registro_didattico", file: null });
-      
+
       // Reset file input
       const fileInput = document.getElementById("file-upload") as HTMLInputElement;
       if (fileInput) fileInput.value = "";
-      
+
       loadTemplates();
-    } catch (error: any) {
+    } catch (error: Error) {
       toast.error("Errore durante il caricamento");
       console.error(error);
     } finally {
@@ -175,7 +198,7 @@ const TemplateManager = () => {
 
       toast.success("Template eliminato");
       loadTemplates();
-    } catch (error: any) {
+    } catch (error: Error) {
       toast.error("Errore durante l'eliminazione");
       console.error(error);
     } finally {
@@ -199,7 +222,7 @@ const TemplateManager = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (error: any) {
+    } catch (error: Error) {
       toast.error("Errore durante il download");
       console.error(error);
     }
@@ -225,7 +248,7 @@ const TemplateManager = () => {
           <Upload className="h-5 w-5 text-primary" />
           Carica Nuovo Template
         </h3>
-        
+
         <form onSubmit={handleUpload} className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div className="space-y-2">
@@ -238,7 +261,7 @@ const TemplateManager = () => {
                 required
               />
             </div>
-            
+
             <div className="space-y-2">
               <Label htmlFor="type">Tipo Template *</Label>
               <Select
@@ -309,6 +332,38 @@ const TemplateManager = () => {
           Template Disponibili
         </h3>
 
+        {/* Local Templates Section */}
+        {localTemplates.length > 0 && (
+          <div className="mb-8">
+            <h4 className="text-md font-semibold mb-3 text-muted-foreground flex items-center gap-2">
+              <span className="bg-secondary px-2 py-1 rounded text-xs text-secondary-foreground">LOCALI</span>
+              Template dalla cartella pubblica
+            </h4>
+            <div className="grid gap-4">
+              {localTemplates.map((template) => (
+                <Card key={template.id} className="p-4 border-l-4 border-l-secondary">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <h4 className="font-semibold text-foreground">{template.name}</h4>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        File: {template.filename} • {(template.size / 1024).toFixed(1)} KB
+                      </p>
+                    </div>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => window.open(template.path, '_blank')}
+                    >
+                      <Download className="h-4 w-4 mr-2" />
+                      Scarica
+                    </Button>
+                  </div>
+                </Card>
+              ))}
+            </div>
+          </div>
+        )}
+
         {loading ? (
           <p className="text-center text-muted-foreground py-8">Caricamento...</p>
         ) : templates.length === 0 ? (
@@ -329,7 +384,7 @@ const TemplateManager = () => {
                       ({categoryTemplates.length} {categoryTemplates.length === 1 ? 'template' : 'template'})
                     </span>
                   </div>
-                  
+
                   <div className="space-y-2 ml-4">
                     {categoryTemplates.map((template) => (
                       <Card key={template.id} className="p-4 hover:shadow-md transition-shadow border-l-4 border-l-primary">
@@ -344,16 +399,16 @@ const TemplateManager = () => {
                                 v{template.version}
                               </span>
                               <span className="text-xs text-muted-foreground">
-                                {new Date(template.created_at).toLocaleDateString('it-IT', { 
-                                  day: '2-digit', 
-                                  month: 'short', 
-                                  year: 'numeric' 
+                                {new Date(template.created_at).toLocaleDateString('it-IT', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric'
                                 })}
                               </span>
                               <span className="text-xs text-muted-foreground">• {template.file_name}</span>
                             </div>
                           </div>
-                          
+
                           <div className="flex gap-2">
                             <Button
                               variant="outline"

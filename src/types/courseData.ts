@@ -57,7 +57,12 @@ export interface Modulo {
   // Sessioni specifiche del modulo
   sessioni: Sessione[];          // Sessioni di QUESTO modulo
   sessioni_presenza: Sessione[]; // Solo sessioni in presenza di QUESTO modulo
+  argomenti?: string[];          // Argomenti trattati nel modulo
 }
+
+// ... (Sede, Ente, Trainer, EnteAccreditato, ResponsabileCorso interfaces remain unchanged)
+
+
 
 export interface Sede {
   tipo: string;

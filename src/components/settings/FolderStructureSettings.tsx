@@ -25,6 +25,15 @@ import {
 import { toast } from 'sonner';
 import type { FolderDefinition, FolderStructureSettings } from '@/types/userSettings';
 import { DEFAULT_FOLDER_STRUCTURE } from '@/types/userSettings';
+import { SYSTEM_TEMPLATES } from '@/services/templateRegistry';
+import { Checkbox } from '@/components/ui/checkbox';
+import { ScrollArea } from '@/components/ui/scroll-area';
+
+interface TemplateOption {
+  id: string;
+  name: string;
+  type: 'system' | 'local' | 'db';
+}
 
 // ============================================================================
 // STORAGE HELPERS
@@ -60,6 +69,38 @@ function saveSettings(settings: FolderStructureSettings): void {
 const FolderStructureSettings = () => {
   const [settings, setSettings] = useState<FolderStructureSettings>(loadSettings());
   const [hasChanges, setHasChanges] = useState(false);
+  const [availableTemplates, setAvailableTemplates] = useState<TemplateOption[]>([]);
+
+  // Load available templates
+  useEffect(() => {
+    const loadTemplates = async () => {
+      const options: TemplateOption[] = [];
+
+      // 1. System Templates
+      Object.values(SYSTEM_TEMPLATES).forEach(t => {
+        options.push({ id: t.id, name: t.name, type: 'system' });
+      });
+
+      // 2. Local Templates
+      try {
+        const response = await fetch('/templates/manifest.json');
+        if (response.ok) {
+          const manifest = await response.json();
+          if (manifest.templates) {
+            manifest.templates.forEach((t: any) => {
+              options.push({ id: t.id, name: t.name, type: 'local' });
+            });
+          }
+        }
+      } catch (e) {
+        console.error("Failed to load local templates", e);
+      }
+
+      setAvailableTemplates(options);
+    };
+
+    loadTemplates();
+  }, []);
 
   // Track changes
   useEffect(() => {
@@ -181,6 +222,30 @@ const FolderStructureSettings = () => {
     toast.success('Nuova cartella aggiunta');
   };
 
+  /**
+   * Toggles a template assignment for a folder
+   */
+  const toggleTemplateAssignment = (folderId: string, templateId: string) => {
+    setSettings((prev) => ({
+      ...prev,
+      folders: prev.folders.map((f) => {
+        if (f.id !== folderId) return f;
+
+        const currentAssigned = f.assignedTemplates || [];
+        const isAssigned = currentAssigned.includes(templateId);
+
+        let newAssigned;
+        if (isAssigned) {
+          newAssigned = currentAssigned.filter(id => id !== templateId);
+        } else {
+          newAssigned = [...currentAssigned, templateId];
+        }
+
+        return { ...f, assignedTemplates: newAssigned };
+      }),
+    }));
+  };
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -236,11 +301,10 @@ const FolderStructureSettings = () => {
               .map((folder, index) => (
                 <Card
                   key={folder.id}
-                  className={`p-4 border-l-4 ${
-                    folder.enabled
+                  className={`p-4 border-l-4 ${folder.enabled
                       ? 'border-l-primary bg-card'
                       : 'border-l-muted bg-muted/20'
-                  }`}
+                    }`}
                 >
                   <div className="flex items-center gap-4">
                     {/* Drag Handle */}
@@ -312,6 +376,37 @@ const FolderStructureSettings = () => {
                       <Trash2 className="h-4 w-4" />
                     </Button>
                   </div>
+
+                  {/* Template Assignment Section */}
+                  {folder.enabled && (
+                    <div className="mt-4 pt-4 border-t">
+                      <Label className="text-xs font-semibold text-muted-foreground mb-2 block">
+                        TEMPLATE ASSEGNATI
+                      </Label>
+                      <ScrollArea className="h-32 w-full rounded-md border p-2">
+                        <div className="space-y-2">
+                          {availableTemplates.map((template) => (
+                            <div key={template.id} className="flex items-center space-x-2">
+                              <Checkbox
+                                id={`${folder.id}-${template.id}`}
+                                checked={(folder.assignedTemplates || []).includes(template.id)}
+                                onCheckedChange={() => toggleTemplateAssignment(folder.id, template.id)}
+                              />
+                              <label
+                                htmlFor={`${folder.id}-${template.id}`}
+                                className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+                              >
+                                {template.name}
+                                <span className="text-xs text-muted-foreground ml-1">
+                                  ({template.type})
+                                </span>
+                              </label>
+                            </div>
+                          ))}
+                        </div>
+                      </ScrollArea>
+                    </div>
+                  )}
                 </Card>
               ))}
           </div>

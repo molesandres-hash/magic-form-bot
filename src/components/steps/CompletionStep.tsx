@@ -13,9 +13,19 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 
+interface ExtractedDataType {
+  corso?: {
+    id?: string;
+    titolo?: string;
+    data_inizio?: string;
+    data_fine?: string;
+  };
+  partecipanti?: any[]; // Keep any for participants for now, can be refined later if needed
+}
+
 interface CompletionStepProps {
-  extractedData: any;
-  onComplete: (data: any) => void;
+  extractedData: ExtractedDataType;
+  onComplete: (data: ExtractedDataType & typeof formData) => void;
   onBack: () => void;
 }
 

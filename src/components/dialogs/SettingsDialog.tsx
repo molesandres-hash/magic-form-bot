@@ -5,10 +5,11 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Key, FolderOpen, FileText, Building2, Variable } from "lucide-react";
+import { Settings, Key, FolderOpen, FileText, Building2, Variable, Database } from "lucide-react";
 import ApiKeySettings from "@/components/settings/ApiKeySettings";
 import FolderStructureSettings from "@/components/settings/FolderStructureSettings";
 import PlaceholderSettings from "@/components/settings/PlaceholderSettings";
+import PredefinedDataSettings from "@/components/settings/PredefinedDataSettings";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -64,7 +65,7 @@ export default function SettingsDialog({ open, onOpenChange, defaultTab = "gener
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-4">
+          <TabsList className="grid w-full grid-cols-5">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Generali</span>
@@ -76,6 +77,10 @@ export default function SettingsDialog({ open, onOpenChange, defaultTab = "gener
             <TabsTrigger value="placeholders" className="flex items-center gap-2">
               <Variable className="h-4 w-4" />
               <span className="hidden sm:inline">Placeholder</span>
+            </TabsTrigger>
+            <TabsTrigger value="predefined" className="flex items-center gap-2">
+              <Database className="h-4 w-4" />
+              <span className="hidden sm:inline">Dati Predefiniti</span>
             </TabsTrigger>
             <TabsTrigger value="admin" className="flex items-center gap-2" disabled={!isAdmin && !user}>
               <Building2 className="h-4 w-4" />
@@ -96,6 +101,10 @@ export default function SettingsDialog({ open, onOpenChange, defaultTab = "gener
 
             <TabsContent value="placeholders" className="mt-0">
               <PlaceholderSettings />
+            </TabsContent>
+
+            <TabsContent value="predefined" className="mt-0">
+              <PredefinedDataSettings />
             </TabsContent>
 
             <TabsContent value="admin" className="mt-0">

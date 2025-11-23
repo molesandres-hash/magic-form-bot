@@ -1,424 +1,154 @@
-/**
- * Excel Generator Service
- *
- * Purpose: Generates Excel spreadsheets for course data, participants, and attendance
- * Creates three types of Excel files for course administration and tracking
- *
- * Clean Code Principles Applied:
- * - Single Responsibility: Each function generates one specific Excel type
- * - DRY: Common Excel creation patterns extracted to helpers
- * - Named Constants: Column widths and sheet names extracted
- * - Error Handling: Comprehensive error handling with logging
- * - Type Safety: Full TypeScript typing throughout
- *
- * Why Excel: Users need spreadsheets for data manipulation, attendance tracking, and reporting
- */
 
 import * as XLSX from 'xlsx';
 import { saveAs } from 'file-saver';
 import type { CourseData } from '@/types/courseData';
 
-// ============================================================================
-// CONSTANTS - Excel configuration and formatting
-// ============================================================================
-
 /**
- * Excel column widths for consistent formatting
- * Why: Prevents text truncation and ensures readability
- * Values are in character width units (wch)
+ * Generates an Excel attendance register with formulas
  */
-const COLUMN_WIDTHS = {
-  TINY: 8,       // Numbers, indices (e.g., "N.")
-  SMALL: 12,     // Short codes, dates
-  MEDIUM: 15,    // Names, phone numbers
-  LARGE: 18,     // Fiscal codes
-  XLARGE: 20,    // Longer text fields
-  XXLARGE: 25,   // Titles, addresses
-  XXXLARGE: 30,  // Emails, long descriptions
-  MEGA: 40,      // Very long fields
-  SUPER: 50,     // Maximum width fields
-} as const;
+export const generateAttendanceRegister = async (data: CourseData): Promise<void> => {
+  // 1. Prepare data structures
+  const participants = (data.partecipanti || []).sort((a, b) => a.numero - b.numero);
+  // Filter only presence sessions or use all? User said "calendario delle lezioni". 
+  // Usually attendance register is for all sessions.
+  const sessions = (data.sessioni || []).sort((a, b) => {
+    // Sort by date/time
+    const dateA = new Date(a.data_completa.split('/').reverse().join('-') + ' ' + a.ora_inizio_giornata);
+    const dateB = new Date(b.data_completa.split('/').reverse().join('-') + ' ' + b.ora_inizio_giornata);
+    return dateA.getTime() - dateB.getTime();
+  });
 
-/**
- * Sheet names for Excel workbooks
- * Why: Consistent naming across all generated files
- */
-const SHEET_NAMES = {
-  PARTICIPANTS: 'Partecipanti',
-  COURSE_INFO: 'Info Corso',
-  ATTENDANCE: 'Registro Presenze',
-  SESSIONS: 'Sessioni',
-  SUMMARY: 'Riepilogo Corso',
-  MODULES: 'Moduli',
-  ALL_SESSIONS: 'Tutte le Sessioni',
-  ENTITY: 'Ente e Sede',
-} as const;
-
-/**
- * Excel file MIME type
- * Why: Consistent MIME type for all Excel exports
- */
-const EXCEL_MIME_TYPE = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' as const;
-
-/**
- * Default values for missing data
- * Why: Prevents undefined/null errors in spreadsheets
- */
-const DEFAULTS = {
-  EMPTY_STRING: '',
-  ZERO: '0',
-  NOT_AVAILABLE: 'N/A',
-  YES: 'Sì',
-  NO: 'No',
-} as const;
-
-// ============================================================================
-// HELPER FUNCTIONS - Common Excel operations
-// ============================================================================
-
-/**
- * Creates an Excel blob from workbook
- * Why: DRY - Centralized blob creation logic
- *
- * @param workbook - XLSX workbook
- * @returns Blob ready for download
- */
-function createExcelBlob(workbook: XLSX.WorkBook): Blob {
-  const excelBuffer = XLSX.write(workbook, { bookType: 'xlsx', type: 'array' });
-  return new Blob([excelBuffer], { type: EXCEL_MIME_TYPE });
-}
-
-/**
- * Safely gets value or returns default
- * Why: Prevents undefined/null in Excel cells
- *
- * @param value - Value to check
- * @param defaultValue - Default if value is falsy
- * @returns Value or default
- */
-function getValueOrDefault(value: any, defaultValue: string = DEFAULTS.EMPTY_STRING): string {
-  return value || defaultValue;
-}
-
-/**
- * Converts boolean to Italian Yes/No
- * Why: Italian UI language consistency
- *
- * @param value - Boolean value
- * @returns "Sì" or "No"
- */
-function booleanToItalian(value: boolean | undefined): string {
-  return value ? DEFAULTS.YES : DEFAULTS.NO;
-}
-
-// ============================================================================
-// EXCEL GENERATORS - Main public API
-// ============================================================================
-
-/**
- * Generates a participants roster Excel file
- *
- * Purpose: Creates comprehensive participant list with validation status
- * Contains: Participant info, contact details, validation flags
- *
- * Why: Users need participant data in spreadsheet format for manipulation and reporting
- *
- * @param data - Complete course data
- */
-export function generateParticipantsExcel(data: CourseData): void {
-  try {
-    // Transform participant data to Excel-friendly format
-    // Why: Excel requires flat object structure with string headers
-    const participantsData = (data.partecipanti || []).map((p) => ({
-      'Numero': p.numero,
-      'Nome': p.nome,
-      'Cognome': p.cognome,
-      'Nome Completo': p.nome_completo,
-      'Codice Fiscale': p.codice_fiscale,
-      'Email': p.email,
-      'Telefono': p.telefono,
-      'Cellulare': getValueOrDefault(p.cellulare),
-      'Programma': getValueOrDefault(p.programma),
-      'Ufficio': getValueOrDefault(p.ufficio),
-      'Case Manager': getValueOrDefault(p.case_manager),
-      'Benefits': getValueOrDefault(p.benefits),
-      'CF Valido': booleanToItalian(p._validations?.cf_valid),
-      'Email Valida': booleanToItalian(p._validations?.email_valid),
-      'Telefono Valido': booleanToItalian(p._validations?.phone_valid),
-    }));
-
-    // Create worksheet from JSON data
-    const ws = XLSX.utils.json_to_sheet(participantsData);
-
-    // Set column widths for better readability
-    // Why: Auto-width doesn't work well, manual widths ensure no truncation
-    ws['!cols'] = [
-      { wch: COLUMN_WIDTHS.TINY },      // Numero
-      { wch: COLUMN_WIDTHS.MEDIUM },    // Nome
-      { wch: COLUMN_WIDTHS.MEDIUM },    // Cognome
-      { wch: COLUMN_WIDTHS.XXLARGE },   // Nome Completo
-      { wch: COLUMN_WIDTHS.LARGE },     // Codice Fiscale
-      { wch: COLUMN_WIDTHS.XXXLARGE },  // Email
-      { wch: COLUMN_WIDTHS.MEDIUM },    // Telefono
-      { wch: COLUMN_WIDTHS.MEDIUM },    // Cellulare
-      { wch: COLUMN_WIDTHS.XLARGE },    // Programma
-      { wch: COLUMN_WIDTHS.XLARGE },    // Ufficio
-      { wch: COLUMN_WIDTHS.XLARGE },    // Case Manager
-      { wch: COLUMN_WIDTHS.XLARGE },    // Benefits
-      { wch: COLUMN_WIDTHS.SMALL },     // CF Valido
-      { wch: COLUMN_WIDTHS.SMALL },     // Email Valida
-      { wch: COLUMN_WIDTHS.MEDIUM },    // Telefono Valido
-    ];
-
-    // Create workbook and add participants sheet
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, SHEET_NAMES.PARTICIPANTS);
-
-    // Add course info sheet for context
-    // Why: Users need course context when viewing participant list
-    const courseInfo = [
-      { Campo: 'ID Corso', Valore: getValueOrDefault(data.corso?.id, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Titolo', Valore: getValueOrDefault(data.corso?.titolo, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Tipo', Valore: getValueOrDefault(data.corso?.tipo, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Data Inizio', Valore: getValueOrDefault(data.corso?.data_inizio, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Data Fine', Valore: getValueOrDefault(data.corso?.data_fine, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Ore Totali', Valore: getValueOrDefault(data.corso?.ore_totali, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Stato', Valore: getValueOrDefault(data.corso?.stato, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Capienza', Valore: getValueOrDefault(data.corso?.capienza, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Numero Partecipanti', Valore: data.partecipanti_count.toString() },
-    ];
-
-    const wsInfo = XLSX.utils.json_to_sheet(courseInfo);
-    wsInfo['!cols'] = [{ wch: COLUMN_WIDTHS.XLARGE }, { wch: COLUMN_WIDTHS.SUPER }];
-    XLSX.utils.book_append_sheet(wb, wsInfo, SHEET_NAMES.COURSE_INFO);
-
-    // Generate and download Excel file
-    const blob = createExcelBlob(wb);
-    const filename = `Partecipanti_Corso_${data.corso?.id || 'N_A'}.xlsx`;
-    saveAs(blob, filename);
-
-    console.log(`Participants Excel generated: ${filename}`);
-  } catch (error: any) {
-    console.error('Error generating participants Excel:', error);
-    throw new Error(`Errore durante la generazione del file Excel partecipanti: ${error.message}`);
+  if (participants.length === 0 || sessions.length === 0) {
+    console.warn('No participants or sessions to generate register');
+    return;
   }
-}
 
-/**
- * Generates an attendance tracking Excel file
- *
- * Purpose: Creates empty attendance register for manual marking
- * Contains: Participants in rows, session dates in columns, totals
- *
- * Why: Users need pre-formatted spreadsheet to manually track attendance during sessions
- *
- * @param data - Complete course data
- */
-export function generateAttendanceExcel(data: CourseData): void {
-  try {
-    // Extract session dates for column headers
-    // Why: Only in-person sessions require attendance tracking
-    const sessionDates = (data.sessioni_presenza || []).map((s) => s.data_completa);
+  // 2. Create Worksheet
+  const wb = XLSX.utils.book_new();
+  const ws_data: any[][] = [];
 
-    // Prepare attendance grid
-    // Why: Rows = participants, Columns = sessions (empty for manual marking)
-    const attendanceData = (data.partecipanti || []).map((p) => {
-      const row: any = {
-        'Numero': p.numero,
-        'Nome Completo': p.nome_completo,
-        'Codice Fiscale': p.codice_fiscale,
-      };
+  // --- HEADERS (Row 1) ---
+  const headers = ['Nome Corsista'];
+  sessions.forEach(s => headers.push(s.data_completa)); // Dates as headers
+  headers.push('Totale Ore Corsista'); // Last column
+  ws_data.push(headers);
 
-      // Add empty column for each session date
-      // Why: Users will manually mark attendance (P/A/R)
-      sessionDates.forEach((date) => {
-        row[date] = DEFAULTS.EMPTY_STRING;
-      });
+  // --- PARTICIPANT ROWS (Row 2 to N+1) ---
+  // Start row index is 1 (0-based) -> Row 2 in Excel
+  const startRow = 2;
+  const numParticipants = participants.length;
+  const endRow = startRow + numParticipants - 1; // Excel row number of last participant
 
-      // Add calculated columns (empty for now, users can add formulas)
-      row['Totale Presenze'] = DEFAULTS.EMPTY_STRING;
-      row['Percentuale'] = DEFAULTS.EMPTY_STRING;
+  // Column indices
+  const firstDateColIdx = 1; // Column B (0-based index 1)
+  const lastDateColIdx = firstDateColIdx + sessions.length - 1;
+  const totalColIdx = lastDateColIdx + 1;
 
-      return row;
-    });
-
-    // Create worksheet
-    const ws = XLSX.utils.json_to_sheet(attendanceData);
-
-    // Set column widths dynamically based on number of sessions
-    // Why: Ensures all columns are visible without horizontal scrolling
-    const colWidths = [
-      { wch: COLUMN_WIDTHS.TINY },       // Numero
-      { wch: COLUMN_WIDTHS.XXLARGE },    // Nome Completo
-      { wch: COLUMN_WIDTHS.LARGE },      // Codice Fiscale
-      ...sessionDates.map(() => ({ wch: COLUMN_WIDTHS.SMALL })), // Session date columns
-      { wch: COLUMN_WIDTHS.MEDIUM },     // Totale Presenze
-      { wch: COLUMN_WIDTHS.SMALL },      // Percentuale
-    ];
-    ws['!cols'] = colWidths;
-
-    // Create workbook and add attendance sheet
-    const wb = XLSX.utils.book_new();
-    XLSX.utils.book_append_sheet(wb, ws, SHEET_NAMES.ATTENDANCE);
-
-    // Add sessions info sheet for reference
-    // Why: Users need to know what each session column represents
-    const sessionsInfo = (data.sessioni_presenza || []).map((s) => ({
-      'Numero': s.numero,
-      'Data': s.data_completa,
-      'Giorno': s.giorno_settimana,
-      'Orario': `${s.ora_inizio_giornata} - ${s.ora_fine_giornata}`,
-      'Sede': s.sede,
-    }));
-
-    const wsSessions = XLSX.utils.json_to_sheet(sessionsInfo);
-    wsSessions['!cols'] = [
-      { wch: COLUMN_WIDTHS.TINY },    // Numero
-      { wch: COLUMN_WIDTHS.SMALL },   // Data
-      { wch: COLUMN_WIDTHS.SMALL },   // Giorno
-      { wch: COLUMN_WIDTHS.XLARGE },  // Orario
-      { wch: COLUMN_WIDTHS.MEGA },    // Sede
-    ];
-    XLSX.utils.book_append_sheet(wb, wsSessions, SHEET_NAMES.SESSIONS);
-
-    // Generate and download Excel file
-    const blob = createExcelBlob(wb);
-    const filename = `Presenze_Corso_${data.corso?.id || 'N_A'}.xlsx`;
-    saveAs(blob, filename);
-
-    console.log(`Attendance Excel generated: ${filename}`);
-  } catch (error: any) {
-    console.error('Error generating attendance Excel:', error);
-    throw new Error(`Errore durante la generazione del registro presenze: ${error.message}`);
-  }
-}
-
-/**
- * Generates a detailed course report Excel file
- *
- * Purpose: Creates comprehensive multi-sheet report with all course data
- * Contains: Course summary, modules, sessions, participants, entity info
- *
- * Why: Users need complete data export for analysis, archival, and reporting
- *
- * @param data - Complete course data
- */
-export function generateCourseReportExcel(data: CourseData): void {
-  try {
-    const wb = XLSX.utils.book_new();
-
-    // ========================================================================
-    // SHEET 1: Course Summary - High-level course information
-    // ========================================================================
-    const courseSummary = [
-      { Campo: 'ID Corso', Valore: getValueOrDefault(data.corso?.id, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Titolo', Valore: getValueOrDefault(data.corso?.titolo, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Tipo', Valore: getValueOrDefault(data.corso?.tipo, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Data Inizio', Valore: getValueOrDefault(data.corso?.data_inizio, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Data Fine', Valore: getValueOrDefault(data.corso?.data_fine, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Anno', Valore: getValueOrDefault(data.corso?.anno, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Durata Totale', Valore: getValueOrDefault(data.corso?.durata_totale, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Ore Totali', Valore: getValueOrDefault(data.corso?.ore_totali, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Ore Rendicontabili', Valore: getValueOrDefault(data.corso?.ore_rendicontabili, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Stato', Valore: getValueOrDefault(data.corso?.stato, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Capienza', Valore: getValueOrDefault(data.corso?.capienza, DEFAULTS.NOT_AVAILABLE) },
-      { Campo: 'Iscritti/Totale', Valore: `${data.corso?.capienza_numero || 0}/${data.corso?.capienza_totale || 0}` },
-      { Campo: 'Numero Partecipanti', Valore: data.partecipanti_count.toString() },
-      { Campo: 'Numero Sessioni Totali', Valore: (data.sessioni || []).length.toString() },
-      { Campo: 'Numero Sessioni Presenza', Valore: (data.sessioni_presenza || []).length.toString() },
-    ];
-
-    const wsSummary = XLSX.utils.json_to_sheet(courseSummary);
-    wsSummary['!cols'] = [{ wch: COLUMN_WIDTHS.XXLARGE }, { wch: COLUMN_WIDTHS.SUPER }];
-    XLSX.utils.book_append_sheet(wb, wsSummary, SHEET_NAMES.SUMMARY);
-
-    // ========================================================================
-    // SHEET 2: Modules - Course module details (if multi-module course)
-    // ========================================================================
-    if (data.moduli && data.moduli.length > 0) {
-      const moduliData = data.moduli.map((m) => ({
-        'ID Modulo': m.id,
-        'ID Sezione': m.id_sezione,
-        'Titolo': m.titolo,
-        'Data Inizio': m.data_inizio,
-        'Data Fine': m.data_fine,
-        'Ore Totali': m.ore_totali,
-        'Durata': m.durata,
-        'Capienza': m.capienza,
-        'Stato': m.stato,
-        'Tipo Sede': m.tipo_sede,
-        'Provider': m.provider,
-        'Numero Sessioni': m.numero_sessioni,
-      }));
-
-      const wsModuli = XLSX.utils.json_to_sheet(moduliData);
-      XLSX.utils.book_append_sheet(wb, wsModuli, SHEET_NAMES.MODULES);
+  participants.forEach((p) => {
+    const row: any[] = [p.nome_completo];
+    // Empty cells for hours (or 0)
+    for (let i = 0; i < sessions.length; i++) {
+      row.push(''); // User will fill this
     }
+    // Placeholder for total formula (will be set via cell object directly later, or we can push a dummy)
+    row.push(0);
+    ws_data.push(row);
+  });
 
-    // ========================================================================
-    // SHEET 3: All Sessions - Complete session schedule
-    // ========================================================================
-    const allSessionsData = (data.sessioni || []).map((s) => ({
-      'Numero': s.numero,
-      'Data': s.data_completa,
-      'Giorno Settimana': s.giorno_settimana,
-      'Mese': s.mese,
-      'Anno': s.anno,
-      'Ora Inizio': s.ora_inizio_giornata,
-      'Ora Fine': s.ora_fine_giornata,
-      'Sede': s.sede,
-      'Tipo Sede': s.tipo_sede,
-      'FAD': booleanToItalian(s.is_fad),
-    }));
-
-    const wsSessions = XLSX.utils.json_to_sheet(allSessionsData);
-    XLSX.utils.book_append_sheet(wb, wsSessions, SHEET_NAMES.ALL_SESSIONS);
-
-    // ========================================================================
-    // SHEET 4: Participants - Participant list with validations
-    // ========================================================================
-    const participantsData = (data.partecipanti || []).map((p) => ({
-      'N.': p.numero,
-      'Nome': p.nome,
-      'Cognome': p.cognome,
-      'CF': p.codice_fiscale,
-      'Email': p.email,
-      'Telefono': p.telefono,
-      'CF Valido': booleanToItalian(p._validations?.cf_valid),
-      'Email Valida': booleanToItalian(p._validations?.email_valid),
-    }));
-
-    const wsParticipants = XLSX.utils.json_to_sheet(participantsData);
-    XLSX.utils.book_append_sheet(wb, wsParticipants, SHEET_NAMES.PARTICIPANTS);
-
-    // ========================================================================
-    // SHEET 5: Entity and Location - Provider and venue information
-    // ========================================================================
-    const entityInfo = [
-      { Campo: 'Nome Ente', Valore: data.ente?.accreditato?.nome || data.ente?.nome || DEFAULTS.NOT_AVAILABLE },
-      { Campo: 'Via', Valore: getValueOrDefault(data.ente?.accreditato?.via) },
-      { Campo: 'Numero Civico', Valore: getValueOrDefault(data.ente?.accreditato?.numero_civico) },
-      { Campo: 'Comune', Valore: getValueOrDefault(data.ente?.accreditato?.comune) },
-      { Campo: 'CAP', Valore: getValueOrDefault(data.ente?.accreditato?.cap) },
-      { Campo: 'Provincia', Valore: getValueOrDefault(data.ente?.accreditato?.provincia) },
-      { Campo: 'Sede Corso - Tipo', Valore: getValueOrDefault(data.sede?.tipo) },
-      { Campo: 'Sede Corso - Nome', Valore: getValueOrDefault(data.sede?.nome) },
-      { Campo: 'Sede Corso - Indirizzo', Valore: getValueOrDefault(data.sede?.indirizzo) },
-      { Campo: 'Trainer', Valore: getValueOrDefault(data.trainer?.nome_completo, DEFAULTS.NOT_AVAILABLE) },
-    ];
-
-    const wsEntity = XLSX.utils.json_to_sheet(entityInfo);
-    wsEntity['!cols'] = [{ wch: COLUMN_WIDTHS.XXLARGE }, { wch: COLUMN_WIDTHS.SUPER }];
-    XLSX.utils.book_append_sheet(wb, wsEntity, SHEET_NAMES.ENTITY);
-
-    // Generate and download Excel file
-    const blob = createExcelBlob(wb);
-    const filename = `Report_Completo_Corso_${data.corso?.id || 'N_A'}.xlsx`;
-    saveAs(blob, filename);
-
-    console.log(`Course report Excel generated: ${filename}`);
-  } catch (error: any) {
-    console.error('Error generating course report Excel:', error);
-    throw new Error(`Errore durante la generazione del report corso: ${error.message}`);
+  // --- FOOTER ROWS ---
+  // Totali Giorno (Row N+2)
+  const totalDayRow: any[] = ['Totali Giorno'];
+  for (let i = 0; i < sessions.length; i++) {
+    totalDayRow.push(0); // Placeholder for formula
   }
-}
+  totalDayRow.push(''); // Empty for total column
+  ws_data.push(totalDayRow);
+
+  // Cumulative (Row N+3)
+  const cumulativeRow: any[] = ['Ore Cumulative'];
+  for (let i = 0; i < sessions.length; i++) {
+    cumulativeRow.push(0); // Placeholder for formula
+  }
+  cumulativeRow.push(''); // Empty for total column
+  ws_data.push(cumulativeRow);
+
+  // 3. Convert to Sheet
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+  // 4. ADD FORMULAS
+  // Helper to get Excel cell reference (e.g., "A1", "B2")
+  const encode = XLSX.utils.encode_cell;
+  const encodeCol = XLSX.utils.encode_col;
+
+  // A. Participant Totals (Column K in example)
+  // For each participant row (from startRow to endRow)
+  for (let i = 0; i < numParticipants; i++) {
+    const rowIndex = startRow + i - 1; // 0-based index for data array, but formulas use 1-based Excel rows
+    const excelRow = startRow + i; // 1-based Excel row
+
+    // Range: FirstDateCol to LastDateCol for this row
+    // e.g. SUM(B2:J2)
+    const startRef = encode({ r: rowIndex + 1, c: firstDateColIdx }); // +1 because encode uses 0-based row but we want to be safe? No, encode uses 0-based.
+    // Wait, XLSX.utils.encode_cell({r:0, c:0}) is "A1".
+    // My participant rows in `ws_data` start at index 1 (row 2).
+
+    const rowIdx = 1 + i; // 0-based index in sheet (Header is 0)
+
+    const startCell = encode({ r: rowIdx, c: firstDateColIdx });
+    const endCell = encode({ r: rowIdx, c: lastDateColIdx });
+    const totalCellRef = encode({ r: rowIdx, c: totalColIdx });
+
+    // Set formula
+    ws[totalCellRef] = { t: 'n', f: `SUM(${startCell}:${endCell})`, v: 0 };
+  }
+
+  // B. Daily Totals (Row N+2)
+  const totalDayRowIdx = 1 + numParticipants; // 0-based index for "Totali Giorno" row
+  // For each date column
+  for (let c = firstDateColIdx; c <= lastDateColIdx; c++) {
+    const startCell = encode({ r: 1, c: c }); // First participant (Row 2)
+    const endCell = encode({ r: 1 + numParticipants - 1, c: c }); // Last participant
+    const targetCell = encode({ r: totalDayRowIdx, c: c });
+
+    ws[targetCell] = { t: 'n', f: `SUM(${startCell}:${endCell})`, v: 0 };
+  }
+
+  // C. Cumulative Totals (Row N+3)
+  const cumulativeRowIdx = totalDayRowIdx + 1; // 0-based index for "Ore Cumulative" row
+
+  // First date column: Cumulative = Daily Total
+  const firstDayTotalCell = encode({ r: totalDayRowIdx, c: firstDateColIdx });
+  const firstCumulativeCell = encode({ r: cumulativeRowIdx, c: firstDateColIdx });
+  ws[firstCumulativeCell] = { t: 'n', f: firstDayTotalCell, v: 0 };
+
+  // Subsequent columns: Cumulative = Daily Total + Previous Cumulative
+  for (let c = firstDateColIdx + 1; c <= lastDateColIdx; c++) {
+    const currentDayTotalCell = encode({ r: totalDayRowIdx, c: c });
+    const prevCumulativeCell = encode({ r: cumulativeRowIdx, c: c - 1 });
+    const targetCell = encode({ r: cumulativeRowIdx, c: c });
+
+    ws[targetCell] = { t: 'n', f: `${currentDayTotalCell}+${prevCumulativeCell}`, v: 0 };
+  }
+
+  // 5. Styling (Column Widths)
+  const wscols = [
+    { wch: 30 }, // Name column width
+  ];
+  // Date columns width
+  for (let i = 0; i < sessions.length; i++) {
+    wscols.push({ wch: 12 });
+  }
+  wscols.push({ wch: 15 }); // Total column
+  ws['!cols'] = wscols;
+
+  // 6. Save File
+  XLSX.utils.book_append_sheet(wb, ws, 'RegistroPresenze');
+
+  // Generate filename
+  const courseTitle = data.corso?.titolo?.replace(/[^a-z0-9]/gi, '_').substring(0, 30) || 'Corso';
+  const filename = `Registro_Presenze_${courseTitle}.xlsx`;
+
+  // Write and save
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  saveAs(new Blob([wbout], { type: 'application/octet-stream' }), filename);
+};

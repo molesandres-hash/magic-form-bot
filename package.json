@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "npm run scan:templates && vite",
+    "scan:templates": "node scripts/scan-templates.js",
     "build": "vite build",
     "build:dev": "vite build --mode development",
     "lint": "eslint .",

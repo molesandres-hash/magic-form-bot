@@ -1,0 +1,37 @@
+{
+  "generatedAt": "2025-11-21T22:14:31.902Z",
+  "templates": [
+    {
+      "id": "local-Registro ID.docx",
+      "name": "Registro ID",
+      "filename": "Registro ID.docx",
+      "path": "/templates/Registro ID.docx",
+      "size": 207658,
+      "lastModified": "2025-11-21T19:12:03.220Z"
+    },
+    {
+      "id": "local-Verbale - Corso di formazione ID XXXXX.docx",
+      "name": "Verbale - Corso di formazione ID XXXXX",
+      "filename": "Verbale - Corso di formazione ID XXXXX.docx",
+      "path": "/templates/Verbale - Corso di formazione ID XXXXX.docx",
+      "size": 387211,
+      "lastModified": "2025-11-21T19:12:03.221Z"
+    },
+    {
+      "id": "local-modello A FAD.docx",
+      "name": "modello A FAD",
+      "filename": "modello A FAD.docx",
+      "path": "/templates/modello A FAD.docx",
+      "size": 157779,
+      "lastModified": "2025-11-21T19:12:03.218Z"
+    },
+    {
+      "id": "local-modello B FAD.docx",
+      "name": "modello B FAD",
+      "filename": "modello B FAD.docx",
+      "path": "/templates/modello B FAD.docx",
+      "size": 137072,
+      "lastModified": "2025-11-21T19:12:03.218Z"
+    }
+  ]
+}

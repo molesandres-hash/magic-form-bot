@@ -14,8 +14,9 @@
  * Why Gemini API: Handles messy real-world input where regex/parsers would fail
  */
 
-import { GoogleGenAI, Type } from '@google/genai';
+import { GoogleGenAI } from '@google/genai';
 import type { CourseData } from '@/types/courseData';
+import { SYSTEM_INSTRUCTION, EXTRACTION_SCHEMA } from './extractionConfig';
 
 // ============================================================================
 // CONSTANTS - Configuration and thresholds
@@ -58,17 +59,6 @@ const DEFAULTS = {
   BASE_PAGES: 1,             // Base pages in registro
 } as const;
 
-/**
- * Error messages in Italian
- * Why: User-facing errors should be in the application language
- */
-const ERROR_MESSAGES = {
-  API_ERROR: 'Errore durante la chiamata API',
-  INVALID_API_KEY: 'Chiave API non valida',
-  PARSING_ERROR: 'Errore durante l\'elaborazione dei dati',
-  NO_DATA: 'Nessun dato estratto',
-} as const;
-
 // Re-use the extraction types from the Edge Function
 interface RawModulo {
   id: string;
@@ -84,6 +74,7 @@ interface RawModulo {
   stato: string;
   tipo_sede: string;
   provider: string;
+  argomenti?: string[];
   sessioni_raw: RawSessione[];
 }
 
@@ -104,152 +95,10 @@ interface AIExtractedData {
   trainer: any;
   partecipanti: any[];
   sessioni_raw?: RawSessione[];
+  responsabili?: any;
+  verbale?: any;
+  fad_info?: any;
 }
-
-/**
- * System prompt for AI extraction
- */
-const SYSTEM_INSTRUCTION = `Sei un esperto di estrazione dati da gestionali formativi italiani.
-Analizza i dati forniti e estrai tutte le informazioni relative a:
-- Corso (ID, titolo, tipo, date, durata, capienza, stato, programma)
-- Moduli/Sezioni (ARRAY - uno o più moduli, ciascuno con: ID, ID Corso, ID Sezione, titolo, date inizio/fine, ore totali, durata, capienza, stato, tipo sede, provider)
-- Sede (tipo, nome, modalità, indirizzo)
-- Ente erogatore (nome, ID, indirizzo)
-- Docenti/trainer (nome completo)
-- Partecipanti (array con ID, nome, cognome, CF, email, telefono, programma, ufficio, case manager, benefits)
-
-IMPORTANTE PER MODULI:
-- Se ci sono MULTIPLI MODULI (2-6), estrai TUTTI i moduli nell'array "moduli"
-- Ogni modulo DEVE avere: id, id_corso, id_sezione, titolo, data_inizio, data_fine, ore_totali, provider
-- Ogni modulo ha le SUE sessioni specifiche nell'array "sessioni_raw" del modulo
-- I partecipanti sono CONDIVISI tra tutti i moduli (un unico array)
-- Se c'è UN SOLO modulo, crea comunque un array con 1 elemento
-
-IMPORTANTE GENERALE:
-- Se un dato non è presente, usa "" (stringa vuota)
-- Per le date usa formato DD/MM/YYYY
-- Per gli orari usa formato HH:MM
-- Estrai TUTTI i partecipanti dall'elenco
-- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile`;
-
-/**
- * Response schema for structured extraction
- */
-const EXTRACTION_SCHEMA = {
-  type: Type.OBJECT,
-  properties: {
-    corso: {
-      type: Type.OBJECT,
-      properties: {
-        id: { type: Type.STRING },
-        titolo: { type: Type.STRING },
-        tipo: { type: Type.STRING },
-        data_inizio: { type: Type.STRING },
-        data_fine: { type: Type.STRING },
-        durata_totale: { type: Type.STRING },
-        ore_totali: { type: Type.STRING },
-        ore_rendicontabili: { type: Type.STRING },
-        stato: { type: Type.STRING },
-        capienza: { type: Type.STRING },
-        programma: { type: Type.STRING }
-      },
-      required: ['id', 'titolo']
-    },
-    moduli: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          id: { type: Type.STRING },
-          id_corso: { type: Type.STRING },
-          id_sezione: { type: Type.STRING },
-          titolo: { type: Type.STRING },
-          data_inizio: { type: Type.STRING },
-          data_fine: { type: Type.STRING },
-          ore_totali: { type: Type.STRING },
-          durata: { type: Type.STRING },
-          ore_rendicontabili: { type: Type.STRING },
-          capienza: { type: Type.STRING },
-          stato: { type: Type.STRING },
-          tipo_sede: { type: Type.STRING },
-          provider: { type: Type.STRING },
-          sessioni_raw: {
-            type: Type.ARRAY,
-            items: {
-              type: Type.OBJECT,
-              properties: {
-                data: { type: Type.STRING },
-                ora_inizio: { type: Type.STRING },
-                ora_fine: { type: Type.STRING },
-                sede: { type: Type.STRING },
-                tipo_sede: { type: Type.STRING }
-              }
-            }
-          }
-        },
-        required: ['id', 'id_corso', 'id_sezione', 'titolo']
-      }
-    },
-    sede: {
-      type: Type.OBJECT,
-      properties: {
-        tipo: { type: Type.STRING },
-        nome: { type: Type.STRING },
-        modalita: { type: Type.STRING },
-        indirizzo: { type: Type.STRING }
-      }
-    },
-    ente: {
-      type: Type.OBJECT,
-      properties: {
-        nome: { type: Type.STRING },
-        id: { type: Type.STRING },
-        indirizzo: { type: Type.STRING }
-      }
-    },
-    trainer: {
-      type: Type.OBJECT,
-      properties: {
-        nome_completo: { type: Type.STRING }
-      }
-    },
-    partecipanti: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          id: { type: Type.STRING },
-          nome: { type: Type.STRING },
-          cognome: { type: Type.STRING },
-          codice_fiscale: { type: Type.STRING },
-          telefono: { type: Type.STRING },
-          cellulare: { type: Type.STRING },
-          email: { type: Type.STRING },
-          programma: { type: Type.STRING },
-          ufficio: { type: Type.STRING },
-          case_manager: { type: Type.STRING },
-          benefits: { type: Type.STRING },
-          frequenza: { type: Type.STRING }
-        },
-        required: ['id', 'nome', 'cognome']
-      }
-    },
-    sessioni_raw: {
-      type: Type.ARRAY,
-      items: {
-        type: Type.OBJECT,
-        properties: {
-          data: { type: Type.STRING },
-          ora_inizio: { type: Type.STRING },
-          ora_fine: { type: Type.STRING },
-          sede: { type: Type.STRING },
-          tipo_sede: { type: Type.STRING }
-        }
-      }
-    }
-  },
-  required: ['corso', 'moduli', 'partecipanti']
-};
 
 /**
  * Extracts course data using Google Gemini API
@@ -275,7 +124,7 @@ export async function extractCourseDataWithGemini(
 
     // Call Gemini API with structured output
     const response = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: API_CONFIG.MODEL,
       contents: `Estrai i dati da questi 3 blocchi:
 
 === DATI CORSO PRINCIPALE ===
@@ -299,7 +148,7 @@ ${participantsData}`,
     const extractedData: AIExtractedData = JSON.parse(response.text);
     console.log('Extracted data:', extractedData);
 
-    // Post-process the data (same as Edge Function)
+    // Post-process the data
     const processedData = await processExtractedData(extractedData);
 
     return processedData;
@@ -319,17 +168,16 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
   const { parseDate, MESI_ITALIANI, GIORNI_ITALIANI, extractYear } = await import('@/utils/dateUtils');
   const { parseCapienza, splitFullName } = await import('@/utils/stringUtils');
 
-  // Helper functions (same as Edge Function)
+  // Helper functions
   const isFAD = (tipo_sede: string, sede: string): boolean => {
     const tipo = (tipo_sede || '').toLowerCase();
     const sedeLower = (sede || '').toLowerCase();
     return tipo.includes('online') || tipo.includes('fad') ||
-           sedeLower.includes('online') || sedeLower.includes('fad');
+      sedeLower.includes('online') || sedeLower.includes('fad');
   };
 
   /**
    * Generates processed session objects from raw session data
-   * Why: Enriches raw data with Italian date formatting and FAD detection
    */
   const generateSessioni = (sessioni_raw: RawSessione[]) => {
     return sessioni_raw.map((sess, idx) => {
@@ -361,7 +209,6 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
   }
 
   // Process corso data
-  // Why parse capacity: Need separate numbers for validation and document generation
   const capienzaCorso = parseCapienza(extractedData.corso?.capienza || DEFAULTS.CAPACITY);
   const corso = {
     ...extractedData.corso,
@@ -376,19 +223,32 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     nome_completo: extractedData.trainer?.nome_completo || '',
     nome: trainerName.nome,
     cognome: trainerName.cognome,
+    codice_fiscale: extractedData.trainer?.codice_fiscale || '',
   };
 
   // Process partecipanti
-  const partecipanti = (extractedData.partecipanti || []).map((p: any, index: number) => ({
-    ...p,
-    numero: index + 1,
-    nome_completo: `${p.nome} ${p.cognome}`,
-    _validations: {
-      cf_valid: validateCodiceFiscale(p.codice_fiscale),
-      email_valid: validateEmail(p.email),
-      phone_valid: validatePhone(p.telefono),
-    },
-  }));
+  const partecipanti = (extractedData.partecipanti || []).map((p: any, index: number) => {
+    // Normalize benefits to "Sì" or "No"
+    let benefits = 'No';
+    if (p.benefits) {
+      const b = p.benefits.toString().toLowerCase();
+      if (b.includes('s') || b.includes('y') || b === 'true') {
+        benefits = 'Sì';
+      }
+    }
+
+    return {
+      ...p,
+      numero: index + 1,
+      nome_completo: `${p.nome} ${p.cognome}`,
+      benefits,
+      _validations: {
+        cf_valid: validateCodiceFiscale(p.codice_fiscale),
+        email_valid: validateEmail(p.email),
+        phone_valid: validatePhone(p.telefono),
+      },
+    };
+  });
 
   // Process moduli
   const moduli_processati = moduliRaw.map((mod: RawModulo) => {
@@ -416,6 +276,7 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
       stato: mod.stato || '',
       tipo_sede: mod.tipo_sede || '',
       provider: mod.provider || '',
+      argomenti: mod.argomenti || [], // Map argomenti
       numero_sessioni: sessioni_modulo.length,
       sessioni: sessioni_modulo,
       sessioni_presenza: sessioni_presenza_modulo,
@@ -427,8 +288,6 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
   const sessioni_presenza_totali = moduli_processati.flatMap((m: any) => m.sessioni_presenza);
 
   // Calculate registro pages
-  // Why: Italian regulations require page count for official registro
-  // Formula: (attendance sessions × 2 pages) + 1 base page
   const numero_pagine = (sessioni_presenza_totali.length * DEFAULTS.PAGES_PER_SESSION) + DEFAULTS.BASE_PAGES;
 
   // Generate metadata and validation warnings
@@ -441,7 +300,6 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
   if (!partecipanti || partecipanti.length === 0) campi_mancanti.push('partecipanti');
 
   // Validate participant data quality
-  // Why: Invalid data causes document generation failures
   partecipanti.forEach((p: any, idx: number) => {
     if (!p._validations.cf_valid) {
       warnings.push(`Partecipante ${idx + 1}: Codice Fiscale non valido (${p.codice_fiscale})`);
@@ -452,9 +310,8 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
   });
 
   // Calculate data completeness percentage
-  // Why: Helps users understand if they need to manually fill any fields
   const filled_fields = (corso?.id ? 1 : 0) + (corso?.titolo ? 1 : 0) +
-                        moduli_processati.length + partecipanti.length + sessioni_totali.length;
+    moduli_processati.length + partecipanti.length + sessioni_totali.length;
   const completamento_percentuale = Math.round((filled_fields / DEFAULTS.TOTAL_FIELDS) * 100);
 
   // Build complete response
@@ -468,7 +325,10 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     partecipanti_count: partecipanti.length,
     sessioni: sessioni_totali,
     sessioni_presenza: sessioni_presenza_totali,
-    verbale: {
+
+    // New Fields Processing
+    responsabili: extractedData.responsabili || {},
+    verbale: extractedData.verbale || {
       data: '',
       ora: '',
       luogo: '',
@@ -485,15 +345,15 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
       luogo_vidimazione: ''
     },
     calendario_fad: {
-      modalita: '',
-      strumenti: '',
+      modalita: extractedData.fad_info?.modalita_gestione || '',
+      strumenti: extractedData.fad_info?.piattaforma || '',
       obiettivi: '',
-      valutazione: '',
+      valutazione: extractedData.fad_info?.modalita_valutazione || '',
       eventi: []
     },
     metadata: {
       data_estrazione: new Date().toISOString(),
-      versione_sistema: '2.1.0', // Updated version
+      versione_sistema: '2.2.0', // Updated version
       utente: '',
       completamento_percentuale,
       campi_mancanti,
@@ -541,7 +401,7 @@ ${participantsData}`;
     // FIRST EXTRACTION
     console.log('First extraction...');
     const response1 = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: API_CONFIG.MODEL,
       contents: userPrompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -557,7 +417,7 @@ ${participantsData}`;
     // SECOND EXTRACTION (independent call)
     console.log('Second extraction...');
     const response2 = await ai.models.generateContent({
-      model: 'gemini-2.5-flash',
+      model: API_CONFIG.MODEL,
       contents: userPrompt,
       config: {
         systemInstruction: SYSTEM_INSTRUCTION,
@@ -579,7 +439,6 @@ ${participantsData}`;
     const processedData = await processExtractedData(extractedData1);
 
     // Add comparison metadata
-    // Why: Track reliability score for user confidence
     processedData.metadata.double_check = {
       performed: true,
       match_percentage: comparison.matchPercentage,
@@ -589,7 +448,6 @@ ${participantsData}`;
     };
 
     // Add warnings based on match quality
-    // Why: Users need immediate feedback on extraction reliability
     if (comparison.matchPercentage < COMPARISON_THRESHOLDS.POOR) {
       processedData.metadata.warnings.unshift(
         `⚠️ ATTENZIONE: Le due estrazioni differiscono significativamente (${comparison.matchPercentage}% di corrispondenza). Verifica manualmente i dati.`
@@ -673,8 +531,6 @@ function compareExtractions(data1: AIExtractedData, data2: AIExtractedData): {
   }
 
   // Calculate match percentage
-  // Why: Quantifies reliability of extraction for user confidence
-  // Formula: ((matched fields / total fields) * 100)
   const matchedFields = DEFAULTS.CRITICAL_FIELDS - Math.min(differences.length, DEFAULTS.CRITICAL_FIELDS);
   const matchPercentage = Math.round((matchedFields / DEFAULTS.CRITICAL_FIELDS) * 100);
 
