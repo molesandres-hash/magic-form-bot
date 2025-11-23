@@ -75,6 +75,11 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
                 return acc + calculateDuration(s.ora_inizio_giornata, s.ora_fine_giornata);
             }, 0);
 
+            const currentModule: any =
+                (data as any)?.metadata?.modulo_corrente ||
+                (data.moduli && data.moduli.length > 0 ? data.moduli[0] : null);
+            const currentModuleNumber = currentModule?.index || 1;
+
             // 2. Prepare data for the template
             const templateData = {
                 // --- DATI CORSO ---
@@ -85,6 +90,12 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
                 DATA_FINE: data.corso?.data_fine || '',
                 ORE_TOTALI: data.corso?.ore_totali || '',
                 ANNO_CORSO: data.corso?.anno || new Date().getFullYear().toString(),
+                MODULO_TITOLO: currentModule?.titolo || data.corso?.titolo || '',
+                MODULO_ID: currentModule?.id || currentModule?.id_sezione || '',
+                MODULO_ID_SEZIONE: currentModule?.id_sezione || '',
+                MODULO_NUMERO: currentModuleNumber,
+                MODULO_DATA_INIZIO: currentModule?.data_inizio || data.corso?.data_inizio || '',
+                MODULO_DATA_FINE: currentModule?.data_fine || data.corso?.data_fine || '',
 
                 // --- DATI ENTE ---
                 ENTE_NOME: data.ente?.nome || '',

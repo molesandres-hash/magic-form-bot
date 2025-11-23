@@ -1,6 +1,14 @@
 {
-  "generatedAt": "2025-11-23T18:56:11.174Z",
+  "generatedAt": "2025-11-23T22:25:03.268Z",
   "templates": [
+    {
+      "id": "local-Attestato di partecipazione AKG.docx",
+      "name": "Attestato di partecipazione AKG",
+      "filename": "Attestato di partecipazione AKG.docx",
+      "path": "/templates/Attestato di partecipazione AKG.docx",
+      "size": 43957,
+      "lastModified": "2025-11-23T19:26:54.575Z"
+    },
     {
       "id": "local-Registro ID.docx",
       "name": "Registro ID",
@@ -26,6 +34,14 @@
       "lastModified": "2025-11-21T19:12:03.221Z"
     },
     {
+      "id": "local-Verbale_con_placeholder.docx",
+      "name": "Verbale con placeholder",
+      "filename": "Verbale_con_placeholder.docx",
+      "path": "/templates/Verbale_con_placeholder.docx",
+      "size": 142499,
+      "lastModified": "2025-11-23T20:39:52.445Z"
+    },
+    {
       "id": "local-modello B FAD.docx",
       "name": "modello B FAD",
       "filename": "modello B FAD.docx",
@@ -43,19 +59,11 @@
     },
     {
       "id": "local-modello_A_FAD_con_placeholder.docx",
-      "name": "Modulo A FAD",
+      "name": "modello A FAD con placeholder",
       "filename": "modello_A_FAD_con_placeholder.docx",
       "path": "/templates/modello_A_FAD_con_placeholder.docx",
       "size": 119360,
-      "lastModified": "2025-11-23T16:38:38.837Z"
-    },
-    {
-      "id": "local-Verbale_con_placeholder.docx",
-      "name": "Verbale Finale",
-      "filename": "Verbale_con_placeholder.docx",
-      "path": "/templates/Verbale_con_placeholder.docx",
-      "size": 142499,
-      "lastModified": "2025-11-23T19:54:00.000Z"
+      "lastModified": "2025-11-23T19:09:55.304Z"
     }
   ]
 }
