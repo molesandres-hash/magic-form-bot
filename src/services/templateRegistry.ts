@@ -7,7 +7,7 @@ import {
     generateModelloFAD,
 } from './wordDocumentGenerator';
 import { processWordTemplate } from './wordTemplateProcessor';
-import { supabase } from '@/integrations/supabase/client';
+import { getTemplateBlob } from '@/services/localDb';
 
 // Define the interface for a template generator
 export type TemplateGenerator = (data: CourseData) => Promise<Blob | null>;
@@ -267,16 +267,12 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
     };
 };
 
-// Helper to create a generator for a DB template
-export const createDbTemplateGenerator = (templatePath: string, filename: string): TemplateGenerator => {
+// Helper to create a generator for a DB template stored nel DB locale
+export const createDbTemplateGenerator = (templateId: string, filename: string): TemplateGenerator => {
     return async (data: CourseData) => {
         try {
-            // 1. Download from Supabase
-            const { data: fileData, error } = await supabase.storage
-                .from("document-templates")
-                .download(templatePath);
-
-            if (error) throw error;
+            const fileData = await getTemplateBlob(templateId);
+            if (!fileData) throw new Error("Template non trovato");
 
             // 2. Prepare data (same as above - ideally extract to shared helper)
             const templateData = {
@@ -297,7 +293,7 @@ export const createDbTemplateGenerator = (templatePath: string, filename: string
 
             // 3. Process
             return processWordTemplate({
-                template: fileData,
+                template: fileData.blob,
                 data: templateData,
                 filename: filename
             });

@@ -9,6 +9,7 @@
 import PizZip from 'pizzip';
 import Docxtemplater from 'docxtemplater';
 import { saveAs } from 'file-saver';
+import { getTemplateBlobByPath } from '@/services/localDb';
 
 // ============================================================================
 // TYPES
@@ -127,24 +128,18 @@ export async function processAndDownloadWordTemplate(
 }
 
 /**
- * Loads a Word template from Supabase storage
+ * Loads a Word template from the local database storage
  *
- * @param filePath - Path to template file in Supabase storage
- * @param supabase - Supabase client
+ * @param filePath - Path or filename stored in the local DB
  * @returns Template as ArrayBuffer
  */
 export async function loadTemplateFromStorage(
-  filePath: string,
-  supabase: any
+  filePath: string
 ): Promise<ArrayBuffer> {
   try {
-    const { data, error } = await supabase.storage
-      .from('document-templates')
-      .download(filePath);
-
-    if (error) throw error;
-
-    return await data.arrayBuffer();
+    const result = await getTemplateBlobByPath(filePath);
+    if (!result) throw new Error("Template non trovato");
+    return await result.blob.arrayBuffer();
   } catch (error: any) {
     console.error('Error loading template from storage:', error);
     throw new Error(`Impossibile caricare il template: ${error.message}`);

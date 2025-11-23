@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -24,18 +23,13 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-
-interface Template {
-  id: string;
-  name: string;
-  description: string | null;
-  file_path: string;
-  file_name: string;
-  template_type: string;
-  version: number;
-  is_active: boolean;
-  created_at: string;
-}
+import {
+  listTemplates,
+  addTemplateRecord,
+  deleteTemplateRecord,
+  getTemplateBlob,
+  type DocumentTemplateRecord
+} from "@/services/localDb";
 
 interface LocalTemplate {
   id: string;
@@ -57,7 +51,7 @@ const TEMPLATE_CATEGORIES = [
 ] as const;
 
 const TemplateManager = () => {
-  const [templates, setTemplates] = useState<Template[]>([]);
+  const [templates, setTemplates] = useState<DocumentTemplateRecord[]>([]);
   const [localTemplates, setLocalTemplates] = useState<LocalTemplate[]>([]);
   const [loading, setLoading] = useState(true);
   const [uploading, setUploading] = useState(false);
@@ -76,13 +70,7 @@ const TemplateManager = () => {
 
   const loadTemplates = async () => {
     try {
-      // Load DB templates
-      const { data, error } = await supabase
-        .from("document_templates")
-        .select("*")
-        .order("created_at", { ascending: false });
-
-      if (error) throw error;
+      const data = await listTemplates();
       setTemplates(data || []);
 
       // Load local templates
@@ -127,38 +115,16 @@ const TemplateManager = () => {
     setUploading(true);
 
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        toast.error("Sessione scaduta");
-        return;
-      }
+      const fileName = formData.file.name;
+      await addTemplateRecord({
+        name: formData.name,
+        description: formData.description,
+        template_type: formData.template_type,
+        file: formData.file,
+        file_name: fileName,
+      });
 
-      // Upload file to storage
-      const fileExt = formData.file.name.split(".").pop();
-      const fileName = `${formData.template_type}_${Date.now()}.${fileExt}`;
-      const filePath = `templates/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from("document-templates")
-        .upload(filePath, formData.file);
-
-      if (uploadError) throw uploadError;
-
-      // Create database record
-      const { error: dbError } = await supabase
-        .from("document_templates")
-        .insert({
-          name: formData.name,
-          description: formData.description || null,
-          file_path: filePath,
-          file_name: formData.file.name,
-          template_type: formData.template_type,
-          created_by: session.user.id,
-        });
-
-      if (dbError) throw dbError;
-
-      toast.success("Template caricato con successo!");
+      toast.success("Template salvato nel database locale!");
       setFormData({ name: "", description: "", template_type: "registro_didattico", file: null });
 
       // Reset file input
@@ -166,7 +132,7 @@ const TemplateManager = () => {
       if (fileInput) fileInput.value = "";
 
       loadTemplates();
-    } catch (error: Error) {
+    } catch (error) {
       toast.error("Errore durante il caricamento");
       console.error(error);
     } finally {
@@ -178,27 +144,10 @@ const TemplateManager = () => {
     if (!deleteId) return;
 
     try {
-      const template = templates.find((t) => t.id === deleteId);
-      if (!template) return;
-
-      // Delete from storage
-      const { error: storageError } = await supabase.storage
-        .from("document-templates")
-        .remove([template.file_path]);
-
-      if (storageError) console.error("Storage delete error:", storageError);
-
-      // Delete from database
-      const { error: dbError } = await supabase
-        .from("document_templates")
-        .delete()
-        .eq("id", deleteId);
-
-      if (dbError) throw dbError;
-
+      await deleteTemplateRecord(deleteId);
       toast.success("Template eliminato");
       loadTemplates();
-    } catch (error: Error) {
+    } catch (error) {
       toast.error("Errore durante l'eliminazione");
       console.error(error);
     } finally {
@@ -206,15 +155,12 @@ const TemplateManager = () => {
     }
   };
 
-  const handleDownload = async (template: Template) => {
+  const handleDownload = async (template: DocumentTemplateRecord) => {
     try {
-      const { data, error } = await supabase.storage
-        .from("document-templates")
-        .download(template.file_path);
+      const result = await getTemplateBlob(template.id);
+      if (!result) throw new Error("Template non trovato");
 
-      if (error) throw error;
-
-      const url = URL.createObjectURL(data);
+      const url = URL.createObjectURL(result.blob);
       const a = document.createElement("a");
       a.href = url;
       a.download = template.file_name;
@@ -222,7 +168,7 @@ const TemplateManager = () => {
       a.click();
       document.body.removeChild(a);
       URL.revokeObjectURL(url);
-    } catch (error: Error) {
+    } catch (error) {
       toast.error("Errore durante il download");
       console.error(error);
     }
@@ -234,7 +180,7 @@ const TemplateManager = () => {
     }
     acc[template.template_type].push(template);
     return acc;
-  }, {} as Record<string, Template[]>);
+  }, {} as Record<string, DocumentTemplateRecord[]>);
 
   const getCategoryInfo = (type: string) => {
     return TEMPLATE_CATEGORIES.find(cat => cat.value === type) || TEMPLATE_CATEGORIES[6];

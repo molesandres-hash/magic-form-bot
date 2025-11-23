@@ -7,8 +7,9 @@
 
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import { supabase } from "@/integrations/supabase/client";
 import type { CourseData, EnteAccreditato, ResponsabileCorso } from "@/types/courseData";
+import { getEnabledEntities, getEnabledResponsabili, getEnabledSupervisors } from "@/utils/predefinedDataUtils";
+import { listEnti, listResponsabili } from "@/services/localDb";
 
 export const useCompletionData = (
     initialData: CourseData,
@@ -29,21 +30,76 @@ export const useCompletionData = (
         loadData();
     }, []);
 
+    const applyFallbackData = (message?: string) => {
+        const fallbackEnti: EnteAccreditato[] = getEnabledEntities().map(entity => ({
+            id: `local-ente-${entity.id}`,
+            nome: entity.name,
+            via: entity.address,
+            numero_civico: "",
+            comune: "",
+            cap: "",
+            provincia: ""
+        }));
+
+        const supervisors = getEnabledSupervisors();
+        const fallbackDirettori: ResponsabileCorso[] = supervisors.map(sup => {
+            const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
+            return {
+                id: `local-dir-${sup.id}`,
+                tipo: "direttore",
+                nome: firstName || sup.nomeCompleto,
+                cognome: rest.join(" ") || sup.nomeCompleto,
+                qualifica: sup.qualifica
+            };
+        });
+
+        const fallbackSupervisori: ResponsabileCorso[] = supervisors.map(sup => {
+            const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
+            return {
+                id: `local-sup-${sup.id}`,
+                tipo: "supervisore",
+                nome: firstName || sup.nomeCompleto,
+                cognome: rest.join(" ") || sup.nomeCompleto,
+                qualifica: sup.qualifica
+            };
+        });
+
+        const fallbackResponsabili: ResponsabileCorso[] = getEnabledResponsabili().map(resp => ({
+            id: `local-resp-${resp.id}`,
+            tipo: "responsabile_cert",
+            nome: resp.nome,
+            cognome: resp.cognome,
+            qualifica: "Responsabile Certificazione",
+            data_nascita: resp.dataNascita,
+            citta_nascita: resp.cittaNascita,
+            provincia_nascita: resp.provinciaNascita,
+            citta_residenza: resp.cittaResidenza,
+            via_residenza: resp.viaResidenza,
+            numero_civico_residenza: resp.numeroCivico,
+            documento_identita: resp.documento
+        }));
+
+        if (fallbackEnti.length || fallbackDirettori.length || fallbackSupervisori.length || fallbackResponsabili.length) {
+            setEnti(fallbackEnti);
+            setDirettori(fallbackDirettori);
+            setSupervisori(fallbackSupervisori);
+            setResponsabiliCert(fallbackResponsabili);
+            if (message) {
+                toast.info(message);
+            }
+        }
+    };
+
     const loadData = async () => {
         try {
-            const [entiRes, responsabiliRes] = await Promise.all([
-                supabase.from("enti_accreditati").select("*").order("nome"),
-                supabase.from("responsabili_corso").select("*").order("cognome")
+            const [entiData, responsabiliData] = await Promise.all([
+                listEnti(),
+                listResponsabili()
             ]);
 
-            if (entiRes.error) throw entiRes.error;
-            if (responsabiliRes.error) throw responsabiliRes.error;
+            setEnti(entiData || []);
 
-            setEnti(entiRes.data || []);
-            const responsabili = responsabiliRes.data || [];
-
-            // Cast tipo from string to union literal type
-            const typedResponsabili = responsabili.map(r => ({
+            const typedResponsabili = (responsabiliData || []).map(r => ({
                 ...r,
                 tipo: r.tipo as 'direttore' | 'supervisore' | 'responsabile_cert'
             }));
@@ -51,9 +107,14 @@ export const useCompletionData = (
             setDirettori(typedResponsabili.filter(r => r.tipo === 'direttore'));
             setSupervisori(typedResponsabili.filter(r => r.tipo === 'supervisore'));
             setResponsabiliCert(typedResponsabili.filter(r => r.tipo === 'responsabile_cert'));
+
+            if ((entiData?.length || 0) === 0 && (responsabiliData?.length || 0) === 0) {
+                applyFallbackData("Nessun dato salvato: uso i valori predefiniti salvati in locale.");
+            }
         } catch (error: any) {
             console.error("Error loading data:", error);
             toast.error("Errore caricamento dati: " + error.message);
+            applyFallbackData("Errore nel recupero dei dati locali: uso i dati predefiniti salvati in locale.");
         } finally {
             setLoading(false);
         }
@@ -68,17 +129,17 @@ export const useCompletionData = (
     };
 
     const validateAndSubmit = () => {
-        if (!formData.ente_accreditato_id) {
+        if (enti.length > 0 && !formData.ente_accreditato_id) {
             toast.error("Seleziona un Ente Accreditato");
             return;
         }
 
-        if (!formData.direttore_id) {
+        if (direttori.length > 0 && !formData.direttore_id) {
             toast.error("Seleziona un Direttore");
             return;
         }
 
-        if (!formData.supervisore_id) {
+        if (supervisori.length > 0 && !formData.supervisore_id) {
             toast.error("Seleziona un Supervisore");
             return;
         }

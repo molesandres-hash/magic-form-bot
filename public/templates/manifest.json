@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-11-21T22:14:31.902Z",
+  "generatedAt": "2025-11-23T18:56:11.174Z",
   "templates": [
     {
       "id": "local-Registro ID.docx",
@@ -10,6 +10,14 @@
       "lastModified": "2025-11-21T19:12:03.220Z"
     },
     {
+      "id": "local-Registro_ID_con_placeholder.docx",
+      "name": "Registro ID con placeholder",
+      "filename": "Registro_ID_con_placeholder.docx",
+      "path": "/templates/Registro_ID_con_placeholder.docx",
+      "size": 165502,
+      "lastModified": "2025-11-23T15:16:58.181Z"
+    },
+    {
       "id": "local-Verbale - Corso di formazione ID XXXXX.docx",
       "name": "Verbale - Corso di formazione ID XXXXX",
       "filename": "Verbale - Corso di formazione ID XXXXX.docx",
@@ -18,20 +26,36 @@
       "lastModified": "2025-11-21T19:12:03.221Z"
     },
     {
-      "id": "local-modello A FAD.docx",
-      "name": "modello A FAD",
-      "filename": "modello A FAD.docx",
-      "path": "/templates/modello A FAD.docx",
-      "size": 157779,
-      "lastModified": "2025-11-21T19:12:03.218Z"
-    },
-    {
       "id": "local-modello B FAD.docx",
       "name": "modello B FAD",
       "filename": "modello B FAD.docx",
       "path": "/templates/modello B FAD.docx",
       "size": 137072,
       "lastModified": "2025-11-21T19:12:03.218Z"
+    },
+    {
+      "id": "local-modello B FAD_placeholder.docx",
+      "name": "modello B FAD placeholder",
+      "filename": "modello B FAD_placeholder.docx",
+      "path": "/templates/modello B FAD_placeholder.docx",
+      "size": 112800,
+      "lastModified": "2025-11-23T17:26:39.582Z"
+    },
+    {
+      "id": "local-modello_A_FAD_con_placeholder.docx",
+      "name": "Modulo A FAD",
+      "filename": "modello_A_FAD_con_placeholder.docx",
+      "path": "/templates/modello_A_FAD_con_placeholder.docx",
+      "size": 119360,
+      "lastModified": "2025-11-23T16:38:38.837Z"
+    },
+    {
+      "id": "local-Verbale_con_placeholder.docx",
+      "name": "Verbale Finale",
+      "filename": "Verbale_con_placeholder.docx",
+      "path": "/templates/Verbale_con_placeholder.docx",
+      "size": 142499,
+      "lastModified": "2025-11-23T19:54:00.000Z"
     }
   ]
 }

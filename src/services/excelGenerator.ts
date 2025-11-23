@@ -152,3 +152,124 @@ export const generateAttendanceRegister = async (data: CourseData): Promise<void
   const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
   saveAs(new Blob([wbout], { type: 'application/octet-stream' }), filename);
 };
+
+/**
+ * Alias for backward compatibility
+ * @deprecated Use generateAttendanceRegister instead
+ */
+export const generateAttendanceExcel = generateAttendanceRegister;
+
+/**
+ * Generates a participants list Excel file
+ */
+export const generateParticipantsExcel = async (data: CourseData): Promise<void> => {
+  const participants = (data.partecipanti || []).sort((a, b) => a.numero - b.numero);
+
+  if (participants.length === 0) {
+    console.warn('No participants to export');
+    return;
+  }
+
+  // Create worksheet data
+  const ws_data: any[][] = [
+    ['Numero', 'Nome', 'Cognome', 'Nome Completo', 'Codice Fiscale', 'Email', 'Telefono', 'Cellulare', 'Benefits']
+  ];
+
+  participants.forEach(p => {
+    ws_data.push([
+      p.numero,
+      p.nome,
+      p.cognome,
+      p.nome_completo,
+      p.codice_fiscale,
+      p.email || '',
+      p.telefono || '',
+      p.cellulare || '',
+      p.benefits || 'No'
+    ]);
+  });
+
+  const ws = XLSX.utils.aoa_to_sheet(ws_data);
+
+  // Column widths
+  ws['!cols'] = [
+    { wch: 8 },  // Numero
+    { wch: 15 }, // Nome
+    { wch: 15 }, // Cognome
+    { wch: 30 }, // Nome Completo
+    { wch: 18 }, // Codice Fiscale
+    { wch: 30 }, // Email
+    { wch: 15 }, // Telefono
+    { wch: 15 }, // Cellulare
+    { wch: 10 }, // Benefits
+  ];
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Partecipanti');
+
+  const courseTitle = data.corso?.titolo?.replace(/[^a-z0-9]/gi, '_').substring(0, 30) || 'Corso';
+  const filename = `Partecipanti_${courseTitle}.xlsx`;
+
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  saveAs(new Blob([wbout], { type: 'application/octet-stream' }), filename);
+};
+
+/**
+ * Generates a course report Excel file
+ */
+export const generateCourseReportExcel = async (data: CourseData): Promise<void> => {
+  const wb = XLSX.utils.book_new();
+
+  // Course Summary Sheet
+  const courseSummary = [
+    ['Campo', 'Valore'],
+    ['ID Corso', data.corso?.id || 'N/A'],
+    ['Titolo', data.corso?.titolo || 'N/A'],
+    ['Data Inizio', data.corso?.data_inizio || 'N/A'],
+    ['Data Fine', data.corso?.data_fine || 'N/A'],
+    ['Ore Totali', data.corso?.ore_totali || 'N/A'],
+    ['Numero Partecipanti', data.partecipanti_count?.toString() || '0'],
+    ['Numero Sessioni', (data.sessioni || []).length.toString()],
+    ['Sessioni Presenza', (data.sessioni_presenza || []).length.toString()],
+    ['Sessioni FAD', (data.sessioni || []).filter(s => s.is_fad).length.toString()],
+  ];
+
+  const wsSummary = XLSX.utils.aoa_to_sheet(courseSummary);
+  wsSummary['!cols'] = [{ wch: 25 }, { wch: 50 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Riepilogo');
+
+  // Participants Sheet
+  const participantsData = (data.partecipanti || []).sort((a, b) => a.numero - b.numero).map(p => ({
+    'Numero': p.numero,
+    'Nome Completo': p.nome_completo,
+    'Codice Fiscale': p.codice_fiscale,
+    'Email': p.email || '',
+    'Telefono': p.telefono || '',
+  }));
+
+  if (participantsData.length > 0) {
+    const wsParticipants = XLSX.utils.json_to_sheet(participantsData);
+    XLSX.utils.book_append_sheet(wb, wsParticipants, 'Partecipanti');
+  }
+
+  // Sessions Sheet
+  const sessionsData = (data.sessioni || []).map(s => ({
+    'Data': s.data_completa,
+    'Ora Inizio': s.ora_inizio_giornata,
+    'Ora Fine': s.ora_fine_giornata,
+    'Sede': s.sede,
+    'Modalità': s.is_fad ? 'FAD' : 'Presenza',
+  }));
+
+  if (sessionsData.length > 0) {
+    const wsSessions = XLSX.utils.json_to_sheet(sessionsData);
+    XLSX.utils.book_append_sheet(wb, wsSessions, 'Sessioni');
+  }
+
+  const courseTitle = data.corso?.titolo?.replace(/[^a-z0-9]/gi, '_').substring(0, 30) || 'Corso';
+  const filename = `Report_${courseTitle}.xlsx`;
+
+  const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+  saveAs(new Blob([wbout], { type: 'application/octet-stream' }), filename);
+};
+

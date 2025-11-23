@@ -1,6 +1,5 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,6 +7,7 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Loader2 } from "lucide-react";
 import { toast } from "sonner";
+import { signIn, signUp } from "@/services/localAuth";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -20,22 +20,9 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email: loginData.email,
-        password: loginData.password,
-      });
-
-      if (error) {
-        if (error.message.includes("Invalid login credentials")) {
-          toast.error("Email o password non corretti");
-        } else {
-          toast.error(error.message);
-        }
-        return;
-      }
-
-      if (data.user) {
-        toast.success("Login effettuato con successo!");
+      const { user } = await signIn(loginData.email, loginData.password);
+      if (user) {
+        toast.success("Accesso eseguito in locale");
         navigate("/");
       }
     } catch (error: any) {
@@ -50,30 +37,10 @@ const Auth = () => {
     setLoading(true);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email: signupData.email,
-        password: signupData.password,
-        options: {
-          data: {
-            full_name: signupData.fullName,
-          },
-          emailRedirectTo: `${window.location.origin}/`,
-        },
-      });
-
-      if (error) {
-        if (error.message.includes("already registered")) {
-          toast.error("Questo indirizzo email è già registrato");
-        } else {
-          toast.error(error.message);
-        }
-        return;
-      }
-
-      if (data.user) {
-        toast.success("Registrazione completata! Accedi ora.");
-        // Switch to login tab
-        const loginTab = document.querySelector('[value="login"]') as HTMLElement;
+      const { user } = await signUp(signupData.email, signupData.password, signupData.fullName);
+      if (user) {
+        toast.success("Utente creato in locale! Accedi ora.");
+        const loginTab = document.querySelector('[value=\"login\"]') as HTMLElement;
         loginTab?.click();
       }
     } catch (error: any) {

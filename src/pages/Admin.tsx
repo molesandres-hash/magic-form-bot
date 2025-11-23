@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -8,6 +7,7 @@ import { FileText, Upload, Settings, LogOut, Shield } from "lucide-react";
 import { toast } from "sonner";
 import TemplateManager from "@/components/admin/TemplateManager";
 import { EntiResponsabiliManager } from "@/components/admin/EntiResponsabiliManager";
+import { getSession, signOut } from "@/services/localAuth";
 
 const Admin = () => {
   const navigate = useNavigate();
@@ -21,37 +21,14 @@ const Admin = () => {
 
   const checkAdminAccess = async () => {
     try {
-      const { data: { session } } = await supabase.auth.getSession();
-      
-      if (!session) {
+      const { data: { session } } = await getSession();
+      if (!session?.user) {
         toast.error("Devi effettuare il login");
         navigate("/auth");
         return;
       }
 
       setUserEmail(session.user.email || "");
-
-      // Check if user has admin role
-      const { data: roleData, error } = await supabase
-        .from("user_roles")
-        .select("role")
-        .eq("user_id", session.user.id)
-        .eq("role", "admin")
-        .maybeSingle();
-
-      if (error && error.code !== "PGRST116") {
-        console.error("Error checking admin role:", error);
-        toast.error("Errore nel verificare i permessi");
-        navigate("/");
-        return;
-      }
-
-      if (!roleData) {
-        toast.error("Non hai i permessi per accedere a questa sezione");
-        navigate("/");
-        return;
-      }
-
       setIsAdmin(true);
     } catch (error) {
       console.error("Error in checkAdminAccess:", error);
@@ -63,7 +40,7 @@ const Admin = () => {
   };
 
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     toast.success("Logout effettuato");
     navigate("/auth");
   };

@@ -22,6 +22,9 @@ import {
   generateCourseReportExcel,
 } from "@/services/excelGenerator";
 import { createCompleteZIPPackage } from "@/services/zipPackager";
+import { generateAllFADRegistries } from "@/services/fadMultiFileGenerator";
+import JSZip from "jszip";
+import { saveAs } from "file-saver";
 
 interface GenerationStepProps {
   data: CourseData;
@@ -62,12 +65,13 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
       category: "word",
     },
     {
-      id: "fad",
-      name: `Modello_A_FAD_${data.corso?.id}.docx`,
-      type: "Calendario E-Learning (FAD)",
-      icon: "💻",
+      id: "fad_registries",
+      name: `Registri_FAD/`,
+      type: `Registri Presenze FAD (${(data.sessioni || []).filter(s => s.is_fad).length} giorni)`,
+      icon: "📁",
       generated: shouldGenerateFAD,
-      category: "word",
+      category: "folder",
+      isFolder: true,
     },
     {
       id: "excel_partecipanti",
@@ -127,11 +131,40 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
           }
           break;
 
-        case "fad":
+        case "fad_registries":
           {
-            const blob = await generateModelloFAD(data);
-            await downloadWordDocument(blob, documents.find((d) => d.id === docId)!.name);
-            toast.success("Modello A FAD scaricato!");
+            toast.info("Generazione ZIP Registri FAD...", {
+              description: "Creazione del pacchetto in corso"
+            });
+
+            try {
+              // Generate all FAD registry files
+              const fadFiles = await generateAllFADRegistries(data);
+
+              // Create ZIP with FAD files
+              const zip = new JSZip();
+              const fadFolder = zip.folder("Registri_FAD");
+
+              if (fadFolder) {
+                fadFiles.forEach(({ filename, blob }) => {
+                  fadFolder.file(filename, blob);
+                });
+              }
+
+              // Generate and download ZIP
+              const zipBlob = await zip.generateAsync({ type: "blob" });
+              const zipFilename = `Registri_FAD_${data.corso?.id}_${new Date().toISOString().split('T')[0]}.zip`;
+              saveAs(zipBlob, zipFilename);
+
+              toast.success("Registri FAD scaricati!", {
+                description: `${fadFiles.length} file inclusi nel ZIP`
+              });
+            } catch (error: any) {
+              console.error("Error generating FAD ZIP:", error);
+              toast.error("Errore durante la generazione", {
+                description: error.message || "Riprova"
+              });
+            }
           }
           break;
 

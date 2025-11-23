@@ -1,5 +1,4 @@
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -10,6 +9,14 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { Trash2, Edit, Plus, Building2, Users } from "lucide-react";
+import {
+  listEnti,
+  listResponsabili,
+  saveEnte,
+  deleteEnte,
+  saveResponsabile,
+  deleteResponsabile,
+} from "@/services/localDb";
 
 interface EnteAccreditato {
   id: string;
@@ -52,15 +59,12 @@ export function EntiResponsabiliManager() {
     setLoading(true);
     try {
       const [entiRes, responsabiliRes] = await Promise.all([
-        supabase.from("enti_accreditati").select("*").order("nome"),
-        supabase.from("responsabili_corso").select("*").order("cognome")
+        listEnti(),
+        listResponsabili()
       ]);
 
-      if (entiRes.error) throw entiRes.error;
-      if (responsabiliRes.error) throw responsabiliRes.error;
-
-      setEnti(entiRes.data || []);
-      setResponsabili(responsabiliRes.data || []);
+      setEnti(entiRes || []);
+      setResponsabili(responsabiliRes || []);
     } catch (error: Error) {
       toast.error("Errore caricamento dati: " + error.message);
     } finally {
@@ -71,27 +75,17 @@ export function EntiResponsabiliManager() {
   const handleDeleteEnte = async (id: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo ente?")) return;
     
-    const { error } = await supabase.from("enti_accreditati").delete().eq("id", id);
-    
-    if (error) {
-      toast.error("Errore eliminazione: " + error.message);
-    } else {
-      toast.success("Ente eliminato");
-      loadData();
-    }
+    await deleteEnte(id);
+    toast.success("Ente eliminato");
+    loadData();
   };
 
   const handleDeleteResponsabile = async (id: string) => {
     if (!confirm("Sei sicuro di voler eliminare questo responsabile?")) return;
     
-    const { error } = await supabase.from("responsabili_corso").delete().eq("id", id);
-    
-    if (error) {
-      toast.error("Errore eliminazione: " + error.message);
-    } else {
-      toast.success("Responsabile eliminato");
-      loadData();
-    }
+    await deleteResponsabile(id);
+    toast.success("Responsabile eliminato");
+    loadData();
   };
 
   return (
@@ -246,17 +240,10 @@ function EnteDialog({ ente, onSave }: { ente?: EnteAccreditato; onSave: () => vo
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const { error } = ente
-      ? await supabase.from("enti_accreditati").update(formData).eq("id", ente.id)
-      : await supabase.from("enti_accreditati").insert([formData]);
-
-    if (error) {
-      toast.error("Errore salvataggio: " + error.message);
-    } else {
-      toast.success(ente ? "Ente aggiornato" : "Ente creato");
-      setOpen(false);
-      onSave();
-    }
+    await saveEnte({ ...formData, id: ente?.id });
+    toast.success(ente ? "Ente aggiornato" : "Ente creato");
+    setOpen(false);
+    onSave();
   };
 
   return (
@@ -368,17 +355,10 @@ function ResponsabileDialog({ responsabile, onSave }: { responsabile?: Responsab
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     
-    const { error } = responsabile
-      ? await supabase.from("responsabili_corso").update(formData).eq("id", responsabile.id)
-      : await supabase.from("responsabili_corso").insert([formData]);
-
-    if (error) {
-      toast.error("Errore salvataggio: " + error.message);
-    } else {
-      toast.success(responsabile ? "Responsabile aggiornato" : "Responsabile creato");
-      setOpen(false);
-      onSave();
-    }
+    await saveResponsabile({ ...formData, id: responsabile?.id });
+    toast.success(responsabile ? "Responsabile aggiornato" : "Responsabile creato");
+    setOpen(false);
+    onSave();
   };
 
   const showExtendedFields = formData.tipo === "responsabile_cert";

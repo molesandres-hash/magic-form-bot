@@ -26,6 +26,7 @@ import {
     X,
     Download,
     Upload,
+    BookOpen,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
@@ -289,6 +290,60 @@ const PredefinedDataSettings = () => {
             ...prev,
             platforms: prev.platforms.map((p) =>
                 p.id === id ? { ...p, enabled: !p.enabled } : p
+            ),
+        }));
+    };
+
+    // ========================================================================
+    // ARGUMENT LISTS
+    // ========================================================================
+
+    const handleAddArgList = () => {
+        if (!newArgListName.trim()) {
+            toast.error('Nome della lista obbligatorio');
+            return;
+        }
+
+        const argumentsArray = newArgListContent
+            .split('\n')
+            .map((arg) => arg.trim())
+            .filter((arg) => arg.length > 0);
+
+        if (argumentsArray.length === 0) {
+            toast.error('Inserisci almeno un argomento');
+            return;
+        }
+
+        const argList: PredefinedArgumentList = {
+            id: generatePredefinedDataId('arglist'),
+            name: newArgListName.trim(),
+            arguments: argumentsArray,
+            enabled: true,
+        };
+
+        setData((prev) => ({
+            ...prev,
+            argumentLists: [...(prev.argumentLists || []), argList],
+        }));
+
+        setNewArgListName('');
+        setNewArgListContent('');
+        toast.success('Lista argomenti aggiunta!');
+    };
+
+    const handleRemoveArgList = (id: string) => {
+        setData((prev) => ({
+            ...prev,
+            argumentLists: (prev.argumentLists || []).filter((a) => a.id !== id),
+        }));
+        toast.success('Lista argomenti rimossa');
+    };
+
+    const handleToggleArgList = (id: string) => {
+        setData((prev) => ({
+            ...prev,
+            argumentLists: (prev.argumentLists || []).map((a) =>
+                a.id === id ? { ...a, enabled: !a.enabled } : a
             ),
         }));
     };

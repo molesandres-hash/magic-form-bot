@@ -19,15 +19,19 @@ Il sistema sostituirà `{{NOME_VARIABILE}}` con il valore corrispondente.
 | Placeholder | Descrizione | Esempio |
 |-------------|-------------|---------|
 | `{{NOME_CORSO}}` | Il titolo del corso | "Intelligenza Artificiale" |
+| `{{ID_CORSO}}` | Il codice identificativo del corso | "21342" |
 | `{{ID_SEZIONE}}` | Il codice identificativo della sezione | "22639" |
 | `{{DATA_INIZIO}}` | La data della prima lezione | "22/09/2025" |
 | `{{DATA_FINE}}` | La data dell'ultima lezione | "30/10/2025" |
 | `{{ORE_TOTALI}}` | Numero totale di ore del corso | "40" |
+| `{{ANNO_CORSO}}` | Anno del corso | "2025" |
 
-### Dati Docente
+### Dati Docente / Responsabile Corso
+> **Nota**: Il docente è anche il "Responsabile del Corso" (Course Director).
+
 | Placeholder | Descrizione | Esempio |
 |-------------|-------------|---------|
-| `{{NOME_DOCENTE}}` | Nome e cognome del docente | "Mario Rossi" |
+| `{{NOME_DOCENTE}}` | Nome e cognome del docente/responsabile corso | "Mario Rossi" |
 | `{{CODICE_FISCALE_DOCENTE}}` | Codice fiscale del docente | "RSSMRA80A01H501U" |
 
 ### Dati Partecipante (per Attestati)
@@ -54,6 +58,7 @@ All'interno del blocco `{#SESSIONI} ... {/SESSIONI}`, puoi usare questi placehol
 | `{{ora_fine}}` | Orario di fine | "18:00" |
 | `{{luogo}}` | Luogo o modalità (Online/FAD) | "Online" |
 | `{{durata}}` | Durata in ore | "4" |
+| `{{modalita}}` | Modalità della sessione | "FAD" o "Presenza" |
 
 ### Dati Ente e Sede
 | Placeholder | Descrizione | Esempio |
@@ -70,6 +75,10 @@ All'interno del blocco `{#SESSIONI} ... {/SESSIONI}`, puoi usare questi placehol
 | `{{PIATTAFORMA}}` | Piattaforma utilizzata | "Zoom" |
 | `{{MODALITA_GESTIONE}}` | Modalità (Sincrona/Asincrona) | "Sincrona" |
 | `{{MODALITA_VALUTAZIONE}}` | Tipo di valutazione | "Test Scritto" |
+| `{{OBIETTIVI_DIDATTICI}}` | Obiettivi didattici del corso FAD | "Acquisire competenze..." |
+| `{{ZOOM_MEETING_ID}}` | ID meeting Zoom (opzionale) | "123 456 7890" |
+| `{{ZOOM_PASSCODE}}` | Passcode Zoom (opzionale) | "abc123" |
+| `{{GUEST_USER}}` | Utente ospite (opzionale) | "guest@example.com" |
 
 ### Dati Verbale (Esame Finale)
 | Placeholder | Descrizione | Esempio |
@@ -112,7 +121,13 @@ Utili per certificati o documenti specifici per singolo partecipante basati sull
 - `{{PARTECIPANTE 1 NOME}}` - Nome del 1° partecipante
 - `{{PARTECIPANTE 1 COGNOME}}` - Cognome del 1° partecipante
 - `{{PARTECIPANTE 1 CF}}` - Codice Fiscale del 1° partecipante
-- `{{PARTECIPANTE 2}}` ... e così via per tutti i partecipanti
+- `{{PARTECIPANTE 1 EMAIL}}` - Email del 1° partecipante
+- `{{PARTECIPANTE 2}}` - Nome completo del 2° partecipante
+- `{{PARTECIPANTE 2 NOME}}` - Nome del 2° partecipante
+- `{{PARTECIPANTE 2 COGNOME}}` - Cognome del 2° partecipante
+- `{{PARTECIPANTE 2 CF}}` - Codice Fiscale del 2° partecipante
+- `{{PARTECIPANTE 2 EMAIL}}` - Email del 2° partecipante
+- `{{PARTECIPANTE 3}}` ... e così via per tutti i partecipanti
 
 ### Loop Partecipanti (Tabella)
 Da usare all'interno di una tabella Word per elencare tutti i partecipanti.:
@@ -256,3 +271,103 @@ FIRMA DIRETTORE: _________________
 {/SESSIONI_FAD}
 ```
 *Nota: Assicurati di inserire un'interruzione di pagina manuale prima della chiusura del tag `{/SESSIONI_FAD}` per avere ogni giorno su una nuova pagina.*
+
+## 💡 Esempio: Modello B FAD (File Separato per Giorno)
+
+**NUOVO**: Il sistema genera automaticamente **un file per ogni giorno FAD** usando il template `modello B FAD_placeholder.docx`.
+
+### Template Structure (Semplificato)
+
+```text
+REGISTRO FORMATIVO E DELLE PRESENZE ONLINE
+
+SCHEDA GIORNO
+GIORNO: {{giorno}}      MESE: {{mese}}      ANNO: {{anno}}
+
+Corso: {{NOME_CORSO}}
+ID Sezione: {{ID_SEZIONE}}
+
+DETTAGLI LEZIONE ONLINE
+
+Orario della lezione online: {{ora_inizio}} - {{ora_fine}}
+
+Argomento della lezione online: {{argomento_sessione}}
+
+
+FIRMA IL DIRETTORE DEL CORSO (2)
+
+____________________________
+```
+
+### Placeholder Unici per Modello B
+
+| Placeholder | Descrizione | Esempio |
+|-------------|-------------|---------|
+| `{{giorno}}` | Numero giorno | "22" |
+| `{{mese}}` | Nome mese italiano | "Settembre" |
+| `{{anno}}` | Anno | "2025" |
+| `{{ora_inizio}}` | Ora inizio lezione FAD | "9:00" |
+| `{{ora_fine}}` | Ora fine lezione FAD | "13:00" |
+| `{{argomento_sessione}}` | Argomento casuale dalla lista configurata * | "Sicurezza sul lavoro" |
+
+*L'argomento viene scelto casualmente dalle "Liste Argomenti" configurate in Impostazioni → Dati Predefiniti
+
+### Come Funziona
+
+1. Il sistema filtra **solo le sessioni FAD** del corso
+2. Per OGNI sessione FAD, genera **un file separato**
+3. I file vengono salvati nella cartella `Registri_FAD/` all'interno del ZIP
+4. Nome file: `Registro_FAD_22_09_2025.docx` (basato sulla data della sessione)
+
+**Vantaggi**:
+- Un documento per ogni giorno = più facile da archiviare e firmare
+- Argomenti variabili automaticamente
+- Nessun bisogno di loop nel template (ogni file = 1 giorno)
+
+
+## 💡 Esempio: Tabella Calendario Lezioni E-Learning
+
+Per creare una tabella con il calendario delle lezioni che si popola automaticamente, segui questi passaggi in **Microsoft Word**:
+
+1. **Scrivi il titolo**:
+   ```
+   5. Calendario delle lezioni e-learning, modalità utilizzata e docenti impegnati
+   ```
+
+2. **Crea una tabella** con 6 colonne (Inserisci → Tabella → 6 colonne x 2 righe)
+
+3. **Nella prima riga (intestazione)** inserisci:
+   - `DATA` | `ORA INIZIO` | `ORA FINE` | `MATERIA` | `DOCENTE` | `NOTE`
+
+4. **Nella seconda riga** inserisci i placeholder con il loop:
+   - Nella cella della colonna DATA: `{#SESSIONI_FAD}`
+   - Nella stessa riga, nelle celle successive: `{{data}}` | `{{ora_inizio}}` | `{{ora_fine}}` | `{{NOME_CORSO}}` | `{{NOME_DOCENTE}}` |
+   - Nell'ultima cella (NOTE) lascia vuoto o inserisci `{{modalita}}`
+
+5. **Chiudi il loop**: In una nuova riga sotto la tabella, scrivi `{/SESSIONI_FAD}`
+
+6. **Assicurati che i bordi siano visibili**: Seleziona la tabella → Layout Tabella → Visualizza Griglia oppure Design Tabella → Bordi → Tutti i bordi
+
+**Risultato finale in Word**:
+```
+5. Calendario delle lezioni e-learning, modalità utilizzata e docenti impegnati
+
+┌──────────┬────────────┬──────────┬─────────────┬─────────────┬──────┐
+│   DATA   │ ORA INIZIO │ ORA FINE │   MATERIA   │   DOCENTE   │ NOTE │
+├──────────┼────────────┼──────────┼─────────────┼─────────────┼──────┤
+{#SESSIONI_FAD}
+│ {{data}} │ {{ora_inizio}} │ {{ora_fine}} │ {{NOME_CORSO}} │ {{NOME_DOCENTE}} │      │
+{/SESSIONI_FAD}
+└──────────┴────────────┴──────────┴─────────────┴─────────────┴──────┘
+```
+
+📌 **Importante**: 
+- Il tag `{#SESSIONI_FAD}` deve essere **nella prima cella dati** della tabella
+- Il tag `{/SESSIONI_FAD}` deve essere **dopo l'ultima cella della riga**
+- La tabella genererà automaticamente una riga per ogni sessione FAD del corso
+
+**Varianti disponibili per la colonna NOTE**:
+- `{{modalita}}` - Mostra se è sincrona/asincrona
+- `{{luogo}}` - Mostra "Online" o altra location
+- `{{durata}}h` - Mostra la durata in ore
+- Lascia vuoto per compilazione manuale

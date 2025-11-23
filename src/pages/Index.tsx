@@ -3,7 +3,6 @@ import { useNavigate } from "react-router-dom";
 import { FileText, Sparkles, CheckCircle, Download, LogOut, Settings, UserCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 import InputStepWizard from "@/components/steps/InputStepWizard";
 import AdditionalDataStep, { AdditionalData } from "@/components/steps/AdditionalDataStep";
@@ -12,6 +11,7 @@ import GenerationStep from "@/components/steps/GenerationStep";
 import SettingsDialog from "@/components/dialogs/SettingsDialog";
 import { useAuth } from "@/hooks/useAuth";
 import type { CourseData } from "@/types/courseData";
+import { signOut } from "@/services/localAuth";
 
 type Step = "input" | "additional" | "completion" | "generation";
 
@@ -19,7 +19,7 @@ type Step = "input" | "additional" | "completion" | "generation";
 
 const Index = () => {
   const navigate = useNavigate();
-  const { user, session, loading: authLoading } = useAuth();
+  const { user } = useAuth();
   const [currentStep, setCurrentStep] = useState<Step>("input");
   const [extractedData, setExtractedData] = useState<CourseData | null>(null);
   const [additionalData, setAdditionalData] = useState<AdditionalData | null>(null);
@@ -30,26 +30,11 @@ const Index = () => {
   // Removed authentication requirement for main page
 
   useEffect(() => {
-    if (user) {
-      checkAdminRole();
-    }
+    setIsAdmin(true);
   }, [user]);
 
-  const checkAdminRole = async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    setIsAdmin(!!data);
-  };
-
   const handleLogout = async () => {
-    await supabase.auth.signOut();
+    await signOut();
     toast.success("Logout effettuato");
     navigate("/auth");
   };

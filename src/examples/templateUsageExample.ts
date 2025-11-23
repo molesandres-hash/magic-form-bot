@@ -91,16 +91,15 @@ Trainer: Andres Moles
   }
 }
 
-// ============================================================================
-// EXAMPLE 2: Generate Word Document from Template
-// ============================================================================
+// ============================================================================ 
+// EXAMPLE 2: Generate Word Document from Template 
+// ============================================================================ 
 
-export async function example2_GenerateWordDocument(supabase: any) {
-  // Load template from Supabase storage
-  const template = await loadTemplateFromStorage(
-    'templates/attestato_template.docx',
-    supabase
-  );
+export async function example2_GenerateWordDocument() { 
+  // Load template from local DB storage 
+  const template = await loadTemplateFromStorage( 
+    'templates/attestato_template.docx' 
+  ); 
 
   // Data to fill into template
   const data = {
@@ -262,7 +261,7 @@ ISTRUZIONI SPECIFICHE:
 // EXAMPLE 5: Full Workflow - From Input to Document
 // ============================================================================
 
-export async function example5_FullWorkflow(apiKey: string, supabase: any) {
+export async function example5_FullWorkflow(apiKey: string) {
   console.log('=== FULL WORKFLOW EXAMPLE ===\n');
 
   // Step 1: Collect user input
@@ -322,8 +321,7 @@ Sessioni:
   console.log('Step 5: Generating Word documents...');
   try {
     const registroTemplate = await loadTemplateFromStorage(
-      'templates/registro_template.docx',
-      supabase
+      'templates/registro_template.docx'
     );
 
     await processWordTemplate({

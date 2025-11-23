@@ -14,7 +14,6 @@ import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useState, useEffect } from "react";
-import { supabase } from "@/integrations/supabase/client";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -29,22 +28,9 @@ export default function SettingsDialog({ open, onOpenChange, defaultTab = "gener
 
   useEffect(() => {
     if (user) {
-      checkAdminRole();
+      setIsAdmin(true);
     }
   }, [user]);
-
-  const checkAdminRole = async () => {
-    if (!user) return;
-
-    const { data } = await supabase
-      .from("user_roles")
-      .select("role")
-      .eq("user_id", user.id)
-      .eq("role", "admin")
-      .maybeSingle();
-
-    setIsAdmin(!!data);
-  };
 
   const handleNavigateToAdmin = () => {
     onOpenChange(false);

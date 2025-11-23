@@ -20,6 +20,13 @@ export const CompletionSelection = ({
     supervisori,
     responsabiliCert,
 }: CompletionSelectionProps) => {
+    const formatEnteLabel = (ente: EnteAccreditato) => {
+        const location = [ente.comune, ente.provincia].filter(Boolean).join(" ");
+        if (location) return `${ente.nome} - ${location}`;
+        if (ente.via) return `${ente.nome} - ${ente.via}`;
+        return ente.nome;
+    };
+
     return (
         <AccordionItem value="selezione" className="border rounded-lg px-6">
             <AccordionTrigger className="hover:no-underline">
@@ -40,7 +47,7 @@ export const CompletionSelection = ({
                             <SelectContent>
                                 {enti.map(ente => (
                                     <SelectItem key={ente.id} value={ente.id}>
-                                        {ente.nome} - {ente.comune} ({ente.provincia})
+                                        {formatEnteLabel(ente)}
                                     </SelectItem>
                                 ))}
                             </SelectContent>

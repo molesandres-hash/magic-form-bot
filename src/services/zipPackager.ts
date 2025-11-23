@@ -32,7 +32,9 @@ import {
   createDbTemplateGenerator,
   type TemplateGenerator
 } from './templateRegistry';
-import { supabase } from '@/integrations/supabase/client';
+import { generateAllFADRegistries, hasFADSessions } from './fadMultiFileGenerator';
+import { createCleanExcelBlob, processSessionsIntoRows } from './excelTemplateGenerator';
+import { listTemplates } from '@/services/localDb';
 
 // ============================================================================
 // CONSTANTS - Folder structure and configuration
@@ -129,16 +131,38 @@ export async function createCompleteZIPPackage(data: CourseData): Promise<void> 
         // Complete report
         const reportExcel = generateCourseReportExcelBlob(data);
         zipFolder.file(`${FILE_PREFIX.REPORT}_${courseId}.xlsx`, reportExcel);
+
+        // Hours calculation register (Registro Ore)
+        const hoursExcel = generateHoursExcelBlob(data);
+        zipFolder.file(`Registro_Ore_${courseId}.xlsx`, hoursExcel);
       }
     }
 
-    // 4. Add README (if enabled)
+    // 4. Generate FAD Registries (Multi-file)
+    // Create separate folder with one file per FAD session day
+    if (hasFADSessions(data)) {
+      console.log('Generating FAD registries folder...');
+      const fadFolder = rootFolder.folder('Registri_FAD');
+      if (fadFolder) {
+        try {
+          const fadFiles = await generateAllFADRegistries(data);
+          fadFiles.forEach(({ filename, blob }) => {
+            fadFolder.file(filename, blob);
+          });
+          console.log(`Generated ${fadFiles.length} FAD registry files`);
+        } catch (error) {
+          console.error('Error generating FAD registries:', error);
+        }
+      }
+    }
+
+    // 5. Add README (if enabled)
     if (settings.generateReadme) {
       const readmeContent = generateREADME(data);
       rootFolder.file('README.txt', readmeContent);
     }
 
-    // 5. Add Metadata (if enabled)
+    // 6. Add Metadata (if enabled)
     if (settings.generateMetadata) {
       const metadataContent = JSON.stringify(
         {
@@ -154,7 +178,7 @@ export async function createCompleteZIPPackage(data: CourseData): Promise<void> 
     }
 
     // ========================================================================
-    // STEP 5: Generate and download ZIP archive
+    // STEP 7: Generate and download ZIP archive
     // ========================================================================
     console.log('Creating ZIP archive...');
     const zipBlob = await zip.generateAsync({ type: 'blob' });
@@ -219,20 +243,15 @@ async function resolveAllTemplates(): Promise<Map<string, ResolvedTemplate>> {
 
   // 3. DB Templates
   try {
-    const { data, error } = await supabase
-      .from("document_templates")
-      .select("*");
-
-    if (!error && data) {
-      data.forEach((t: any) => {
-        map.set(t.id, {
-          id: t.id,
-          name: t.name,
-          filename: t.name,
-          generator: createDbTemplateGenerator(t.file_path, t.file_name)
-        });
+    const data = await listTemplates();
+    data.forEach((t: any) => {
+      map.set(t.id, {
+        id: t.id,
+        name: t.name,
+        filename: t.name,
+        generator: createDbTemplateGenerator(t.id, t.file_name)
       });
-    }
+    });
   } catch (e) {
     console.error("Failed to load DB templates", e);
   }
@@ -366,6 +385,41 @@ function generateCourseReportExcelBlob(data: CourseData): Blob {
   return new Blob([excelBuffer], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   });
+}
+
+/**
+ * Generates the "Registro Ore" Excel with hourly calculations
+ */
+function generateHoursExcelBlob(data: CourseData): Blob {
+  const sessions = (data.sessioni || []).map((s) => ({
+    data: s.data_completa,
+    ora_inizio: s.ora_inizio_giornata,
+    ora_fine: s.ora_fine_giornata,
+    luogo: s.sede,
+  }));
+
+  const rows = processSessionsIntoRows(
+    sessions,
+    data.corso?.id || '',
+    // Trainer CF can live under different keys depending on extraction
+    (data.trainer as any)?.codice_fiscale || (data.trainer as any)?.codiceFiscale || '',
+    data.corso?.titolo || ''
+  );
+
+  const columns = [
+    { header: 'ID_SEZIONE', variableName: 'ID_SEZIONE', width: 15, format: 'text' },
+    { header: 'DATA LEZIONE', variableName: 'DATA_LEZIONE', width: 12, format: 'text' },
+    { header: 'TOTALE_ORE', variableName: 'TOTALE_ORE', width: 10, format: 'text' },
+    { header: 'ORA_INIZIO', variableName: 'ORA_INIZIO', width: 10, format: 'text' },
+    { header: 'ORA_FINE', variableName: 'ORA_FINE', width: 10, format: 'text' },
+    { header: 'TIPOLOGIA', variableName: 'TIPOLOGIA', width: 10, format: 'text' },
+    { header: 'CODICE FISCALE DOCENTE', variableName: 'CODICE_FISCALE_DOCENTE', width: 20, format: 'text' },
+    { header: 'MATERIA', variableName: 'MATERIA', width: 30, format: 'text' },
+    { header: 'CONTENUTI MATERIA', variableName: 'CONTENUTI_MATERIA', width: 30, format: 'text' },
+    { header: 'SVOLGIMENTO SEDE LEZIONE', variableName: 'SVOLGIMENTO_SEDE_LEZIONE', width: 25, format: 'text' },
+  ];
+
+  return createCleanExcelBlob(rows, columns);
 }
 
 /**
