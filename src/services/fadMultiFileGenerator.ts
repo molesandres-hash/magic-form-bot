@@ -19,6 +19,7 @@ import { loadPredefinedData } from '@/utils/predefinedDataUtils';
 // ============================================================================
 
 const FAD_TEMPLATE_PATH = '/templates/modello B FAD_placeholder.docx';
+const FAD_TEMPLATE_A_PATH = '/templates/modello_A_FAD_con_placeholder.docx';
 
 const MONTH_NAMES = [
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -30,7 +31,7 @@ const MONTH_NAMES = [
 // ============================================================================
 
 /**
- * Generates a single FAD registry document for one specific day
+ * Generates a single FAD registry document (Modello B) for one specific day
  * 
  * @param data - Complete course data
  * @param sessionIndex - Index of the FAD session to generate (0-based)
@@ -75,7 +76,53 @@ export async function generateFADRegistryForDay(
 }
 
 /**
- * Generates ALL FAD registry documents and returns them as an array
+ * Generates a single FAD Modello A document for one specific day
+ * 
+ * @param data - Complete course data
+ * @param sessionIndex - Index of the FAD session to generate (0-based)
+ * @returns Document blob ready for download/ZIP packaging
+ */
+export async function generateModelloAFAD(
+    data: CourseData,
+    sessionIndex: number
+): Promise<Blob> {
+    try {
+        // 1. Get FAD sessions
+        const fadSessions = (data.sessioni || []).filter(s => s.is_fad);
+
+        if (sessionIndex < 0 || sessionIndex >= fadSessions.length) {
+            throw new Error(`Invalid session index: ${sessionIndex}`);
+        }
+
+        const session = fadSessions[sessionIndex];
+
+        // 2. Load template
+        const templateResponse = await fetch(FAD_TEMPLATE_A_PATH);
+        if (!templateResponse.ok) {
+            throw new Error('Template non trovato: modello_A_FAD_con_placeholder.docx');
+        }
+        const templateBlob = await templateResponse.blob();
+
+        // 3. Prepare data for this specific session
+        // Assuming Modello A uses the same data structure as Modello B
+        const templateData = prepareFADSessionData(data, session);
+
+        // 4. Process template
+        const blob = await processWordTemplate({
+            template: templateBlob,
+            data: templateData,
+            filename: `Modello_A_FAD_${formatDateForFilename(session.data_completa)}.docx`
+        });
+
+        return blob;
+    } catch (error: any) {
+        console.error('Error generating Modello A FAD for day:', error);
+        throw new Error(`Errore generazione Modello A FAD: ${error.message}`);
+    }
+}
+
+/**
+ * Generates ALL FAD registry documents (Modello A and Modello B) and returns them as an array
  * Used by ZIP packager to include all FAD files
  * 
  * @param data - Complete course data
@@ -89,9 +136,24 @@ export async function generateAllFADRegistries(
 
     for (let i = 0; i < fadSessions.length; i++) {
         const session = fadSessions[i];
-        const blob = await generateFADRegistryForDay(data, i);
-        const filename = `Registro_FAD_${formatDateForFilename(session.data_completa)}.docx`;
-        results.push({ filename, blob });
+
+        // Generate Modello B (Registro FAD)
+        try {
+            const blobB = await generateFADRegistryForDay(data, i);
+            const filenameB = `Registro_FAD_${formatDateForFilename(session.data_completa)}.docx`;
+            results.push({ filename: filenameB, blob: blobB });
+        } catch (e) {
+            console.error(`Failed to generate Modello B for session ${i}`, e);
+        }
+
+        // Generate Modello A
+        try {
+            const blobA = await generateModelloAFAD(data, i);
+            const filenameA = `Modello_A_FAD_${formatDateForFilename(session.data_completa)}.docx`;
+            results.push({ filename: filenameA, blob: blobA });
+        } catch (e) {
+            console.error(`Failed to generate Modello A for session ${i}`, e);
+        }
     }
 
     return results;

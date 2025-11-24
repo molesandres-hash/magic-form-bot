@@ -176,12 +176,22 @@ Analizza i dati forniti e estrai tutte le informazioni relative a:
 - Docenti/trainer (nome completo)
 - Partecipanti (array con ID, nome, cognome, CF, email, telefono, programma, ufficio, case manager, benefits)
 
-IMPORTANTE PER MODULI:
-- Se ci sono MULTIPLI MODULI (2-6), estrai TUTTI i moduli nell'array "moduli"
-- Ogni modulo DEVE avere: id, id_corso, id_sezione, titolo, data_inizio, data_fine, ore_totali, provider
-- Ogni modulo ha le SUE sessioni specifiche nell'array "sessioni_raw" del modulo
-- I partecipanti sono CONDIVISI tra tutti i moduli (un unico array)
-- Se c'è UN SOLO modulo, crea comunque un array con 1 elemento
+IMPORTANTE PER ID CORSO E SEZIONE:
+- Cerca la tabella "Moduli" o "Ricerca".
+- Dai PRIORITÀ ASSOLUTA alle colonne "ID Corso" e "ID Sezione" presenti nella tabella dei moduli.
+- IGNORA l'ID presente nella sezione "Dettagli di base" se differisce da quello nella tabella Moduli (spesso è solo un ID prenotazione interno).
+- Esempio: Se "Dettagli di base" dice ID 20641 ma la tabella Moduli dice ID Corso 47816, USA 47816.
+
+IMPORTANTE PER MODULI MULTIPLI:
+- Se la tabella moduli contiene PIÙ RIGHE, significa che ci sono PIÙ MODULI/SEZIONI.
+- Estrai OGNI riga come un oggetto modulo separato nell'array "moduli".
+- Ogni modulo DEVE avere il suo "id_sezione" specifico (spesso diverso per ogni riga).
+- NON confondere "Sezioni" (unità didattiche) con "Sessioni" (lezioni/date).
+
+IMPORTANTE PER SESSIONI:
+- Ogni modulo ha le SUE date/orari specifici.
+- Se le date sono elencate sotto ogni modulo, associale al modulo corretto.
+- Se le date sono in un blocco unico ma riferite a moduli diversi, cerca di attribuirle correttamente.
 
 IMPORTANTE GENERALE:
 - Se un dato non è presente, usa "" (stringa vuota)

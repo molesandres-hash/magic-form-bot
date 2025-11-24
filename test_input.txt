@@ -1,0 +1,53 @@
+AI: Intelligenza Artificiale (1)
+AI: Intelligenza Artificiale - 22/07/2025 09:00 - 17:00 - Online, AI: Intelligenza Artificiale - 23/07/2025 09:00 - 17:00 - Online, AI: Intelligenz...
+ Dettagli di base
+ Moduli
+ Partecipanti
+ Programmi PAL aggiuntivi
+ Uffici aggiuntivi
+ Cronologia audit
+Moduli
+
+Ricerca
+Corso	ID Corso	ID Sezione	Quando	Provider	Tipo di sede	# Sessioni	Ore Totali	Durata	Rendicontabile	Capienza	Stato
+AI: Intelligenza Artificiale	47816	139331	22/07/2025 09:00 - 17:00
+23/07/2025 09:00 - 17:00
+24/07/2025 09:00 - 17:00
+28/07/2025 09:00 - 17:00
+29/07/2025 09:00 - 17:00
+30/07/2025 09:00 - 17:00
+31/07/2025 09:00 - 17:00
+01/08/2025 09:00 - 17:00	Andres Moles	Ufficio	8	56 hours	64 hours	56 hours	4/5	Aperto
+1 righe visualizzata
+
+Dettagli di base
+
+ID
+20641
+Corso
+AI: Intelligenza Artificiale (1)
+Quando
+AI: Intelligenza Artificiale - 22/07/2025 09:00 - 17:00 - Online
+AI: Intelligenza Artificiale - 23/07/2025 09:00 - 17:00 - Online
+AI: Intelligenza Artificiale - 24/07/2025 09:00 - 17:00 - Online
+AI: Intelligenza Artificiale - 28/07/2025 09:00 - 17:00 - Online
+AI: Intelligenza Artificiale - 29/07/2025 09:00 - 17:00 - Online
+AI: Intelligenza Artificiale - 30/07/2025 09:00 - 17:00 - Online
+AI: Intelligenza Artificiale - 31/07/2025 09:00 - 17:00 - Online
+AI: Intelligenza Artificiale - 01/08/2025 09:00 - 17:00 - Online
+Ufficio
+Milano Porta Venezia
+Capienza
+4/5
+Trainer
+Andres Moles
+Tipo di sede
+Ufficio
+Ore Totali
+56 hours
+Durata
+64 hours
+Rendicontabile
+56 hours
+Stato
+Aperto

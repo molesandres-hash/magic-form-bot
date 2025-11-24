@@ -649,21 +649,21 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
     // For now, if folder accepts 'xlsx', we put standard Excel files there
     // TODO: Make Excel files also configurable templates
     if (folderDef.fileTypes.includes('xlsx')) {
-      // Participants list
-      const participantsExcel = generateParticipantsExcelBlob(data);
-      zipFolder.file(`${FILE_PREFIX.PARTICIPANTS}_${courseId}.xlsx`, participantsExcel);
+      // Participants list - REDUNDANT (Merged into Registro Presenze)
+      // const participantsExcel = generateParticipantsExcelBlob(data);
+      // zipFolder.file(`${FILE_PREFIX.PARTICIPANTS}_${courseId}.xlsx`, participantsExcel);
 
-      // Attendance register
+      // Attendance register (CONSOLIDATED)
       const attendanceExcel = generateAttendanceExcelBlob(data);
       zipFolder.file(`${FILE_PREFIX.ATTENDANCE}_${courseId}.xlsx`, attendanceExcel);
 
-      // Complete report
-      const reportExcel = generateCourseReportExcelBlob(data);
-      zipFolder.file(`${FILE_PREFIX.REPORT}_${courseId}.xlsx`, reportExcel);
+      // Complete report - REDUNDANT (Merged into Registro Presenze)
+      // const reportExcel = generateCourseReportExcelBlob(data);
+      // zipFolder.file(`${FILE_PREFIX.REPORT}_${courseId}.xlsx`, reportExcel);
 
-      // Hours calculation register (Registro Ore)
-      const hoursExcel = generateHoursExcelBlob(data);
-      zipFolder.file(`Registro_Ore_${courseId}.xlsx`, hoursExcel);
+      // Hours calculation register (Registro Ore) - REDUNDANT
+      // const hoursExcel = generateHoursExcelBlob(data);
+      // zipFolder.file(`Registro_Ore_${courseId}.xlsx`, hoursExcel);
 
       // New: Calendario Lezioni per sezione (text-only)
       const calendarExcel = generateSectionCalendarExcelBlob(data, options?.sectionId);
@@ -706,7 +706,10 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
   // 7. Add Modulo 7 communications (one folder per day, one file per beneficiary)
   await addModulo7Communications(rootFolder, data);
 
-  // 8. Add README (if enabled)
+  // 8. Add Verbale Ammissione Esame (DOCX)
+  await addVerbaleAmmissione(rootFolder, data);
+
+  // 9. Add README (if enabled)
   if (settings.generateReadme) {
     const readmeContent = generateREADME(data);
     rootFolder.file('README.txt', readmeContent);
@@ -799,36 +802,87 @@ function buildSessionFolderName(session: any): string {
   if (session?.data_completa) {
     return `Giorno_${session.data_completa.replace(/\//g, '-')}`;
   }
-  if (session?.data) {
-    return `Giorno_${session.data.replace(/\//g, '-')}`;
+  if (session?.data_completa) {
+    return `Giorno_${session.data_completa.replace(/\//g, '-')}`;
   }
-  return `Sessione_${session?.numero || '1'}`;
+  return `Giorno_${session.id || 'N_A'}`;
 }
 
 function buildModulo7Filename(session: any, participant: any): string {
-  const datePart = sanitizeFilename(formatDateForFilename(session?.data_completa || session?.data || 'data'));
   const cognome = sanitizeFilename(participant?.cognome || 'Cognome');
   const nome = sanitizeFilename(participant?.nome || 'Nome');
-  return `Comunicazione_evento_${datePart}_${cognome}_${nome}.docx`;
+  const date = session?.data_completa ? session.data_completa.replace(/\//g, '_') : 'Data';
+  return `Comunicazione_evento_${date}_${cognome}_${nome}.docx`;
 }
 
-function buildModulo7TemplateData(
-  data: CourseData,
-  session: any,
-  participant: any,
-  respCertName: string
-): Record<string, any> {
+function buildModulo7TemplateData(data: CourseData, session: any, participant: any, respCertName: string): Record<string, any> {
+  const fullName = participant?.nome_completo || `${participant?.nome || ''} ${participant?.cognome || ''}`.trim();
+  const enteNome = data.ente?.accreditato?.nome || data.ente?.nome || '';
+  const sedeAccreditata = data.ente?.accreditato?.nome || data.sede?.nome || '';
+  const sedeIndirizzo = buildCourseAddress(data);
+
   return {
-    ENTE_NOME: data.ente?.accreditato?.nome || data.ente?.nome || '',
     'PARTECIPANTE 1 NOME': participant?.nome || '',
     'PARTECIPANTE 1 COGNOME': participant?.cognome || '',
     'PARTECIPANTE 1 CF': participant?.codice_fiscale || '',
-    data: session?.data_completa || session?.data || '',
-    ora_inizio: session?.ora_inizio_giornata || session?.ora_inizio || '',
-    ora_fine: session?.ora_fine_giornata || session?.ora_fine || '',
-    luogo: session?.sede || data.sede?.nome || data.sede?.indirizzo || '',
-    RESP_CERT_NOME_COMPLETO: respCertName
+    'PARTECIPANTE 1': fullName,
+    NOME_CORSO: data.corso?.titolo || '',
+    ID_CORSO: data.corso?.id || '',
+    ID_SEZIONE: data.corso?.id || '',
+    ENTE_NOME: enteNome,
+    ID_ENTE: data.ente?.id || '',
+    SEDE_ACCREDITATA: sedeAccreditata,
+    SEDE_INDIRIZZO: sedeIndirizzo,
+    DATA_LEZIONE: session?.data_completa || '',
+    ORA_INIZIO: session?.ora_inizio_giornata || session?.ora_inizio || '',
+    ORA_FINE: session?.ora_fine_giornata || session?.ora_fine || '',
+    RESP_CERT_NOME_COMPLETO: respCertName,
   };
+}
+
+// ============================================================================
+// VERBALE AMMISSIONE ESAME (DOCX)
+// ============================================================================
+
+const VERBALE_AMMISSIONE_PATH = '/templates/Verbale_Ammissione_Esame_con_placeholder.docx';
+
+/**
+ * Adds the "Verbale Ammissione Esame" to the zip, generated from the DOCX template.
+ */
+async function addVerbaleAmmissione(zipFolder: JSZip, data: CourseData): Promise<void> {
+  try {
+    const response = await fetch(VERBALE_AMMISSIONE_PATH);
+    if (!response.ok) {
+      console.warn('Verbale Ammissione Esame template not found at:', VERBALE_AMMISSIONE_PATH);
+      return;
+    }
+    const templateBlob = await response.blob();
+
+    // Prepare data for the template
+    const templateData = {
+      ...data.corso,
+      ...data.ente,
+      ...data.sede,
+      // Add any specific placeholders needed for this document
+      NOME_CORSO: data.corso?.titolo || '',
+      ID_CORSO: data.corso?.id || '',
+      DATA_INIZIO: data.corso?.data_inizio || '',
+      DATA_FINE: data.corso?.data_fine || '',
+      ENTE_NOME: data.ente?.accreditato?.nome || data.ente?.nome || '',
+    };
+
+    const blob = await processWordTemplate({
+      template: templateBlob,
+      data: templateData,
+      filename: 'temp_verbale.docx'
+    });
+
+    const filename = `Verbale_Ammissione_Esame_${sanitizeFilename(data.corso?.id || 'corso')}.docx`;
+    zipFolder.file(filename, blob);
+    console.log(`Added ${filename} to zip`);
+  } catch (error) {
+    console.error('Error adding Verbale Ammissione Esame DOCX:', error);
+  }
 }
 
 function getRespCertFullName(data: CourseData): string {
@@ -900,9 +954,14 @@ function generateParticipantsExcelBlob(data: CourseData): Blob {
 /**
  * Generates attendance Excel as Blob (for ZIP packaging)
  */
+/**
+ * Generates attendance Excel as Blob (for ZIP packaging)
+ * Includes Attendance Matrix, Course Summary, and Participant Details in one sheet.
+ */
 function generateAttendanceExcelBlob(data: CourseData): Blob {
   const sessionDates = (data.sessioni_presenza || []).map((s) => s.data_completa);
 
+  // 1. ATTENDANCE MATRIX
   const attendanceData = (data.partecipanti || []).map((p) => {
     const row: any = {
       'Numero': p.numero,
@@ -921,6 +980,47 @@ function generateAttendanceExcelBlob(data: CourseData): Blob {
   });
 
   const ws = XLSX.utils.json_to_sheet(attendanceData);
+
+  // 2. APPEND COURSE SUMMARY (Below matrix)
+  // Calculate start row for summary (matrix rows + header + some spacing)
+  const matrixEndRow = attendanceData.length + 2; // +1 for header, +1 for 0-based index
+  const summaryStartRow = matrixEndRow + 3; // 3 rows spacing
+
+  XLSX.utils.sheet_add_aoa(ws, [['--- RIEPILOGO CORSO ---']], { origin: `A${summaryStartRow}` });
+
+  const courseSummary = [
+    ['Campo', 'Valore'],
+    ['ID Corso', data.corso?.id || 'N/A'],
+    ['Titolo', data.corso?.titolo || 'N/A'],
+    ['Data Inizio', data.corso?.data_inizio || 'N/A'],
+    ['Data Fine', data.corso?.data_fine || 'N/A'],
+    ['Ore Totali', data.corso?.ore_totali || 'N/A'],
+    ['Numero Partecipanti', data.partecipanti_count?.toString() || '0'],
+    ['Ente', data.ente?.accreditato?.nome || data.ente?.nome || 'N/A'],
+    ['Sede', data.sede?.nome || 'N/A'],
+  ];
+
+  XLSX.utils.sheet_add_aoa(ws, courseSummary, { origin: `A${summaryStartRow + 1}` });
+
+  // 3. APPEND PARTICIPANT DETAILS (Below summary)
+  const participantsStartRow = summaryStartRow + courseSummary.length + 3;
+
+  XLSX.utils.sheet_add_aoa(ws, [['--- DETTAGLIO PARTECIPANTI ---']], { origin: `A${participantsStartRow}` });
+
+  const participantsHeaders = ['N.', 'Nome', 'Cognome', 'CF', 'Email', 'Telefono'];
+  XLSX.utils.sheet_add_aoa(ws, [participantsHeaders], { origin: `A${participantsStartRow + 1}` });
+
+  const participantsRows = (data.partecipanti || []).map(p => [
+    p.numero,
+    p.nome,
+    p.cognome,
+    p.codice_fiscale,
+    p.email,
+    p.telefono
+  ]);
+
+  XLSX.utils.sheet_add_aoa(ws, participantsRows, { origin: `A${participantsStartRow + 2}` });
+
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'Registro Presenze');
 
@@ -972,7 +1072,44 @@ function generateCourseReportExcelBlob(data: CourseData): Blob {
 /**
  * Generates the "Registro Ore" Excel with hourly calculations
  */
+/**
+ * Generates the "Registro Ore" Excel with hourly calculations
+ * Now includes Summary and Participants sheets
+ */
 function generateHoursExcelBlob(data: CourseData): Blob {
+  const wb = XLSX.utils.book_new();
+
+  // 1. SHEET: RIEPILOGO (Summary)
+  const courseSummary = [
+    { Campo: 'ID Corso', Valore: data.corso?.id || 'N/A' },
+    { Campo: 'Titolo', Valore: data.corso?.titolo || 'N/A' },
+    { Campo: 'Data Inizio', Valore: data.corso?.data_inizio || 'N/A' },
+    { Campo: 'Data Fine', Valore: data.corso?.data_fine || 'N/A' },
+    { Campo: 'Ore Totali', Valore: data.corso?.ore_totali || 'N/A' },
+    { Campo: 'Numero Partecipanti', Valore: data.partecipanti_count?.toString() || '0' },
+    { Campo: 'Ente', Valore: data.ente?.accreditato?.nome || data.ente?.nome || 'N/A' },
+    { Campo: 'Sede', Valore: data.sede?.nome || 'N/A' },
+  ];
+  const wsSummary = XLSX.utils.json_to_sheet(courseSummary);
+  wsSummary['!cols'] = [{ wch: 25 }, { wch: 50 }];
+  XLSX.utils.book_append_sheet(wb, wsSummary, 'Riepilogo');
+
+  // 2. SHEET: PARTECIPANTI (Participants)
+  const participantsData = (data.partecipanti || []).map((p) => ({
+    'N.': p.numero,
+    'Nome': p.nome,
+    'Cognome': p.cognome,
+    'CF': p.codice_fiscale,
+    'Email': p.email,
+    'Telefono': p.telefono,
+  }));
+  const wsParticipants = XLSX.utils.json_to_sheet(participantsData);
+  wsParticipants['!cols'] = [
+    { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 30 }, { wch: 15 }
+  ];
+  XLSX.utils.book_append_sheet(wb, wsParticipants, 'Partecipanti');
+
+  // 3. SHEET: REGISTRO (Hourly Calculations)
   const sessions = (data.sessioni || []).map((s) => ({
     data: s.data_completa,
     ora_inizio: s.ora_inizio_giornata,
@@ -983,7 +1120,6 @@ function generateHoursExcelBlob(data: CourseData): Blob {
   const rows = processSessionsIntoRows(
     sessions,
     data.corso?.id || '',
-    // Trainer CF can live under different keys depending on extraction
     (data.trainer as any)?.codice_fiscale || (data.trainer as any)?.codiceFiscale || '',
     data.corso?.titolo || ''
   );
@@ -1001,7 +1137,36 @@ function generateHoursExcelBlob(data: CourseData): Blob {
     { header: 'SVOLGIMENTO SEDE LEZIONE', variableName: 'SVOLGIMENTO_SEDE_LEZIONE', width: 25, format: 'text' },
   ];
 
-  return createCleanExcelBlob(rows, columns);
+  // Create clean worksheet for Registro
+  const wsRegistro = XLSX.utils.json_to_sheet(rows, {
+    header: columns.map((c) => c.header),
+  });
+
+  // Force text format
+  const range = XLSX.utils.decode_range(wsRegistro['!ref'] || 'A1');
+  for (let R = range.s.r; R <= range.e.r; ++R) {
+    for (let C = range.s.c; C <= range.e.c; ++C) {
+      const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
+      if (!wsRegistro[cellRef]) continue;
+      wsRegistro[cellRef].t = 's';
+      wsRegistro[cellRef].z = '@';
+    }
+  }
+  wsRegistro['!cols'] = columns.map((col) => ({ wch: col.width }));
+
+  XLSX.utils.book_append_sheet(wb, wsRegistro, 'Registro');
+
+  // Write final workbook
+  const excelBuffer = XLSX.write(wb, {
+    bookType: 'xlsx',
+    type: 'array',
+    cellStyles: false,
+    bookSST: false,
+  });
+
+  return new Blob([excelBuffer], {
+    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  });
 }
 
 /**
@@ -1040,7 +1205,7 @@ function generateSectionCalendarExcelBlob(data: CourseData, sectionId?: string):
     'SEDE SVOLGIMENTO': row.SVOLGIMENTO_SEDE_LEZIONE,
   }));
 
-  return createCleanExcelBlob(rows, getSectionCalendarColumns());
+  return createCleanExcelBlob(rows as any, getSectionCalendarColumns() as any);
 }
 
 function resolveSessionLocation(session: any, data: CourseData): string {

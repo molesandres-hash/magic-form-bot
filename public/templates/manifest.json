@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-11-23T22:25:03.268Z",
+  "generatedAt": "2025-11-24T22:52:21.539Z",
   "templates": [
     {
       "id": "local-Attestato di partecipazione AKG.docx",
@@ -32,6 +32,14 @@
       "path": "/templates/Verbale - Corso di formazione ID XXXXX.docx",
       "size": 387211,
       "lastModified": "2025-11-21T19:12:03.221Z"
+    },
+    {
+      "id": "local-Verbale_Ammissione_Esame_con_placeholder.docx",
+      "name": "Verbale Ammissione Esame con placeholder",
+      "filename": "Verbale_Ammissione_Esame_con_placeholder.docx",
+      "path": "/templates/Verbale_Ammissione_Esame_con_placeholder.docx",
+      "size": 37742,
+      "lastModified": "2025-11-24T22:02:52.579Z"
     },
     {
       "id": "local-Verbale_con_placeholder.docx",
