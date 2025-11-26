@@ -106,7 +106,10 @@ export default function CompletionStepExpanded({ extractedData, onComplete, onBa
           />
 
           {/* Moduli del Corso */}
-          <CompletionModules modules={formData.moduli} />
+          <CompletionModules
+            modules={formData.moduli}
+            onUpdate={(updatedModules) => updateFormData({ moduli: updatedModules })}
+          />
 
           {/* Preview Dati Estratti */}
           <CompletionPreview formData={formData} />

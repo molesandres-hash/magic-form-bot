@@ -89,6 +89,7 @@ export interface Trainer {
   nome_completo: string;
   nome: string;
   cognome: string;
+  codice_fiscale?: string;
 }
 
 // Interfacce per DB
@@ -190,7 +191,10 @@ export interface Registro {
 
 export interface CalendarioFAD {
   modalita: string;
+  piattaforma?: string;
   strumenti: string;
+  id_riunione?: string;
+  passcode?: string;
   obiettivi: string;
   valutazione: string;
   eventi: EventoFAD[];
@@ -212,4 +216,11 @@ export interface Metadata {
   completamento_percentuale: number;
   campi_mancanti: string[];
   warnings: string[];
+  modulo_corrente?: {
+    id: string;
+    id_sezione: string;
+    id_corso: string;
+    titolo: string;
+    index: number;
+  };
 }

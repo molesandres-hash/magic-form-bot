@@ -9,13 +9,13 @@
  * - Any other manual inputs required for document generation
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { UserCheck, Video, ChevronRight, MapPin, Building2, Settings as SettingsIcon } from 'lucide-react';
+import { UserCheck, Video, ChevronRight, MapPin, Settings as SettingsIcon } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Select,
@@ -27,11 +27,9 @@ import {
 import {
   getEnabledTrainers,
   getEnabledLocations,
-  getEnabledEntities,
   getEnabledPlatforms,
   findTrainerById,
   findLocationById,
-  findEntityById,
   validateCodiceFiscale as utilValidateCodiceFiscale,
 } from '@/utils/predefinedDataUtils';
 
@@ -53,6 +51,70 @@ const ERROR_MESSAGES = {
 } as const;
 
 const CUSTOM_OPTION_VALUE = '__CUSTOM__';
+const MATCH_THRESHOLD = 0.55;
+const TRAINER_NAME_THRESHOLD = 0.6;
+
+const normalizeText = (value?: string) => {
+  return (value || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+};
+
+const similarityScore = (a?: string, b?: string) => {
+  const normA = normalizeText(a);
+  const normB = normalizeText(b);
+  if (!normA || !normB) return 0;
+  if (normA === normB) return 1;
+
+  const tokensA = new Set(normA.split(' '));
+  const tokensB = new Set(normB.split(' '));
+  let common = 0;
+  tokensA.forEach(token => {
+    if (tokensB.has(token)) {
+      common += 1;
+    }
+  });
+
+  return common / Math.max(tokensA.size, tokensB.size);
+};
+
+type MatchResult<T> = { item: T; score: number } | null;
+
+const findBestMatch = <T,>(
+  items: T[],
+  targets: Array<string | undefined>,
+  toStrings: (item: T) => string[],
+  minScore = MATCH_THRESHOLD
+): MatchResult<T> => {
+  const validTargets = targets.filter(Boolean) as string[];
+  if (!validTargets.length) return null;
+
+  let best: MatchResult<T> = null;
+
+  items.forEach(item => {
+    const parts = toStrings(item).filter(Boolean);
+    if (!parts.length) return;
+
+    const score = Math.max(
+      ...parts.map(part => Math.max(...validTargets.map(target => similarityScore(part, target))))
+    );
+
+    if (!best || score > best.score) {
+      best = { item, score };
+    }
+  });
+
+  if (best && best.score >= minScore) {
+    return best;
+  }
+
+  return null;
+};
+
+const normalizeCodiceFiscale = (cf?: string) => (cf || '').toUpperCase().replace(/\s+/g, '');
 
 // ============================================================================
 // TYPES
@@ -69,6 +131,8 @@ export interface AdditionalData {
   nomeDocente?: string;
   cognomeDocente?: string;
   linkZoom?: string;
+  idRiunione?: string;
+  passcode?: string;
   piattaforma?: string;
   sedeAccreditata?: string;
   indirizzoSede?: string;
@@ -87,16 +151,14 @@ const AdditionalDataStep = ({
   initialData,
 }: AdditionalDataStepProps) => {
   // State for predefined data
-  const [availableTrainers, setAvailableTrainers] = useState(getEnabledTrainers());
-  const [availableLocations, setAvailableLocations] = useState(getEnabledLocations());
-  const [availableEntities, setAvailableEntities] = useState(getEnabledEntities());
-  const [availablePlatforms, setAvailablePlatforms] = useState(getEnabledPlatforms());
+  const [availableTrainers] = useState(getEnabledTrainers());
+  const [availableLocations] = useState(getEnabledLocations());
+  const [availablePlatforms] = useState(getEnabledPlatforms());
 
   // State for selections
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>(CUSTOM_OPTION_VALUE);
   const [selectedLocationId, setSelectedLocationId] = useState<string>(CUSTOM_OPTION_VALUE);
-  const [selectedEntityId, setSelectedEntityId] = useState<string>(CUSTOM_OPTION_VALUE);
-  const [selectedPlatform, setSelectedPlatform] = useState<string>('');
+  const [selectedPlatform, setSelectedPlatform] = useState<string>(initialData?.piattaforma || '');
 
   // State for manual inputs
   const [codiceFiscaleDocente, setCodiceFiscaleDocente] = useState(
@@ -105,11 +167,29 @@ const AdditionalDataStep = ({
   const [nomeDocente, setNomeDocente] = useState(initialData?.nomeDocente || '');
   const [cognomeDocente, setCognomeDocente] = useState(initialData?.cognomeDocente || '');
   const [linkZoom, setLinkZoom] = useState(initialData?.linkZoom || '');
+  const [idRiunione, setIdRiunione] = useState(initialData?.idRiunione || '');
+  const [passcode, setPasscode] = useState(initialData?.passcode || '');
   const [sedeAccreditata, setSedeAccreditata] = useState(initialData?.sedeAccreditata || '');
   const [indirizzoSede, setIndirizzoSede] = useState(initialData?.indirizzoSede || '');
-  const [nomeEnte, setNomeEnte] = useState(initialData?.nomeEnte || '');
-  const [indirizzoEnte, setIndirizzoEnte] = useState(initialData?.indirizzoEnte || '');
+  const [nomeEnte] = useState(initialData?.nomeEnte || '');
+  const [indirizzoEnte] = useState(initialData?.indirizzoEnte || '');
   const [note, setNote] = useState(initialData?.note || '');
+  const [autoMatchApplied, setAutoMatchApplied] = useState(false);
+
+  const initialSignature = useMemo(
+    () => JSON.stringify({
+      trainer: `${initialData?.codiceFiscaleDocente || ''}|${initialData?.nomeDocente || ''}|${initialData?.cognomeDocente || ''}`,
+      location: `${initialData?.sedeAccreditata || ''}|${initialData?.indirizzoSede || ''}`,
+      entity: `${initialData?.nomeEnte || ''}|${initialData?.indirizzoEnte || ''}`,
+      platform: initialData?.piattaforma || '',
+    }),
+    [initialData]
+  );
+
+  // Reset auto-match guard when new extracted data arrives
+  useEffect(() => {
+    setAutoMatchApplied(false);
+  }, [initialSignature]);
 
   /**
    * Handles trainer selection from dropdown
@@ -147,24 +227,6 @@ const AdditionalDataStep = ({
     } else {
       setSedeAccreditata('');
       setIndirizzoSede('');
-    }
-  };
-
-  /**
-   * Handles entity selection from dropdown
-   */
-  const handleEntitySelect = (value: string) => {
-    setSelectedEntityId(value);
-
-    if (value !== CUSTOM_OPTION_VALUE) {
-      const entity = findEntityById(value);
-      if (entity) {
-        setNomeEnte(entity.name);
-        setIndirizzoEnte(entity.address);
-      }
-    } else {
-      setNomeEnte('');
-      setIndirizzoEnte('');
     }
   };
 
@@ -217,6 +279,8 @@ const AdditionalDataStep = ({
       nomeDocente: nomeDocente.trim() || undefined,
       cognomeDocente: cognomeDocente.trim() || undefined,
       linkZoom: linkZoom.trim() || undefined,
+      idRiunione: idRiunione.trim() || undefined,
+      passcode: passcode.trim() || undefined,
       piattaforma: (selectedPlatform && selectedPlatform !== 'NONE') ? selectedPlatform : undefined,
       sedeAccreditata: sedeAccreditata.trim() || undefined,
       indirizzoSede: indirizzoSede.trim() || undefined,
@@ -239,9 +303,69 @@ const AdditionalDataStep = ({
     }
   };
 
+  // Auto-select predefined options using the closest match from extracted data
+  useEffect(() => {
+    if (autoMatchApplied || !initialData) return;
+
+    const trainerMatch =
+      availableTrainers.find(
+        (trainer) => normalizeCodiceFiscale(trainer.codiceFiscale) === normalizeCodiceFiscale(initialData.codiceFiscaleDocente)
+      ) ||
+      findBestMatch(
+        availableTrainers,
+        [
+          `${initialData.nomeDocente || ''} ${initialData.cognomeDocente || ''}`,
+          initialData.codiceFiscaleDocente
+        ],
+        (trainer) => [
+          `${trainer.nome || ''} ${trainer.cognome || ''}`,
+          trainer.nomeCompleto || '',
+          trainer.codiceFiscale || ''
+        ],
+        TRAINER_NAME_THRESHOLD
+      )?.item;
+
+    if (trainerMatch) {
+      handleTrainerSelect(trainerMatch.id);
+    }
+
+    const locationMatch = findBestMatch(
+      availableLocations,
+      [initialData.sedeAccreditata, initialData.indirizzoSede],
+      (location) => [location.name, location.address]
+    );
+
+    if (locationMatch) {
+      handleLocationSelect(locationMatch.item.id);
+    }
+
+    const platformMatch = findBestMatch(
+      availablePlatforms,
+      [initialData.piattaforma],
+      (platform) => [platform.name],
+      0.5
+    );
+
+    if (platformMatch) {
+      setSelectedPlatform(platformMatch.item.name);
+    } else if (initialData.piattaforma && !selectedPlatform) {
+      setSelectedPlatform(initialData.piattaforma);
+    }
+
+    setAutoMatchApplied(true);
+  }, [
+    availableLocations,
+    availablePlatforms,
+    availableTrainers,
+    autoMatchApplied,
+    handleLocationSelect,
+    handleTrainerSelect,
+    initialData,
+    selectedPlatform
+  ]);
+
   const hasTrainers = availableTrainers.length > 0;
   const hasLocations = availableLocations.length > 0;
-  const hasEntities = availableEntities.length > 0;
   const hasPlatforms = availablePlatforms.length > 0;
 
   return (
@@ -268,7 +392,7 @@ const AdditionalDataStep = ({
             <div className="flex items-center justify-between">
               <Label className="text-base font-semibold flex items-center gap-2">
                 <UserCheck className="h-4 w-4 text-primary" />
-                Docente/Trainer *
+                Direttore del Corso / Docente *
               </Label>
               {hasTrainers && (
                 <span className="text-xs text-muted-foreground">
@@ -297,6 +421,9 @@ const AdditionalDataStep = ({
                 </Select>
               </div>
             )}
+            <p className="text-xs text-muted-foreground">
+              Il docente indicato verrà usato come riferimento per il direttore del corso.
+            </p>
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
@@ -336,7 +463,7 @@ const AdditionalDataStep = ({
                 disabled={selectedTrainerId !== CUSTOM_OPTION_VALUE && hasTrainers}
               />
               <p className="text-xs text-muted-foreground">
-                Codice fiscale del docente/trainer (16 caratteri)
+                Codice fiscale del docente/direttore (16 caratteri)
               </p>
             </div>
           </div>
@@ -399,63 +526,9 @@ const AdditionalDataStep = ({
             </div>
           </div>
 
-          {/* ENTE - with predefined dropdown */}
-          <div className="space-y-3 p-4 border rounded-lg bg-accent/5">
-            <div className="flex items-center justify-between">
-              <Label className="text-base font-semibold flex items-center gap-2">
-                <Building2 className="h-4 w-4 text-primary" />
-                Ente (opzionale)
-              </Label>
-              {hasEntities && (
-                <span className="text-xs text-muted-foreground">
-                  {availableEntities.length} enti disponibili
-                </span>
-              )}
-            </div>
-
-            {hasEntities && (
-              <div className="space-y-2">
-                <Label htmlFor="entity-select" className="text-sm">Seleziona ente</Label>
-                <Select value={selectedEntityId} onValueChange={handleEntitySelect}>
-                  <SelectTrigger id="entity-select">
-                    <SelectValue placeholder="Scegli un ente..." />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value={CUSTOM_OPTION_VALUE}>
-                      ✏️ Inserimento manuale
-                    </SelectItem>
-                    {availableEntities.map((entity) => (
-                      <SelectItem key={entity.id} value={entity.id}>
-                        {entity.name} - {entity.address}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-            )}
-
-            <div className="space-y-2">
-              <Label htmlFor="ente-nome" className="text-sm">Nome Ente</Label>
-              <Input
-                id="ente-nome"
-                value={nomeEnte}
-                onChange={(e) => setNomeEnte(e.target.value)}
-                placeholder="AK GROUP SRL"
-                disabled={selectedEntityId !== CUSTOM_OPTION_VALUE && hasEntities}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label htmlFor="ente-indirizzo" className="text-sm">Indirizzo</Label>
-              <Input
-                id="ente-indirizzo"
-                value={indirizzoEnte}
-                onChange={(e) => setIndirizzoEnte(e.target.value)}
-                placeholder="Via Milano 2, Roma"
-                disabled={selectedEntityId !== CUSTOM_OPTION_VALUE && hasEntities}
-              />
-            </div>
-          </div>
+          <p className="text-xs text-muted-foreground italic px-1">
+            La scelta dell&apos;ente accreditato avverrà nel prossimo step di completamento dati.
+          </p>
 
           {/* PIATTAFORMA FAD + LINK ZOOM */}
           <div className="space-y-3 p-4 border rounded-lg bg-accent/5">
@@ -496,6 +569,29 @@ const AdditionalDataStep = ({
               <p className="text-xs text-muted-foreground">
                 Link della sessione (Zoom, Teams, Google Meet, ecc.)
               </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="id-riunione" className="text-sm">ID Riunione</Label>
+                <Input
+                  id="id-riunione"
+                  value={idRiunione}
+                  onChange={(e) => setIdRiunione(e.target.value)}
+                  placeholder="123 456 7890"
+                  className="text-sm"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="passcode" className="text-sm">Passcode</Label>
+                <Input
+                  id="passcode"
+                  value={passcode}
+                  onChange={(e) => setPasscode(e.target.value)}
+                  placeholder="123456"
+                  className="text-sm"
+                />
+              </div>
             </div>
           </div>
 

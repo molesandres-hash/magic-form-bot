@@ -84,8 +84,8 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
             const templateData = {
                 // --- DATI CORSO ---
                 NOME_CORSO: data.corso?.titolo || '',
-                ID_CORSO: data.corso?.id || '', // Added specific ID_CORSO
-                ID_SEZIONE: data.corso?.id || '', // Kept for backward compatibility
+                ID_CORSO: currentModule?.id_corso || data.corso?.id || '', // Added specific ID_CORSO from module
+                ID_SEZIONE: currentModule?.id_sezione || data.corso?.id || '', // Specific ID_SEZIONE from module
                 DATA_INIZIO: data.corso?.data_inizio || '',
                 DATA_FINE: data.corso?.data_fine || '',
                 ORE_TOTALI: data.corso?.ore_totali || '',
@@ -119,6 +119,8 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
                 // Placeholder for specific FAD details (can be filled if data is available or left for manual input)
                 ZOOM_MEETING_ID: '',
                 ZOOM_PASSCODE: '',
+                ID_RIUNIONE: data.calendario_fad?.id_riunione || extractZoomDetails(data.calendario_fad?.strumenti || '').id || 'Da definire',
+                PASSCODE: data.calendario_fad?.passcode || extractZoomDetails(data.calendario_fad?.strumenti || '').passcode || 'Da definire',
                 GUEST_USER: '',
 
                 // --- LISTE (LOOPS) ---

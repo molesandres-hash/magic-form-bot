@@ -3,6 +3,7 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Label } from "@/components/ui/label";
 import { Wand2, Plus, X, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { GoogleGenAI } from "@google/genai";
@@ -17,6 +18,7 @@ interface CompletionModulesProps {
 export const CompletionModules = ({ modules, onUpdate }: CompletionModulesProps) => {
     const [newArg, setNewArg] = useState<string>("");
     const [generatingId, setGeneratingId] = useState<string | null>(null);
+    const canEdit = Boolean(onUpdate);
 
     const handleAddArg = (moduleIndex: number) => {
         if (!newArg.trim() || !onUpdate) return;
@@ -101,6 +103,16 @@ export const CompletionModules = ({ modules, onUpdate }: CompletionModulesProps)
         }
     };
 
+    const handleModuleFieldChange = (moduleIndex: number, field: keyof Modulo, value: string) => {
+        if (!onUpdate) return;
+        const updatedModules = [...modules];
+        updatedModules[moduleIndex] = {
+            ...updatedModules[moduleIndex],
+            [field]: value
+        };
+        onUpdate(updatedModules);
+    };
+
     return (
         <AccordionItem value="moduli" className="border rounded-lg px-6">
             <AccordionTrigger className="hover:no-underline">
@@ -123,6 +135,43 @@ export const CompletionModules = ({ modules, onUpdate }: CompletionModulesProps)
                             </AccordionTrigger>
                             <AccordionContent>
                                 <div className="p-4 space-y-6">
+                                    {/* Identificativi editabili */}
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 bg-muted/20 p-3 rounded-md">
+                                        <div className="space-y-1">
+                                            <Label htmlFor={`id-corso-${idx}`} className="text-xs font-semibold">
+                                                ID Corso
+                                            </Label>
+                                            <Input
+                                                id={`id-corso-${idx}`}
+                                                value={modulo.id_corso}
+                                                onChange={(e) => handleModuleFieldChange(idx, "id_corso", e.target.value)}
+                                                disabled={!canEdit}
+                                            />
+                                        </div>
+                                        <div className="space-y-1">
+                                            <Label htmlFor={`id-sezione-${idx}`} className="text-xs font-semibold">
+                                                ID Sezione
+                                            </Label>
+                                            <Input
+                                                id={`id-sezione-${idx}`}
+                                                value={modulo.id_sezione}
+                                                onChange={(e) => handleModuleFieldChange(idx, "id_sezione", e.target.value)}
+                                                disabled={!canEdit}
+                                            />
+                                        </div>
+                                        <div className="space-y-1 md:col-span-1">
+                                            <Label htmlFor={`titolo-${idx}`} className="text-xs font-semibold">
+                                                Titolo Modulo
+                                            </Label>
+                                            <Input
+                                                id={`titolo-${idx}`}
+                                                value={modulo.titolo}
+                                                onChange={(e) => handleModuleFieldChange(idx, "titolo", e.target.value)}
+                                                disabled={!canEdit}
+                                            />
+                                        </div>
+                                    </div>
+
                                     {/* Dati Generali */}
                                     <div className="grid grid-cols-2 gap-4 p-4 bg-muted/30 rounded-lg">
                                         <div>

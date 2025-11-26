@@ -167,11 +167,59 @@ export async function generateAllFADRegistries(
  * Prepares placeholder data for a single FAD session
  */
 function prepareFADSessionData(data: CourseData, session: any): Record<string, any> {
+    const calculateDuration = (start: string, end: string): number => {
+        try {
+            const [h1, m1] = (start || '0:0').split(':').map(Number);
+            const [h2, m2] = (end || '0:0').split(':').map(Number);
+            return (h2 + m2 / 60) - (h1 + m1 / 60);
+        } catch {
+            return 0;
+        }
+    };
+
+    const fadSessions = (data.sessioni || []).filter(s => s.is_fad);
+
+    // Hours of FAD calculated on all FAD sessions
+    const fadHours = fadSessions.reduce((acc, s) => {
+        return acc + calculateDuration(s.ora_inizio_giornata || (s as any).ora_inizio, s.ora_fine_giornata || (s as any).ora_fine);
+    }, 0);
+
+    // Flattened topics list (argomenti) across modules
+    const listaArgomenti = (data.moduli || []).flatMap(m =>
+        (m.argomenti || []).map(arg => ({
+            argomento: arg,
+            modulo: m.titolo
+        }))
+    );
+
+    // Full FAD calendar for the table section
+    const sessioniFad = fadSessions.map(s => ({
+        data: s.data_completa,
+        ora_inizio: s.ora_inizio_giornata || (s as any).ora_inizio,
+        ora_fine: s.ora_fine_giornata || (s as any).ora_fine,
+        durata: calculateDuration(s.ora_inizio_giornata || (s as any).ora_inizio, s.ora_fine_giornata || (s as any).ora_fine).toFixed(1).replace('.0', '')
+    }));
+
+    // Dynamic participant placeholders (PARTECIPANTE 1, PARTECIPANTE 1 EMAIL, ...)
+    const partecipanti = (data.partecipanti || []).sort((a, b) => a.numero - b.numero);
+    const partecipantiDynamic = partecipanti.reduce((acc, p, index) => {
+        const num = index + 1;
+        acc[`PARTECIPANTE ${num}`] = p.nome_completo;
+        acc[`PARTECIPANTE ${num} EMAIL`] = p.email || '';
+        return acc;
+    }, {} as Record<string, string>);
+
     // Extract date components
     const { giorno, mese, anno } = extractDateComponents(session.data_completa);
 
     // Get a random topic from configured lists
     const argomento = getRandomTopic();
+
+    // Calculate FAD hours (duration) for this specific session
+    const duration = calculateDuration(
+        session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
+        session.ora_fine_giornata || (session as any).ora_fine || '13:00'
+    );
 
     return {
         // Date placeholders
@@ -180,8 +228,8 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
         anno: anno,
 
         // Time placeholders
-        ora_inizio: session.ora_inizio_giornata || session.ora_inizio || '09:00',
-        ora_fine: session.ora_fine_giornata || session.ora_fine || '13:00',
+        ora_inizio: session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
+        ora_fine: session.ora_fine_giornata || (session as any).ora_fine || '13:00',
 
         // Topic placeholder
         argomento_sessione: argomento,
@@ -190,7 +238,65 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
         NOME_CORSO: data.corso?.titolo || 'N/A',
         ID_SEZIONE: data.corso?.id || 'N/A',
         ID_CORSO: data.corso?.id || 'N/A',
+
+        // --- NEW MAPPINGS FOR MODELLO A ---
+        ENTE_NOME: data.ente?.nome || 'N/A',
+        SEDE_ACCREDITATA: data.sede?.nome || data.ente?.accreditato?.nome || 'N/A',
+        ORE_FAD: duration.toFixed(1).replace('.0', ''), // Hours for this specific session/file
+        NOME_DOCENTE: data.trainer?.nome_completo || 'N/A',
+
+        // FAD Specifics
+        ID_RIUNIONE: data.calendario_fad?.id_riunione || extractZoomDetails(data.calendario_fad?.strumenti || '').id || 'Da definire',
+        PASSCODE: data.calendario_fad?.passcode || extractZoomDetails(data.calendario_fad?.strumenti || '').passcode || 'Da definire',
+        PIATTAFORMA: data.calendario_fad?.piattaforma || data.calendario_fad?.strumenti || 'Zoom',
+
+        // Lists
+        LISTA_ARGOMENTI: (data.moduli || []).flatMap(m =>
+            (m.argomenti || []).map(arg => ({
+                argomento: arg,
+                modulo: m.titolo
+            }))
+        ),
+
+        // Session list (even if it's just one for this file, the template might use a loop)
+        SESSIONI_FAD: [{
+            data: session.data_completa,
+            ora_inizio: session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
+            ora_fine: session.ora_fine_giornata || (session as any).ora_fine || '13:00',
+            NOME_CORSO: data.corso?.titolo || 'N/A',
+            NOME_DOCENTE: data.trainer?.nome_completo || 'N/A'
+        }],
+
+        // Participants table
+        ...partecipantiDynamic,
     };
+}
+
+/**
+ * Extracts Meeting ID and Passcode from a Zoom link
+ */
+function extractZoomDetails(link: string): { id: string; passcode: string } {
+    if (!link) return { id: '', passcode: '' };
+
+    let id = '';
+    let passcode = '';
+
+    // Extract ID (usually 9-11 digits)
+    // Format: /j/123456789 or /my/123456789
+    const idMatch = link.match(/\/j\/(\d+)/) || link.match(/\/my\/(\d+)/) || link.match(/(\d{9,11})/);
+    if (idMatch) {
+        id = idMatch[1];
+        // Format ID with spaces for readability (e.g. 123 456 789)
+        id = id.replace(/(\d{3})(?=\d)/g, '$1 ');
+    }
+
+    // Extract Passcode (pwd=...)
+    const pwdMatch = link.match(/[?&]pwd=([^&]+)/);
+    if (pwdMatch) {
+        passcode = pwdMatch[1];
+    }
+
+    return { id, passcode };
 }
 
 /**

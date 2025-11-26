@@ -1,4 +1,5 @@
 import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { CourseData, EnteAccreditato, ResponsabileCorso } from "@/types/courseData";
@@ -27,12 +28,55 @@ export const CompletionSelection = ({
         return ente.nome;
     };
 
+    const handleCourseIdChange = (value: string) => {
+        updateFormData({
+            corso: { ...formData.corso, id: value },
+            moduli: formData.moduli.map((mod) => ({
+                ...mod,
+                id_corso: value
+            }))
+        });
+    };
+
+    const handleFirstSectionChange = (value: string) => {
+        const updatedModuli = [...formData.moduli];
+        if (updatedModuli[0]) {
+            updatedModuli[0] = { ...updatedModuli[0], id_sezione: value };
+        }
+        updateFormData({ moduli: updatedModuli });
+    };
+
     return (
         <AccordionItem value="selezione" className="border rounded-lg px-6">
             <AccordionTrigger className="hover:no-underline">
                 <span className="text-lg font-semibold">📋 Selezione Enti e Responsabili</span>
             </AccordionTrigger>
             <AccordionContent className="space-y-4 pt-4">
+                <div className="grid gap-4 md:grid-cols-2 p-4 bg-muted/40 rounded-md">
+                    <div className="space-y-2">
+                        <Label htmlFor="id-corso">ID Corso</Label>
+                        <Input
+                            id="id-corso"
+                            value={formData.corso.id}
+                            onChange={(e) => handleCourseIdChange(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Aggiorna il codice corso: viene propagato anche ai moduli.
+                        </p>
+                    </div>
+                    <div className="space-y-2">
+                        <Label htmlFor="id-sezione">ID Sezione (modulo 1)</Label>
+                        <Input
+                            id="id-sezione"
+                            value={formData.moduli[0]?.id_sezione || ""}
+                            onChange={(e) => handleFirstSectionChange(e.target.value)}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Gli altri moduli possono essere aggiornati nel riquadro Moduli.
+                        </p>
+                    </div>
+                </div>
+
                 <div className="grid gap-4">
                     {/* Ente Accreditato */}
                     <div>

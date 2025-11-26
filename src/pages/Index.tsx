@@ -77,10 +77,17 @@ const Index = () => {
           nome: data.nomeEnte || extractedData.ente?.nome,
           indirizzo: data.indirizzoEnte || extractedData.ente?.indirizzo,
         },
-        fad_info: {
-          ...extractedData.fad_info,
-          piattaforma: data.piattaforma || extractedData.fad_info?.piattaforma,
-          link_zoom: data.linkZoom, // Add link zoom if supported in types
+
+        calendario_fad: {
+          ...extractedData.calendario_fad,
+          strumenti: data.linkZoom || extractedData.calendario_fad?.strumenti || '',
+          id_riunione: data.idRiunione,
+          passcode: data.passcode,
+          piattaforma: data.piattaforma || extractedData.calendario_fad?.piattaforma || '',
+          modalita: extractedData.calendario_fad?.modalita || '',
+          obiettivi: extractedData.calendario_fad?.obiettivi || '',
+          valutazione: extractedData.calendario_fad?.valutazione || '',
+          eventi: extractedData.calendario_fad?.eventi || [],
         },
         // Add note if supported
       };

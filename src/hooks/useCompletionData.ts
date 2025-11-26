@@ -24,6 +24,10 @@ export const useCompletionData = (
     const [supervisori, setSupervisori] = useState<ResponsabileCorso[]>([]);
     const [responsabiliCert, setResponsabiliCert] = useState<ResponsabileCorso[]>([]);
     const [loading, setLoading] = useState(true);
+    const trainerFullName =
+        `${formData.trainer?.nome || ''} ${formData.trainer?.cognome || ''}`.trim() ||
+        formData.trainer?.nome_completo ||
+        '';
 
     // Load data on mount
     useEffect(() => {
@@ -120,6 +124,22 @@ export const useCompletionData = (
         }
     };
 
+    // Auto-select direttore using the trainer info when possible
+    useEffect(() => {
+        if (!trainerFullName || formData.direttore_id || direttori.length === 0) return;
+
+        const normalizedTrainer = trainerFullName.toLowerCase();
+        const match = direttori.find((dir) =>
+            `${dir.nome} ${dir.cognome}`.toLowerCase().trim() === normalizedTrainer ||
+            dir.nome.toLowerCase() === normalizedTrainer ||
+            dir.cognome.toLowerCase() === normalizedTrainer
+        );
+
+        if (match) {
+            setFormData((prev) => ({ ...prev, direttore_id: match.id }));
+        }
+    }, [trainerFullName, formData.direttore_id, direttori]);
+
     const updateFormData = (key: keyof CourseData | Partial<CourseData>, value?: any) => {
         if (typeof key === 'string') {
             setFormData(prev => ({ ...prev, [key]: value }));
@@ -144,8 +164,31 @@ export const useCompletionData = (
             return;
         }
 
+        const updatedData: CourseData = { ...formData };
+
+        // Applica l'ente accreditato selezionato ai dati corso
+        if (formData.ente_accreditato_id) {
+            const ente = enti.find(e => e.id === formData.ente_accreditato_id);
+            if (ente) {
+                updatedData.ente = {
+                    ...formData.ente,
+                    id: ente.id,
+                    nome: ente.nome,
+                    indirizzo: [ente.via, ente.numero_civico, ente.comune, ente.provincia].filter(Boolean).join(" "),
+                    accreditato: {
+                        nome: ente.nome,
+                        via: ente.via,
+                        numero_civico: ente.numero_civico,
+                        comune: ente.comune,
+                        cap: ente.cap,
+                        provincia: ente.provincia
+                    }
+                };
+            }
+        }
+
         toast.success("Dati completati! Procedi con la generazione documenti");
-        onComplete(formData);
+        onComplete(updatedData);
     };
 
     return {

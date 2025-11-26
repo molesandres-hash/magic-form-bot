@@ -17,7 +17,7 @@
 
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
-import type { CourseData } from '@/types/courseData';
+import type { CourseData, Metadata } from '@/types/courseData';
 import {
   generateRegistroDidattico,
   generateVerbalePartecipazione,
@@ -37,6 +37,7 @@ import { generateAllFADRegistries, hasFADSessions } from './fadMultiFileGenerato
 import { createCleanExcelBlob, processSessionsIntoRows } from './excelTemplateGenerator';
 import { listTemplates } from '@/services/localDb';
 import { loadTemplateBufferFromPublic, addCertificatesToZip } from './zipPackagerCertificates';
+import { addRegistroIDToZip } from './zipPackagerRegistroID';
 import { loadPredefinedData } from '@/utils/predefinedDataUtils';
 
 // ============================================================================
@@ -254,19 +255,40 @@ function buildSectionScopes(data: CourseData): SectionScope[] {
   );
 
   if (sectionIds.length === 0) {
+    // Fallback for when no sections are defined
+    // We still try to populate metadata from the first module if available
+    const firstModule = moduli[0];
+    const scopedData = { ...data };
+
+    if (firstModule) {
+      scopedData.metadata = {
+        ...(data.metadata || {}),
+        modulo_corrente: {
+          id: firstModule.id,
+          id_sezione: firstModule.id_sezione,
+          id_corso: firstModule.id_corso,
+          titolo: firstModule.titolo,
+          index: 1,
+        },
+      } as Metadata;
+    }
+
     return [
       {
         id: data.corso?.id || 'N_A',
         label: data.corso?.id || 'N_A',
-        scopedData: data,
+        scopedData,
       },
     ];
   }
 
-  return sectionIds.map((id) => {
+  return sectionIds.map((id, index) => {
     const scopedModules = moduli.filter((m: any) => m.id_sezione === id);
     const sessioni = scopedModules.flatMap((m: any) => m.sessioni || []);
     const sessioniPresenza = scopedModules.flatMap((m: any) => m.sessioni_presenza || []);
+
+    // Use the first module in the section as the representative for IDs
+    const currentModule = scopedModules[0];
 
     const scopedData: CourseData = {
       ...data,
@@ -277,6 +299,16 @@ function buildSectionScopes(data: CourseData): SectionScope[] {
         ...data.corso,
         id: data.corso?.id || id,
       },
+      metadata: {
+        ...(data.metadata || {}),
+        modulo_corrente: {
+          id: currentModule?.id,
+          id_sezione: currentModule?.id_sezione,
+          id_corso: currentModule?.id_corso,
+          titolo: currentModule?.titolo,
+          index: index + 1,
+        },
+      } as Metadata,
     };
 
     return {
@@ -313,7 +345,7 @@ function buildModuleScopes(data: CourseData): ModuleScope[] {
 
     const scopedData: CourseData = {
       ...data,
-      moduli: data.moduli || [],
+      moduli: [modulo], // Scope to just this module
       sessioni: scopedSessions || [],
       sessioni_presenza: scopedSessionsPresenza || [],
       corso: scopedCourse as any,
@@ -322,10 +354,11 @@ function buildModuleScopes(data: CourseData): ModuleScope[] {
         modulo_corrente: {
           id: modulo.id,
           id_sezione: modulo.id_sezione,
+          id_corso: modulo.id_corso,
           titolo: modulo.titolo,
           index: index + 1,
         },
-      } as any,
+      } as Metadata,
     };
 
     return {
@@ -619,6 +652,7 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
   }
 
   // 3. Iterate configured folders
+  let excelFolderFound = false;
   for (const folderDef of settings.folders) {
     if (!folderDef.enabled) continue;
 
@@ -649,6 +683,8 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
     // For now, if folder accepts 'xlsx', we put standard Excel files there
     // TODO: Make Excel files also configurable templates
     if (folderDef.fileTypes.includes('xlsx')) {
+      excelFolderFound = true;
+
       // Participants list - REDUNDANT (Merged into Registro Presenze)
       // const participantsExcel = generateParticipantsExcelBlob(data);
       // zipFolder.file(`${FILE_PREFIX.PARTICIPANTS}_${courseId}.xlsx`, participantsExcel);
@@ -668,6 +704,19 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
       // New: Calendario Lezioni per sezione (text-only)
       const calendarExcel = generateSectionCalendarExcelBlob(data, options?.sectionId);
       zipFolder.file(`Calendario_Lezioni_${courseId}.xlsx`, calendarExcel);
+    }
+  }
+
+  // Fallback: If no folder accepted xlsx, create default Excel folder
+  if (!excelFolderFound) {
+    console.log('No folder configured for XLSX. Creating default "Excel" folder...');
+    const defaultExcelFolder = rootFolder.folder('Excel');
+    if (defaultExcelFolder) {
+      const attendanceExcel = generateAttendanceExcelBlob(data);
+      defaultExcelFolder.file(`${FILE_PREFIX.ATTENDANCE}_${courseId}.xlsx`, attendanceExcel);
+
+      const calendarExcel = generateSectionCalendarExcelBlob(data, options?.sectionId);
+      defaultExcelFolder.file(`Calendario_Lezioni_${courseId}.xlsx`, calendarExcel);
     }
   }
 
@@ -709,7 +758,10 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
   // 8. Add Verbale Ammissione Esame (DOCX)
   await addVerbaleAmmissione(rootFolder, data);
 
-  // 9. Add README (if enabled)
+  // 9. Add Registro ID (Registro presenza ID)
+  await addRegistroIDToZip(rootFolder, data);
+
+  // 10. Add README (if enabled)
   if (settings.generateReadme) {
     const readmeContent = generateREADME(data);
     rootFolder.file('README.txt', readmeContent);
@@ -837,6 +889,10 @@ function buildModulo7TemplateData(data: CourseData, session: any, participant: a
     ORA_INIZIO: session?.ora_inizio_giornata || session?.ora_inizio || '',
     ORA_FINE: session?.ora_fine_giornata || session?.ora_fine || '',
     RESP_CERT_NOME_COMPLETO: respCertName,
+    luogo: sedeIndirizzo,
+    data: session?.data_completa || '',
+    ora_inizio: session?.ora_inizio_giornata || session?.ora_inizio || '',
+    ora_fine: session?.ora_fine_giornata || session?.ora_fine || '',
   };
 }
 

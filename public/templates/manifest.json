@@ -1,14 +1,6 @@
 {
-  "generatedAt": "2025-11-24T22:52:21.539Z",
+  "generatedAt": "2025-11-26T21:59:43.230Z",
   "templates": [
-    {
-      "id": "local-Attestato di partecipazione AKG.docx",
-      "name": "Attestato di partecipazione AKG",
-      "filename": "Attestato di partecipazione AKG.docx",
-      "path": "/templates/Attestato di partecipazione AKG.docx",
-      "size": 43957,
-      "lastModified": "2025-11-23T19:26:54.575Z"
-    },
     {
       "id": "local-Registro ID.docx",
       "name": "Registro ID",
@@ -70,8 +62,8 @@
       "name": "modello A FAD con placeholder",
       "filename": "modello_A_FAD_con_placeholder.docx",
       "path": "/templates/modello_A_FAD_con_placeholder.docx",
-      "size": 119360,
-      "lastModified": "2025-11-23T19:09:55.304Z"
+      "size": 307559,
+      "lastModified": "2025-11-26T21:12:43.521Z"
     }
   ]
 }

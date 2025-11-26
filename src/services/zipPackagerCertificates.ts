@@ -3,7 +3,7 @@ import { prepareDataForWordTemplate, processWordTemplate } from './wordTemplateP
 import type { CourseData, Partecipante } from '@/types/courseData';
 
 const CERT_FOLDER_NAME = 'certificati AKG';
-const CERT_TEMPLATE_PATH = '/templates/Attestato di partecipazione AKG.docx';
+const CERT_TEMPLATE_PATH = '/templates/Attestato/Attestato_con_placeholder.docx';
 
 /**
  * Loads the certificate template from the public templates folder
@@ -20,10 +20,10 @@ export async function loadTemplateBufferFromPublic(): Promise<ArrayBuffer> {
  * Builds a map of placeholder values for a given participant and course data
  */
 function buildCertificateData(partecipante: Partecipante, data: CourseData): Record<string, any> {
-  const course = data.corso || {};
-  const sede = data.sede || {};
-  const ente = data.ente || {};
-  const trainer = data.trainer || {};
+  const course = (data.corso || {}) as any;
+  const sede = (data.sede || {}) as any;
+  const ente = (data.ente || {}) as any;
+  const trainer = (data.trainer || {}) as any;
 
   return {
     PARTECIPANTE_NOME: partecipante.nome || '',
@@ -31,6 +31,17 @@ function buildCertificateData(partecipante: Partecipante, data: CourseData): Rec
     PARTECIPANTE_NOME_COMPLETO: partecipante.nome_completo || `${partecipante.nome || ''} ${partecipante.cognome || ''}`.trim(),
     PARTECIPANTE_CF: partecipante.codice_fiscale || '',
     PARTECIPANTE_NUMERO: partecipante.numero || '',
+
+    // New placeholders for Attestato_con_placeholder.docx
+    NOME_PARTECIPANTE: partecipante.nome_completo || `${partecipante.nome || ''} ${partecipante.cognome || ''}`.trim(),
+    CODICE_FISCALE_PARTECIPANTE: partecipante.codice_fiscale || '',
+    NOME_CORSO: course.titolo || '',
+    ORE_TOTALI: course.ore_totali || course.durata_totale || '',
+    VERBALE_LUOGO: data.verbale?.luogo || data.sede?.nome || data.ente?.accreditato?.comune || '',
+    DATA_FINE: course.data_fine || '',
+    DATA_NASCITA: '', // Not available in data
+    LUOGO_NASCITA: '', // Not available in data
+    NOME_PROGRAMMA: partecipante.programma || 'GOL',
 
     CORSO_TITOLO: course.titolo || '',
     CORSO_ID: course.id || '',
