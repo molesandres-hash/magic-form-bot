@@ -65,3 +65,75 @@ export function combineFullName(nome: string, cognome: string): string {
 export function cleanString(str: string): string {
   return str.trim().replace(/\s+/g, ' ');
 }
+
+/**
+ * Extracts the city name from a location string.
+ * Heuristic: Splits by common separators (comma, dash) and returns the first part
+ * that doesn't look like an address (e.g. contains numbers).
+ *
+ * @param location - The full location string (e.g. "Milano - Via Roma 1")
+ * @returns The extracted city name (e.g. "Milano")
+ */
+export function extractCityName(location: string | undefined | null): string {
+  if (!location) return '';
+
+  // Normalize
+  const clean = location.trim();
+  if (!clean) return '';
+
+  // Split by common separators: " - ", ", ", " ("
+  // We want to find the part that is most likely the city.
+  // Often format is "City - Address" or "Address, City" or "City (Prov)"
+
+  // Strategy 1: If it contains " - ", assume "City - Address" or "Address - City"
+  // But usually in this app it seems to be "City - Address" based on user request "MILANO (VARESE)" -> "MILANO"
+
+  // Let's try splitting by non-alphanumeric separators that might delimit city/address
+  const parts = clean.split(/[\-\,]/).map(p => p.trim()).filter(Boolean);
+
+  if (parts.length === 0) return clean;
+
+  // Return the first part. 
+  // The user example "FIX ALSO {{VERBALE_LUOGO} AND LET THAT HERE SHOULD BE SAVED ONLY THE CIY (MILANO) (VARESE)"
+  // implies that if the input is "MILANO (VARESE)" or "MILANO - VIA ROMA", we want "MILANO".
+  // If the input is just "MILANO", we want "MILANO".
+
+  // If there are parentheses, remove them and their content if it looks like a province?
+  // User said "(MILANO) (VARESE)", maybe they meant examples of output?
+  // "LET THAT HERE SHOULD BE SAVED ONLY THE CIY (MILANO) (VARESE)"
+  // I interpret this as: if the value is "Milano - Via X", output "Milano".
+
+  // Let's take the first part of split by " - " or ",".
+  const firstPart = parts[0];
+
+  // Also remove anything in parentheses if present in that first part?
+  // e.g. "Milano (MI)" -> "Milano"
+  return firstPart.replace(/\s*\(.*?\)\s*/g, '').trim().toUpperCase();
+}
+
+/**
+ * Extracts Meeting ID and Passcode from a Zoom link
+ */
+export function extractZoomDetails(link: string): { id: string; passcode: string } {
+  if (!link) return { id: '', passcode: '' };
+
+  let id = '';
+  let passcode = '';
+
+  // Extract ID (usually 9-11 digits)
+  // Format: /j/123456789 or /my/123456789
+  const idMatch = link.match(/\/j\/(\d+)/) || link.match(/\/my\/(\d+)/) || link.match(/(\d{9,11})/);
+  if (idMatch) {
+    id = idMatch[1];
+    // Format ID with spaces for readability (e.g. 123 456 789)
+    id = id.replace(/(\d{3})(?=\d)/g, '$1 ');
+  }
+
+  // Extract Passcode (pwd=...)
+  const pwdMatch = link.match(/[?&]pwd=([^&]+)/);
+  if (pwdMatch) {
+    passcode = pwdMatch[1];
+  }
+
+  return { id, passcode };
+}

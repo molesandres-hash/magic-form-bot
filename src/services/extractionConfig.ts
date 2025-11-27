@@ -38,7 +38,8 @@ IMPORTANTE GENERALE:
 - Per le date usa formato DD/MM/YYYY
 - Per gli orari usa formato HH:MM
 - Estrai TUTTI i partecipanti dall'elenco
-- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile`;
+- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile
+- Se trovi durate in inglese (es. "20 hours"), TRADUCILE in italiano (es. "20 ore")`;
 
 /**
  * Response schema for structured extraction

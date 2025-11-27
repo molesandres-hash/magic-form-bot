@@ -8,7 +8,7 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import type { CourseData, EnteAccreditato, ResponsabileCorso } from "@/types/courseData";
-import { getEnabledEntities, getEnabledResponsabili, getEnabledSupervisors } from "@/utils/predefinedDataUtils";
+import { getEnabledEntities, getEnabledResponsabili, getEnabledSupervisors, getEnabledLocations } from "@/utils/predefinedDataUtils";
 import { listEnti, listResponsabili } from "@/services/localDb";
 
 export const useCompletionData = (
@@ -101,7 +101,23 @@ export const useCompletionData = (
                 listResponsabili()
             ]);
 
-            setEnti(entiData || []);
+            // Include Locations as Entities to support selection from Step 2
+            const locationsAsEntities: EnteAccreditato[] = getEnabledLocations().map(loc => ({
+                id: loc.id,
+                nome: loc.name,
+                via: loc.address,
+                numero_civico: "",
+                comune: "",
+                cap: "",
+                provincia: ""
+            }));
+
+            // Merge unique entities (prefer real entities over locations if ID conflicts, though unlikely)
+            const allEnti = [...(entiData || []), ...locationsAsEntities];
+            // Remove duplicates by ID
+            const uniqueEnti = Array.from(new Map(allEnti.map(item => [item.id, item])).values());
+
+            setEnti(uniqueEnti);
 
             const typedResponsabili = (responsabiliData || []).map(r => ({
                 ...r,

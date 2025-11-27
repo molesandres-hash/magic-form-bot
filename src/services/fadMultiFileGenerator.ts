@@ -12,14 +12,16 @@
 
 import type { CourseData } from '@/types/courseData';
 import { processWordTemplate } from './wordTemplateProcessor';
+import { createLocalTemplateGenerator } from './templateRegistry';
 import { loadPredefinedData } from '@/utils/predefinedDataUtils';
+import { extractZoomDetails } from '@/utils/stringUtils';
 
 // ============================================================================
 // CONSTANTS
 // ============================================================================
 
 const FAD_TEMPLATE_PATH = '/templates/modello B FAD_placeholder.docx';
-const FAD_TEMPLATE_A_PATH = '/templates/modello_A_FAD_con_placeholder.docx';
+const FAD_TEMPLATE_A_PATH = '/templates/Modello_A_FAD_template.docx';
 
 const MONTH_NAMES = [
     'Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno',
@@ -134,10 +136,16 @@ export async function generateAllFADRegistries(
     const fadSessions = (data.sessioni || []).filter(s => s.is_fad);
     const results: Array<{ filename: string; blob: Blob }> = [];
 
+    // Generator for the single Modello A (per corso)
+    const generateModelloACourse = createLocalTemplateGenerator(
+        FAD_TEMPLATE_A_PATH,
+        'Modello_A_FAD'
+    );
+
     for (let i = 0; i < fadSessions.length; i++) {
         const session = fadSessions[i];
 
-        // Generate Modello B (Registro FAD)
+        // Generate Modello B (Registro FAD) per giornata
         try {
             const blobB = await generateFADRegistryForDay(data, i);
             const filenameB = `Registro_FAD_${formatDateForFilename(session.data_completa)}.docx`;
@@ -145,15 +153,17 @@ export async function generateAllFADRegistries(
         } catch (e) {
             console.error(`Failed to generate Modello B for session ${i}`, e);
         }
+    }
 
-        // Generate Modello A
-        try {
-            const blobA = await generateModelloAFAD(data, i);
-            const filenameA = `Modello_A_FAD_${formatDateForFilename(session.data_completa)}.docx`;
+    // Generate a single Modello A for the whole course (ID corso)
+    try {
+        const blobA = await generateModelloACourse(data);
+        if (blobA) {
+            const filenameA = `Modello_A_FAD_${data.corso?.id || 'corso'}.docx`;
             results.push({ filename: filenameA, blob: blobA });
-        } catch (e) {
-            console.error(`Failed to generate Modello A for session ${i}`, e);
         }
+    } catch (e) {
+        console.error('Failed to generate Modello A for course', e);
     }
 
     return results;
@@ -194,6 +204,12 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
 
     // Full FAD calendar for the table section
     const sessioniFad = fadSessions.map(s => ({
+        DATA: s.data_completa,
+        ORA_INIZIO: s.ora_inizio_giornata || (s as any).ora_inizio,
+        ORA_FINE: s.ora_fine_giornata || (s as any).ora_fine,
+        DURATA: calculateDuration(s.ora_inizio_giornata || (s as any).ora_inizio, s.ora_fine_giornata || (s as any).ora_fine).toFixed(1).replace('.0', ''),
+
+        // Keep lowercase for compatibility
         data: s.data_completa,
         ora_inizio: s.ora_inizio_giornata || (s as any).ora_inizio,
         ora_fine: s.ora_fine_giornata || (s as any).ora_fine,
@@ -201,11 +217,12 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
     }));
 
     // Dynamic participant placeholders (PARTECIPANTE 1, PARTECIPANTE 1 EMAIL, ...)
-    const partecipanti = (data.partecipanti || []).sort((a, b) => a.numero - b.numero);
-    const partecipantiDynamic = partecipanti.reduce((acc, p, index) => {
-        const num = index + 1;
-        acc[`PARTECIPANTE ${num}`] = p.nome_completo;
-        acc[`PARTECIPANTE ${num} EMAIL`] = p.email || '';
+    // We generate placeholders for up to 20 participants to ensure empty strings for missing ones
+    const partecipantiDynamic = Array.from({ length: 20 }, (_, i) => i + 1).reduce((acc, num) => {
+        const p = (data.partecipanti || []).find(p => p.numero === num);
+
+        acc[`PARTECIPANTE ${num}`] = p?.nome_completo || '';
+        acc[`PARTECIPANTE ${num} EMAIL`] = p?.email || '';
         return acc;
     }, {} as Record<string, string>);
 
@@ -241,6 +258,7 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
 
         // --- NEW MAPPINGS FOR MODELLO A ---
         ENTE_NOME: data.ente?.nome || 'N/A',
+        ID_ENTE: data.ente?.id || '',
         SEDE_ACCREDITATA: data.sede?.nome || data.ente?.accreditato?.nome || 'N/A',
         ORE_FAD: duration.toFixed(1).replace('.0', ''), // Hours for this specific session/file
         NOME_DOCENTE: data.trainer?.nome_completo || 'N/A',
@@ -253,6 +271,9 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
         // Lists
         LISTA_ARGOMENTI: (data.moduli || []).flatMap(m =>
             (m.argomenti || []).map(arg => ({
+                ARGOMENTO: arg,
+                MODULO: m.titolo,
+                // Keep lowercase for compatibility
                 argomento: arg,
                 modulo: m.titolo
             }))
@@ -260,9 +281,15 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
 
         // Session list (even if it's just one for this file, the template might use a loop)
         SESSIONI_FAD: [{
+            DATA: session.data_completa,
+            ORA_INIZIO: session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
+            ORA_FINE: session.ora_fine_giornata || (session as any).ora_fine || '13:00',
+
+            // Keep lowercase
             data: session.data_completa,
             ora_inizio: session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
             ora_fine: session.ora_fine_giornata || (session as any).ora_fine || '13:00',
+
             NOME_CORSO: data.corso?.titolo || 'N/A',
             NOME_DOCENTE: data.trainer?.nome_completo || 'N/A'
         }],
@@ -272,32 +299,7 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
     };
 }
 
-/**
- * Extracts Meeting ID and Passcode from a Zoom link
- */
-function extractZoomDetails(link: string): { id: string; passcode: string } {
-    if (!link) return { id: '', passcode: '' };
 
-    let id = '';
-    let passcode = '';
-
-    // Extract ID (usually 9-11 digits)
-    // Format: /j/123456789 or /my/123456789
-    const idMatch = link.match(/\/j\/(\d+)/) || link.match(/\/my\/(\d+)/) || link.match(/(\d{9,11})/);
-    if (idMatch) {
-        id = idMatch[1];
-        // Format ID with spaces for readability (e.g. 123 456 789)
-        id = id.replace(/(\d{3})(?=\d)/g, '$1 ');
-    }
-
-    // Extract Passcode (pwd=...)
-    const pwdMatch = link.match(/[?&]pwd=([^&]+)/);
-    if (pwdMatch) {
-        passcode = pwdMatch[1];
-    }
-
-    return { id, passcode };
-}
 
 /**
  * Extracts day, month name, and year from date string

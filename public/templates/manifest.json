@@ -1,6 +1,14 @@
 {
-  "generatedAt": "2025-11-26T21:59:43.230Z",
+  "generatedAt": "2025-11-27T22:57:26.893Z",
   "templates": [
+    {
+      "id": "local-Modello_A_FAD_template.docx",
+      "name": "Modello A FAD template",
+      "filename": "Modello_A_FAD_template.docx",
+      "path": "/templates/Modello_A_FAD_template.docx",
+      "size": 120549,
+      "lastModified": "2025-11-26T22:40:50.316Z"
+    },
     {
       "id": "local-Registro ID.docx",
       "name": "Registro ID",
@@ -62,8 +70,8 @@
       "name": "modello A FAD con placeholder",
       "filename": "modello_A_FAD_con_placeholder.docx",
       "path": "/templates/modello_A_FAD_con_placeholder.docx",
-      "size": 307559,
-      "lastModified": "2025-11-26T21:12:43.521Z"
+      "size": 273795,
+      "lastModified": "2025-11-26T22:26:33.267Z"
     }
   ]
 }

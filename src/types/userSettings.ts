@@ -124,6 +124,10 @@ export interface PredefinedTrainer {
   nomeCompleto?: string;
   /** Tax ID (Codice Fiscale) */
   codiceFiscale?: string;
+  /** Email (es: nome.cognome@akgitalia.it) */
+  email?: string;
+  /** Telefono/contatto */
+  telefono?: string;
   /** Whether this trainer is enabled */
   enabled: boolean;
 }
@@ -199,6 +203,8 @@ export const DEFAULT_PREDEFINED_DATA: PredefinedDataSettings = {
       cognome: 'Moles',
       nomeCompleto: 'Andres Moles',
       codiceFiscale: 'MLSNRS97S25F205C',
+      email: 'andres.moles@akgitalia.it',
+      telefono: '',
       enabled: true
     }
   ],

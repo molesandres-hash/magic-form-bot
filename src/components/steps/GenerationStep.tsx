@@ -25,6 +25,13 @@ import { createCompleteZIPPackage } from "@/services/zipPackager";
 import { generateAllFADRegistries } from "@/services/fadMultiFileGenerator";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { Textarea } from "@/components/ui/textarea";
+import { Copy, Mail, Calendar } from "lucide-react";
+import {
+  getStudentTaxCodes,
+  generateEmailData,
+  generateICSContent
+} from "@/utils/generationUtils";
 
 interface GenerationStepProps {
   data: CourseData;
@@ -222,6 +229,36 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
     }
   };
 
+  const taxCodes = getStudentTaxCodes(data);
+  const emailData = generateEmailData(data);
+
+  const handleCopyTaxCodes = () => {
+    navigator.clipboard.writeText(taxCodes);
+    toast.success("Codici fiscali copiati!");
+  };
+
+  const handleDownloadCalendar = () => {
+    const icsContent = generateICSContent(data);
+    if (!icsContent.includes("BEGIN:VEVENT")) {
+      toast.warning("Nessuna data utile trovata per il calendario.");
+      return;
+    }
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    saveAs(blob, 'calendario_presenze.ics');
+    toast.success("Evento calendario scaricato!");
+  };
+
+  const handleSendEmail = () => {
+    const { to, bcc, subject, body } = emailData;
+    const mailtoLink = `mailto:${to}?bcc=${bcc}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink, '_blank');
+  };
+
+  const handleCopyEmailBody = () => {
+    navigator.clipboard.writeText(emailData.body);
+    toast.success("Testo email copiato!");
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-8 shadow-xl">
@@ -342,6 +379,74 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
                   </div>
                 </Card>
               ))}
+          </div>
+
+          {/* Strumenti Utili Section */}
+          <div className="space-y-6 pt-6 border-t">
+            <h3 className="font-semibold text-foreground">🛠️ Strumenti Utili</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Codici Fiscali */}
+              <Card className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm">Codici Fiscali per Ricerca su 360</h4>
+                  <Button variant="ghost" size="sm" onClick={handleCopyTaxCodes}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copia
+                  </Button>
+                </div>
+                <Textarea
+                  value={taxCodes}
+                  readOnly
+                  className="font-mono text-xs h-32 resize-none bg-muted"
+                />
+              </Card>
+
+              {/* Azioni Rapide */}
+              <div className="space-y-4">
+                {/* Calendario */}
+                <Card className="p-4">
+                  <h4 className="font-medium text-sm mb-3">📅 Calendario</h4>
+                  <Button variant="outline" className="w-full justify-start" onClick={handleDownloadCalendar}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Scarica Evento "Inserire Presenze"
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Scarica un evento .ics per l'ultimo giovedì del corso (10:15)
+                  </p>
+                </Card>
+
+                {/* Email */}
+                <Card className="p-4">
+                  <h4 className="font-medium text-sm mb-3">📧 Comunicazione Docente</h4>
+                  <div className="space-y-2">
+                    <Button variant="outline" className="w-full justify-start" onClick={handleSendEmail}>
+                      <Mail className="h-4 w-4 mr-2" />
+                      Invia Email con Link Lezione
+                    </Button>
+
+                    <div className="pt-2 border-t mt-2">
+                      <p className="text-xs font-medium mb-1">Template Messaggio:</p>
+                      <div className="relative">
+                        <Textarea
+                          value={emailData.body}
+                          readOnly
+                          className="text-xs h-20 resize-none bg-muted pr-8"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6"
+                          onClick={handleCopyEmailBody}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </div>
           </div>
 
           {/* Actions */}

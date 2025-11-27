@@ -220,6 +220,8 @@ const PredefinedDataSettings = () => {
             nome: newTrainer.nome,
             cognome: newTrainer.cognome,
             codiceFiscale: newTrainer.codiceFiscale.toUpperCase(),
+            email: newTrainer.email || `${(newTrainer.nome || '').toLowerCase()}.${(newTrainer.cognome || '').toLowerCase()}@akgitalia.it`,
+            telefono: newTrainer.telefono || '',
             enabled: true,
         };
 
@@ -861,6 +863,16 @@ const PredefinedDataSettings = () => {
                                             setNewTrainer({ ...newTrainer, codiceFiscale: e.target.value.toUpperCase() })
                                         }
                                     />
+                                    <Input
+                                        placeholder="Email (opzionale)"
+                                        value={newTrainer.email || ''}
+                                        onChange={(e) => setNewTrainer({ ...newTrainer, email: e.target.value })}
+                                    />
+                                    <Input
+                                        placeholder="Telefono (opzionale)"
+                                        value={newTrainer.telefono || ''}
+                                        onChange={(e) => setNewTrainer({ ...newTrainer, telefono: e.target.value })}
+                                    />
                                     <Button onClick={handleAddTrainer} size="sm" className="col-span-3">
                                         <Plus className="mr-2 h-4 w-4" />
                                         Aggiungi Trainer
@@ -882,6 +894,13 @@ const PredefinedDataSettings = () => {
                                                     <p className="text-sm text-muted-foreground font-mono">
                                                         {trainer.codiceFiscale}
                                                     </p>
+                                                    {(trainer.email || trainer.telefono) && (
+                                                        <p className="text-xs text-muted-foreground">
+                                                            {trainer.email && <span>{trainer.email}</span>}
+                                                            {trainer.email && trainer.telefono && ' • '}
+                                                            {trainer.telefono && <span>{trainer.telefono}</span>}
+                                                        </p>
+                                                    )}
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <Switch

@@ -65,6 +65,8 @@ const Index = () => {
           nome: data.nomeDocente || extractedData.trainer?.nome,
           cognome: data.cognomeDocente || extractedData.trainer?.cognome,
           codice_fiscale: data.codiceFiscaleDocente || extractedData.trainer?.codice_fiscale,
+          email: data.emailDocente || extractedData.trainer?.email,
+          telefono: data.telefonoDocente || extractedData.trainer?.telefono,
           nome_completo: `${data.nomeDocente || ''} ${data.cognomeDocente || ''}`.trim() || extractedData.trainer?.nome_completo,
         },
         sede: {
@@ -77,6 +79,7 @@ const Index = () => {
           nome: data.nomeEnte || extractedData.ente?.nome,
           indirizzo: data.indirizzoEnte || extractedData.ente?.indirizzo,
         },
+        ente_accreditato_id: data.enteAccreditatoId || extractedData.ente_accreditato_id,
 
         calendario_fad: {
           ...extractedData.calendario_fad,
@@ -205,7 +208,7 @@ const Index = () => {
                 indirizzoSede: extractedData.sede?.indirizzo,
                 nomeEnte: extractedData.ente?.nome,
                 indirizzoEnte: extractedData.ente?.indirizzo,
-                piattaforma: extractedData.fad_info?.piattaforma,
+                piattaforma: extractedData.calendario_fad?.piattaforma,
               }}
             />
           )}

@@ -208,6 +208,14 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     moduliRaw = [moduliRaw];
   }
 
+  // Helper to normalize duration strings (hours -> ore)
+  const normalizeDuration = (duration: string): string => {
+    if (!duration) return '';
+    return duration
+      .replace(/\bhours\b/gi, 'ore')
+      .replace(/\bhour\b/gi, 'ora');
+  };
+
   // Process corso data
   const capienzaCorso = parseCapienza(extractedData.corso?.capienza || DEFAULTS.CAPACITY);
   const corso = {
@@ -215,6 +223,10 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     anno: extractedData.corso?.data_inizio ? extractYear(extractedData.corso.data_inizio) : '',
     capienza_numero: capienzaCorso.current,
     capienza_totale: capienzaCorso.total,
+    // Normalize durations
+    ore_totali: normalizeDuration(extractedData.corso?.ore_totali),
+    durata_totale: normalizeDuration(extractedData.corso?.durata_totale),
+    ore_rendicontabili: normalizeDuration(extractedData.corso?.ore_rendicontabili),
   };
 
   // Process trainer
@@ -267,9 +279,9 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
       id_sezione: mod.id_sezione || '',
       data_inizio: mod.data_inizio || '',
       data_fine: mod.data_fine || '',
-      ore_totali: mod.ore_totali || '',
-      durata: mod.durata || '',
-      ore_rendicontabili: mod.ore_rendicontabili || '',
+      ore_totali: normalizeDuration(mod.ore_totali || ''),
+      durata: normalizeDuration(mod.durata || ''),
+      ore_rendicontabili: normalizeDuration(mod.ore_rendicontabili || ''),
       capienza: mod.capienza || '0/0',
       capienza_numero: capienzaMod.current,
       capienza_totale: capienzaMod.total,

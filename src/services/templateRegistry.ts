@@ -8,6 +8,7 @@ import {
 } from './wordDocumentGenerator';
 import { processWordTemplate } from './wordTemplateProcessor';
 import { getTemplateBlob } from '@/services/localDb';
+import { extractCityName, extractZoomDetails } from '@/utils/stringUtils';
 
 // Define the interface for a template generator
 export type TemplateGenerator = (data: CourseData) => Promise<Blob | null>;
@@ -105,6 +106,8 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
 
                 // --- DATI DOCENTE / REFERENTI ---
                 NOME_DOCENTE: data.trainer?.nome_completo || '',
+                DOCENTE_EMAIL: data.trainer?.email || '',
+                DOCENTE_TELEFONO: data.trainer?.telefono || '',
                 CODICE_FISCALE_DOCENTE: '', // TODO: Add to Trainer interface
                 DIRETTORE_CORSO: '', // TODO: Fetch from DB if needed
                 TUTOR_CORSO: '', // TODO: Add to CourseData
@@ -154,13 +157,18 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
                     const mesi = ['Gennaio', 'Febbraio', 'Marzo', 'Aprile', 'Maggio', 'Giugno', 'Luglio', 'Agosto', 'Settembre', 'Ottobre', 'Novembre', 'Dicembre'];
 
                     return {
+                        DATA: s.data_completa,
+                        GIORNO: dateObj.getDate().toString().padStart(2, '0'),
+                        MESE: mesi[dateObj.getMonth()],
+                        ANNO: dateObj.getFullYear().toString(),
+                        ORA_INIZIO: s.ora_inizio_giornata,
+                        ORA_FINE: s.ora_fine_giornata,
+                        DURATA: calculateDuration(s.ora_inizio_giornata, s.ora_fine_giornata).toFixed(1).replace('.0', ''),
+
+                        // Also keep lowercase for compatibility if needed, but uppercase is priority for template
                         data: s.data_completa,
-                        giorno: dateObj.getDate().toString().padStart(2, '0'),
-                        mese: mesi[dateObj.getMonth()],
-                        anno: dateObj.getFullYear().toString(),
                         ora_inizio: s.ora_inizio_giornata,
                         ora_fine: s.ora_fine_giornata,
-                        durata: calculateDuration(s.ora_inizio_giornata, s.ora_fine_giornata).toFixed(1).replace('.0', ''),
 
                         // Nested participants list for this specific session
                         // In a real scenario, this would filter based on actual attendance
@@ -194,20 +202,26 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
                     })),
 
                 // Dynamic Placeholders for Participants (PARTECIPANTE 1, PARTECIPANTE 2, etc.)
-                ...(data.partecipanti || []).reduce((acc, p, index) => {
-                    const num = index + 1;
-                    acc[`PARTECIPANTE ${num}`] = p.nome_completo;
-                    acc[`PARTECIPANTE ${num} NOME`] = p.nome;
-                    acc[`PARTECIPANTE ${num} COGNOME`] = p.cognome;
-                    acc[`PARTECIPANTE ${num} CF`] = p.codice_fiscale;
-                    acc[`PARTECIPANTE ${num} EMAIL`] = p.email || '';
-                    acc[`PARTECIPANTE ${num} BENEFITS`] = p.benefits || 'No';
+                // We generate placeholders for up to 20 participants to ensure empty strings for missing ones
+                ...Array.from({ length: 20 }, (_, i) => i + 1).reduce((acc, num) => {
+                    const p = (data.partecipanti || []).find(p => p.numero === num);
+
+                    acc[`PARTECIPANTE ${num}`] = p?.nome_completo || '';
+                    acc[`PARTECIPANTE ${num} NOME`] = p?.nome || '';
+                    acc[`PARTECIPANTE ${num} COGNOME`] = p?.cognome || '';
+                    acc[`PARTECIPANTE ${num} CF`] = p?.codice_fiscale || '';
+                    acc[`PARTECIPANTE ${num} EMAIL`] = p?.email || '';
+                    acc[`PARTECIPANTE ${num} BENEFITS`] = p?.benefits || '';
+
                     return acc;
                 }, {} as Record<string, string>),
 
                 // --- LISTA ARGOMENTI (Flattened) ---
                 LISTA_ARGOMENTI: (data.moduli || []).flatMap(m =>
                     (m.argomenti || []).map(arg => ({
+                        ARGOMENTO: arg,
+                        MODULO: m.titolo,
+                        // Keep lowercase for compatibility
                         argomento: arg,
                         modulo: m.titolo
                     }))
@@ -232,7 +246,7 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
                 // --- DATI VERBALE (Esame Finale) ---
                 VERBALE_DATA: data.verbale?.data || data.corso?.data_fine || '',
                 VERBALE_ORA: data.verbale?.ora || '',
-                VERBALE_LUOGO: data.verbale?.luogo || data.sede?.nome || '',
+                VERBALE_LUOGO: extractCityName(data.verbale?.luogo || data.sede?.nome || ''),
                 VERBALE_DESCRIZIONE_PROVA: data.verbale?.prova?.descrizione || '',
                 VERBALE_TIPO_PROVA: data.verbale?.prova?.tipo || '',
                 VERBALE_DURATA_PROVA: data.verbale?.prova?.durata || '',

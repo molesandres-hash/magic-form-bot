@@ -130,6 +130,8 @@ export interface AdditionalData {
   codiceFiscaleDocente: string;
   nomeDocente?: string;
   cognomeDocente?: string;
+  emailDocente?: string;
+  telefonoDocente?: string;
   linkZoom?: string;
   idRiunione?: string;
   passcode?: string;
@@ -139,6 +141,7 @@ export interface AdditionalData {
   nomeEnte?: string;
   indirizzoEnte?: string;
   note?: string;
+  enteAccreditatoId?: string;
 }
 
 // ============================================================================
@@ -166,6 +169,8 @@ const AdditionalDataStep = ({
   );
   const [nomeDocente, setNomeDocente] = useState(initialData?.nomeDocente || '');
   const [cognomeDocente, setCognomeDocente] = useState(initialData?.cognomeDocente || '');
+  const [emailDocente, setEmailDocente] = useState(initialData?.emailDocente || '');
+  const [telefonoDocente, setTelefonoDocente] = useState(initialData?.telefonoDocente || '');
   const [linkZoom, setLinkZoom] = useState(initialData?.linkZoom || '');
   const [idRiunione, setIdRiunione] = useState(initialData?.idRiunione || '');
   const [passcode, setPasscode] = useState(initialData?.passcode || '');
@@ -191,6 +196,18 @@ const AdditionalDataStep = ({
     setAutoMatchApplied(false);
   }, [initialSignature]);
 
+  // Suggest email from nome.cognome if not set or previously auto-suggested
+  useEffect(() => {
+    const base =
+      `${(nomeDocente || '').trim().toLowerCase()}.${(cognomeDocente || '').trim().toLowerCase()}`.replace(/\\s+/g, '');
+    const suggested = base.includes('.') ? `${base}@akgitalia.it` : '';
+
+    const isAuto = !emailDocente || emailDocente.endsWith('@akgitalia.it');
+    if (suggested && isAuto) {
+      setEmailDocente(suggested);
+    }
+  }, [nomeDocente, cognomeDocente, emailDocente]);
+
   /**
    * Handles trainer selection from dropdown
    */
@@ -203,12 +220,16 @@ const AdditionalDataStep = ({
         setCodiceFiscaleDocente(trainer.codiceFiscale);
         setNomeDocente(trainer.nome);
         setCognomeDocente(trainer.cognome);
+        setEmailDocente(trainer.email || '');
+        setTelefonoDocente(trainer.telefono || '');
       }
     } else {
       // Clear fields when "Custom" is selected
       setCodiceFiscaleDocente('');
       setNomeDocente('');
       setCognomeDocente('');
+      setEmailDocente('');
+      setTelefonoDocente('');
     }
   };
 
@@ -278,6 +299,8 @@ const AdditionalDataStep = ({
       codiceFiscaleDocente: codiceFiscaleDocente.toUpperCase().trim(),
       nomeDocente: nomeDocente.trim() || undefined,
       cognomeDocente: cognomeDocente.trim() || undefined,
+      emailDocente: emailDocente.trim() || undefined,
+      telefonoDocente: telefonoDocente.trim() || undefined,
       linkZoom: linkZoom.trim() || undefined,
       idRiunione: idRiunione.trim() || undefined,
       passcode: passcode.trim() || undefined,
@@ -287,6 +310,7 @@ const AdditionalDataStep = ({
       nomeEnte: nomeEnte.trim() || undefined,
       indirizzoEnte: indirizzoEnte.trim() || undefined,
       note: note.trim() || undefined,
+      enteAccreditatoId: selectedLocationId !== CUSTOM_OPTION_VALUE ? selectedLocationId : undefined,
     };
 
     onComplete(data);
@@ -465,6 +489,31 @@ const AdditionalDataStep = ({
               <p className="text-xs text-muted-foreground">
                 Codice fiscale del docente/direttore (16 caratteri)
               </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="email-docente" className="text-sm">Email</Label>
+                <Input
+                  id="email-docente"
+                  type="email"
+                  value={emailDocente}
+                  onChange={(e) => setEmailDocente(e.target.value)}
+                  placeholder="nome.cognome@akgitalia.it"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Suggerita automaticamente da nome e cognome
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="tel-docente" className="text-sm">Telefono</Label>
+                <Input
+                  id="tel-docente"
+                  value={telefonoDocente}
+                  onChange={(e) => setTelefonoDocente(e.target.value)}
+                  placeholder="+39 333 1234567"
+                />
+              </div>
             </div>
           </div>
 

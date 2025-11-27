@@ -51,6 +51,7 @@ function buildCertificateData(partecipante: Partecipante, data: CourseData): Rec
     CORSO_STATO: course.stato || '',
 
     ENTE_NOME: ente.nome || '',
+    ID_ENTE: ente.id || '',
     ENTE_INDIRIZZO: ente.indirizzo || '',
     ENTE_ACCREDITATO: ente.accreditato?.nome || '',
 

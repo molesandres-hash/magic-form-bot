@@ -90,6 +90,8 @@ export interface Trainer {
   nome: string;
   cognome: string;
   codice_fiscale?: string;
+  email?: string;
+  telefono?: string;
 }
 
 // Interfacce per DB
@@ -101,6 +103,8 @@ export interface EnteAccreditato {
   comune: string;
   cap: string;
   provincia: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ResponsabileCorso {
