@@ -16,7 +16,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import type { CourseData } from '@/types/courseData';
-import { SYSTEM_INSTRUCTION, EXTRACTION_SCHEMA } from './extractionConfig';
+import { getSystemInstruction, getExtractionSchema } from './extractionConfig';
 
 // ============================================================================
 // CONSTANTS - Configuration and thresholds
@@ -123,6 +123,7 @@ export async function extractCourseDataWithGemini(
     console.log('Starting extraction with Google Gemini API...');
 
     // Call Gemini API with structured output
+    // NOTE: Using configurable prompt from config/prompts/extraction-prompt.json
     const response = await ai.models.generateContent({
       model: API_CONFIG.MODEL,
       contents: `Estrai i dati da questi 3 blocchi:
@@ -136,9 +137,9 @@ ${modulesData}
 === ELENCO PARTECIPANTI ===
 ${participantsData}`,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: getSystemInstruction(),
         responseMimeType: 'application/json',
-        responseSchema: EXTRACTION_SCHEMA,
+        responseSchema: getExtractionSchema(),
       },
     });
 
@@ -262,14 +263,29 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     };
   });
 
-  // Process moduli
+  // Process moduli with enhanced session separation
   const moduli_processati = moduliRaw.map((mod: RawModulo) => {
     const sessioni_modulo_raw = mod.sessioni_raw || [];
     const sessioni_modulo = generateSessioni(sessioni_modulo_raw);
+
+    // Separate in-person sessions
     const sessioni_presenza_modulo_raw = sessioni_modulo_raw.filter(
       sess => !isFAD(sess.tipo_sede || '', sess.sede || '')
     );
     const sessioni_presenza_modulo = generateSessioni(sessioni_presenza_modulo_raw);
+
+    // ============================================================================
+    // NUOVO: Separate ONLINE sessions per module
+    // ============================================================================
+    const lezioni_online_modulo_raw = sessioni_modulo_raw.filter(
+      sess => isFAD(sess.tipo_sede || '', sess.sede || '')
+    );
+    const lezioni_online_modulo = generateSessioni(lezioni_online_modulo_raw).map((sess, idx) => ({
+      ...sess,
+      modulo_id: mod.id_sezione || mod.id,  // Link session to module
+      registrata: (sessioni_modulo_raw[idx] as any).registrata || false, // Flag registrata
+    }));
+
     const capienzaMod = parseCapienza(mod.capienza || '0/0');
 
     return {
@@ -292,6 +308,7 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
       numero_sessioni: sessioni_modulo.length,
       sessioni: sessioni_modulo,
       sessioni_presenza: sessioni_presenza_modulo,
+      lezioni_online: lezioni_online_modulo, // NEW: Online lessons per module
     };
   });
 
@@ -326,6 +343,24 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     moduli_processati.length + partecipanti.length + sessioni_totali.length;
   const completamento_percentuale = Math.round((filled_fields / DEFAULTS.TOTAL_FIELDS) * 100);
 
+  // ============================================================================
+  // NUOVO: Build lezioni_online_per_documenti structure
+  // ============================================================================
+  // This structure makes it easy for document generators to access online lessons
+  // grouped by module, with all relevant module metadata
+  const lezioni_online_per_documenti: Record<string, any> = {};
+  moduli_processati.forEach((modulo: any) => {
+    if (modulo.lezioni_online && modulo.lezioni_online.length > 0) {
+      const moduleKey = modulo.id_sezione || modulo.id;
+      lezioni_online_per_documenti[moduleKey] = {
+        modulo_titolo: modulo.titolo,
+        modulo_id_sezione: modulo.id_sezione,
+        modulo_id_corso: modulo.id_corso,
+        lezioni: modulo.lezioni_online,
+      };
+    }
+  });
+
   // Build complete response
   return {
     corso,
@@ -337,6 +372,11 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     partecipanti_count: partecipanti.length,
     sessioni: sessioni_totali,
     sessioni_presenza: sessioni_presenza_totali,
+
+    // ============================================================================
+    // NUOVO: Lezioni online per documenti
+    // ============================================================================
+    lezioni_online_per_documenti,
 
     // New Fields Processing
     responsabili: extractedData.responsabili || {},
@@ -411,14 +451,15 @@ ${modulesData}
 ${participantsData}`;
 
     // FIRST EXTRACTION
+    // NOTE: Using configurable prompt from config/prompts/extraction-prompt.json
     console.log('First extraction...');
     const response1 = await ai.models.generateContent({
       model: API_CONFIG.MODEL,
       contents: userPrompt,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: getSystemInstruction(),
         responseMimeType: 'application/json',
-        responseSchema: EXTRACTION_SCHEMA,
+        responseSchema: getExtractionSchema(),
       },
     });
 
@@ -432,9 +473,9 @@ ${participantsData}`;
       model: API_CONFIG.MODEL,
       contents: userPrompt,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction: getSystemInstruction(),
         responseMimeType: 'application/json',
-        responseSchema: EXTRACTION_SCHEMA,
+        responseSchema: getExtractionSchema(),
       },
     });
 

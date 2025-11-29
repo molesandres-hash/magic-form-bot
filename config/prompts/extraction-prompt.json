@@ -1,0 +1,174 @@
+{
+  "version": "2.0.0",
+  "name": "Course Data Extraction",
+  "description": "Prompt per l'estrazione di dati da gestionali formativi con supporto multi-modulo",
+
+  "system_instruction": "Sei un esperto di estrazione dati da gestionali formativi italiani.\nAnalizza i dati forniti e estrai tutte le informazioni relative a:\n- Corso (ID, titolo, tipo, date, durata, capienza, stato, programma)\n- Moduli/Sezioni (ARRAY - uno o più moduli, ciascuno con: ID, ID Corso, ID Sezione, titolo, date inizio/fine, ore totali, durata, capienza, stato, tipo sede, provider)\n- Sede (tipo, nome, modalità, indirizzo)\n- Ente erogatore (nome, ID, indirizzo)\n- Docenti/trainer (nome completo, codice fiscale se presente)\n- Partecipanti (array con ID, nome, cognome, CF, email, telefono, programma, ufficio, case manager, benefits - indicare \"Sì\" o \"No\")\n- Responsabili (se presenti: responsabile certificazione, direttore, supervisore)\n- Dati Verbale (se presenti: data, ora, luogo, tipo prova)\n- Info FAD (se presenti: piattaforma, modalità)\n\nIMPORTANTE PER ID CORSO E SEZIONE:\n- Cerca la tabella \"Moduli\" o \"Ricerca\".\n- Dai PRIORITÀ ASSOLUTA alle colonne \"ID Corso\" e \"ID Sezione\" presenti nella tabella dei moduli.\n- IGNORA l'ID presente nella sezione \"Dettagli di base\" se differisce da quello nella tabella Moduli (spesso è solo un ID prenotazione interno).\n- Esempio: Se \"Dettagli di base\" dice ID 20641 ma la tabella Moduli dice ID Corso 47816, USA 47816.\n\nIMPORTANTE PER MODULI MULTIPLI:\n- Se la tabella moduli contiene PIÙ RIGHE, significa che ci sono PIÙ MODULI/SEZIONI.\n- Estrai OGNI riga come un oggetto modulo separato nell'array \"moduli\".\n- Ogni modulo DEVE avere il suo \"id_sezione\" specifico (spesso diverso per ogni riga).\n- NON confondere \"Sezioni\" (unità didattiche) con \"Sessioni\" (lezioni/date).\n\nIMPORTANTE PER SESSIONI (LEZIONI):\n- Ogni modulo ha le SUE sessioni/lezioni specifiche.\n- Ogni sessione DEVE essere associata al modulo corretto.\n- All'interno di un modulo possono coesistere lezioni in PRESENZA e lezioni ONLINE.\n- Per ogni sessione, specifica SEMPRE:\n  - data (formato DD/MM/YYYY)\n  - ora_inizio (formato HH:MM)\n  - ora_fine (formato HH:MM)\n  - sede (nome della sede o \"Online\")\n  - tipo_sede (\"Presenza\", \"Online\", \"FAD\", \"Ufficio\", ecc.)\n- SEPARA chiaramente le lezioni online dalle lezioni in presenza per ogni modulo.\n\nIMPORTANTE PER LEZIONI ONLINE:\n- Le lezioni online devono essere facilmente identificabili per modulo.\n- Usa il campo \"tipo_sede\" per distinguere: \"Online\", \"FAD\", \"Sincrona\", \"Asincrona\".\n- Le lezioni online serviranno per generare documenti specifici per modulo.\n\nIMPORTANTE GENERALE:\n- Se un dato non è presente, usa \"\" (stringa vuota)\n- Per le date usa formato DD/MM/YYYY\n- Per gli orari usa formato HH:MM\n- Estrai TUTTI i partecipanti dall'elenco\n- Per tipo_sede distingui tra \"Presenza\", \"Online\", \"FAD\" quando applicabile\n- Se trovi durate in inglese (es. \"20 hours\"), TRADUCILE in italiano (es. \"20 ore\")",
+
+  "extraction_schema": {
+    "type": "object",
+    "properties": {
+      "corso": {
+        "type": "object",
+        "properties": {
+          "id": { "type": "string", "description": "ID del corso" },
+          "titolo": { "type": "string", "description": "Titolo del corso" },
+          "tipo": { "type": "string", "description": "Tipo di corso" },
+          "data_inizio": { "type": "string", "description": "Data inizio corso (DD/MM/YYYY)" },
+          "data_fine": { "type": "string", "description": "Data fine corso (DD/MM/YYYY)" },
+          "durata_totale": { "type": "string", "description": "Durata totale in ore" },
+          "ore_totali": { "type": "string", "description": "Ore totali" },
+          "ore_rendicontabili": { "type": "string", "description": "Ore rendicontabili" },
+          "stato": { "type": "string", "description": "Stato del corso" },
+          "capienza": { "type": "string", "description": "Capienza (es: 4/5)" },
+          "programma": { "type": "string", "description": "Programma del corso" }
+        },
+        "required": ["id", "titolo"]
+      },
+      "moduli": {
+        "type": "array",
+        "description": "Array di moduli del corso (almeno uno, possono essere multipli)",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string", "description": "ID del modulo" },
+            "id_corso": { "type": "string", "description": "ID del corso a cui appartiene" },
+            "id_sezione": { "type": "string", "description": "ID della sezione/modulo specifico" },
+            "titolo": { "type": "string", "description": "Titolo del modulo" },
+            "data_inizio": { "type": "string", "description": "Data inizio modulo (DD/MM/YYYY)" },
+            "data_fine": { "type": "string", "description": "Data fine modulo (DD/MM/YYYY)" },
+            "ore_totali": { "type": "string", "description": "Ore totali del modulo" },
+            "durata": { "type": "string", "description": "Durata del modulo" },
+            "ore_rendicontabili": { "type": "string", "description": "Ore rendicontabili del modulo" },
+            "capienza": { "type": "string", "description": "Capienza modulo (es: 4/5)" },
+            "stato": { "type": "string", "description": "Stato del modulo" },
+            "tipo_sede": { "type": "string", "description": "Tipo di sede del modulo (Presenza/Online/FAD/Misto)" },
+            "provider": { "type": "string", "description": "Provider/fornitore del modulo" },
+            "argomenti": {
+              "type": "array",
+              "description": "Argomenti trattati nel modulo",
+              "items": { "type": "string" }
+            },
+            "sessioni_raw": {
+              "type": "array",
+              "description": "Sessioni/lezioni del modulo (in presenza E online)",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "data": { "type": "string", "description": "Data della lezione (DD/MM/YYYY)" },
+                  "ora_inizio": { "type": "string", "description": "Ora inizio lezione (HH:MM)" },
+                  "ora_fine": { "type": "string", "description": "Ora fine lezione (HH:MM)" },
+                  "sede": { "type": "string", "description": "Sede della lezione (o 'Online')" },
+                  "tipo_sede": { "type": "string", "description": "Tipo sede (Presenza/Online/FAD)" },
+                  "registrata": { "type": "boolean", "description": "Se la lezione online è stata registrata (opzionale)", "default": false }
+                },
+                "required": ["data", "ora_inizio", "ora_fine", "tipo_sede"]
+              }
+            }
+          },
+          "required": ["id", "id_corso", "id_sezione", "titolo", "sessioni_raw"]
+        }
+      },
+      "sede": {
+        "type": "object",
+        "properties": {
+          "tipo": { "type": "string" },
+          "nome": { "type": "string" },
+          "modalita": { "type": "string" },
+          "indirizzo": { "type": "string" }
+        }
+      },
+      "ente": {
+        "type": "object",
+        "properties": {
+          "nome": { "type": "string" },
+          "id": { "type": "string" },
+          "indirizzo": { "type": "string" }
+        }
+      },
+      "trainer": {
+        "type": "object",
+        "properties": {
+          "nome_completo": { "type": "string" },
+          "codice_fiscale": { "type": "string" }
+        }
+      },
+      "partecipanti": {
+        "type": "array",
+        "items": {
+          "type": "object",
+          "properties": {
+            "id": { "type": "string" },
+            "nome": { "type": "string" },
+            "cognome": { "type": "string" },
+            "codice_fiscale": { "type": "string" },
+            "telefono": { "type": "string" },
+            "cellulare": { "type": "string" },
+            "email": { "type": "string" },
+            "programma": { "type": "string" },
+            "ufficio": { "type": "string" },
+            "case_manager": { "type": "string" },
+            "benefits": { "type": "string" },
+            "frequenza": { "type": "string" }
+          },
+          "required": ["id", "nome", "cognome"]
+        }
+      },
+      "responsabili": {
+        "type": "object",
+        "properties": {
+          "responsabile_certificazione": {
+            "type": "object",
+            "properties": {
+              "nome": { "type": "string" },
+              "cognome": { "type": "string" }
+            }
+          },
+          "direttore": {
+            "type": "object",
+            "properties": {
+              "nome": { "type": "string" },
+              "cognome": { "type": "string" }
+            }
+          },
+          "supervisore": {
+            "type": "object",
+            "properties": {
+              "nome": { "type": "string" },
+              "cognome": { "type": "string" }
+            }
+          }
+        }
+      },
+      "verbale": {
+        "type": "object",
+        "properties": {
+          "data": { "type": "string" },
+          "ora": { "type": "string" },
+          "luogo": { "type": "string" },
+          "tipo_prova": { "type": "string" },
+          "descrizione_prova": { "type": "string" }
+        }
+      },
+      "fad_info": {
+        "type": "object",
+        "properties": {
+          "piattaforma": { "type": "string" },
+          "modalita_gestione": { "type": "string" },
+          "modalita_valutazione": { "type": "string" }
+        }
+      }
+    },
+    "required": ["corso", "moduli", "partecipanti"]
+  },
+
+  "notes": {
+    "purpose": "Questo prompt è configurabile esternamente per facilitare modifiche future",
+    "last_updated": "2025-01-29",
+    "changes": [
+      "v2.0.0: Aggiunto supporto per lezioni online separate per modulo",
+      "v2.0.0: Aggiunto campo 'registrata' per lezioni online",
+      "v2.0.0: Migliorato supporto multi-modulo con sessioni specifiche per modulo"
+    ]
+  }
+}

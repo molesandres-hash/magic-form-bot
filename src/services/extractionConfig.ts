@@ -1,10 +1,52 @@
 import { Type } from '@google/genai';
+import { readFileSync } from 'fs';
+import { join } from 'path';
 
 /**
- * System prompt for AI extraction
- * Defines the persona and rules for the LLM
+ * Extraction Configuration Loader
+ *
+ * IMPORTANTE: Il prompt di estrazione è ora configurabile esternamente.
+ * Percorso: config/prompts/extraction-prompt.json
+ *
+ * Per modificare il prompt o lo schema di estrazione:
+ * 1. Modifica il file config/prompts/extraction-prompt.json
+ * 2. Riavvia l'applicazione
+ *
+ * Vantaggi:
+ * - Prompt facilmente modificabile senza toccare il codice
+ * - Versionamento del prompt separato dal codice
+ * - Possibilità di testare diversi prompt senza rebuild
  */
-export const SYSTEM_INSTRUCTION = `Sei un esperto di estrazione dati da gestionali formativi italiani.
+
+interface ExtractionConfig {
+  version: string;
+  name: string;
+  description: string;
+  system_instruction: string;
+  extraction_schema: any;
+  notes?: any;
+}
+
+/**
+ * Loads extraction configuration from external JSON file
+ * Falls back to hardcoded config if file not found (for backwards compatibility)
+ */
+function loadExtractionConfig(): ExtractionConfig {
+  try {
+    // Try to load from config file
+    const configPath = join(process.cwd(), 'config/prompts/extraction-prompt.json');
+    const configData = readFileSync(configPath, 'utf-8');
+    const config = JSON.parse(configData);
+    console.log(`✓ Loaded extraction config v${config.version} from: ${configPath}`);
+    return config;
+  } catch (error) {
+    console.warn('⚠️  Could not load extraction config from file, using fallback config');
+    // Fallback to original hardcoded config
+    return {
+      version: '1.0.0',
+      name: 'Legacy Extraction',
+      description: 'Fallback configuration',
+      system_instruction: `Sei un esperto di estrazione dati da gestionali formativi italiani.
 Analizza i dati forniti e estrai tutte le informazioni relative a:
 - Corso (ID, titolo, tipo, date, durata, capienza, stato, programma)
 - Moduli/Sezioni (ARRAY - uno o più moduli, ciascuno con: ID, ID Corso, ID Sezione, titolo, date inizio/fine, ore totali, durata, capienza, stato, tipo sede, provider)
@@ -39,11 +81,91 @@ IMPORTANTE GENERALE:
 - Per gli orari usa formato HH:MM
 - Estrai TUTTI i partecipanti dall'elenco
 - Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile
-- Se trovi durate in inglese (es. "20 hours"), TRADUCILE in italiano (es. "20 ore")`;
+- Se trovi durate in inglese (es. "20 hours"), TRADUCILE in italiano (es. "20 ore")`,
+      extraction_schema: {} // Will be populated below
+    };
+  }
+}
+
+// Load configuration at module initialization
+const EXTRACTION_CONFIG = loadExtractionConfig();
+
+/**
+ * System prompt for AI extraction
+ * Loaded from external configuration file
+ *
+ * @deprecated Use getSystemInstruction() instead to ensure latest config is loaded
+ */
+export const SYSTEM_INSTRUCTION = EXTRACTION_CONFIG.system_instruction;
+
+/**
+ * Gets the current system instruction
+ * @returns System instruction string
+ */
+export function getSystemInstruction(): string {
+  return EXTRACTION_CONFIG.system_instruction;
+}
+
+/**
+ * Converts JSON schema from config file to Gemini Type schema
+ * This allows us to define the schema in a readable JSON format
+ * and convert it to the format required by the Gemini API
+ */
+function convertJsonSchemaToGeminiSchema(jsonSchema: any): any {
+  if (!jsonSchema || !jsonSchema.type) {
+    return { type: Type.STRING };
+  }
+
+  const typeMap: Record<string, any> = {
+    'string': Type.STRING,
+    'number': Type.NUMBER,
+    'integer': Type.INTEGER,
+    'boolean': Type.BOOLEAN,
+    'object': Type.OBJECT,
+    'array': Type.ARRAY,
+  };
+
+  const result: any = {
+    type: typeMap[jsonSchema.type] || Type.STRING,
+  };
+
+  // Handle object properties
+  if (jsonSchema.type === 'object' && jsonSchema.properties) {
+    result.properties = {};
+    for (const [key, value] of Object.entries(jsonSchema.properties)) {
+      result.properties[key] = convertJsonSchemaToGeminiSchema(value);
+    }
+    if (jsonSchema.required) {
+      result.required = jsonSchema.required;
+    }
+  }
+
+  // Handle array items
+  if (jsonSchema.type === 'array' && jsonSchema.items) {
+    result.items = convertJsonSchemaToGeminiSchema(jsonSchema.items);
+  }
+
+  // Copy description if present
+  if (jsonSchema.description) {
+    result.description = jsonSchema.description;
+  }
+
+  return result;
+}
+
+/**
+ * Gets the extraction schema converted to Gemini format
+ * @returns Gemini-compatible schema object
+ */
+export function getExtractionSchema(): any {
+  return convertJsonSchemaToGeminiSchema(EXTRACTION_CONFIG.extraction_schema);
+}
 
 /**
  * Response schema for structured extraction
  * Defines the exact JSON structure expected from the API
+ *
+ * @deprecated Use getExtractionSchema() instead to ensure latest config is loaded
  */
 export const EXTRACTION_SCHEMA = {
     type: Type.OBJECT,

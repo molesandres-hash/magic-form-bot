@@ -1,0 +1,60 @@
+{
+  "description": "Corso con 3 moduli - lezioni miste (presenza + online nello stesso modulo)",
+  "input_text": {
+    "corso_data": "ID Corso: 50002\nTitolo: Master in Project Management\nTipo: Master Universitario\nData Inizio: 10/03/2025\nData Fine: 30/04/2025\nOre Totali: 80 ore\nStato: Aperto\nCapienza: 15/20",
+    "moduli_data": "ID Corso | ID Sezione | Titolo Modulo | Data Inizio | Data Fine | Ore | Stato | Provider\n50002 | 70001 | Introduzione al PM | 10/03/2025 | 20/03/2025 | 25 ore | Aperto | Prof. Bianchi\n50002 | 70002 | Gestione Risorse | 21/03/2025 | 10/04/2025 | 30 ore | Aperto | Dott. Verdi\n50002 | 70003 | Risk Management | 11/04/2025 | 30/04/2025 | 25 ore | Aperto | Prof. Rossi\n\nArgomenti Modulo 70001:\n- Fondamenti del Project Management\n- Metodologie Agile e Waterfall\n- Strumenti di pianificazione\n\nSessioni Modulo 70001 (MISTO - Presenza + Online):\n10/03/2025, 09:00-13:00, Aula 5, Presenza\n12/03/2025, 09:00-13:00, Aula 5, Presenza\n14/03/2025, 10:00-13:00, Zoom, Online\n17/03/2025, 10:00-13:00, Zoom, Online\n19/03/2025, 09:00-13:00, Aula 5, Presenza\n20/03/2025, 14:00-18:00, Zoom, Online\n\nArgomenti Modulo 70002:\n- Gestione del team\n- Pianificazione delle risorse\n- Budget e controllo costi\n\nSessioni Modulo 70002 (MISTO - Presenza + Online):\n21/03/2025, 09:00-13:00, Aula 7, Presenza\n24/03/2025, 09:00-13:00, Aula 7, Presenza\n26/03/2025, 14:00-18:00, Microsoft Teams, Online\n28/03/2025, 14:00-18:00, Microsoft Teams, Online\n31/03/2025, 09:00-13:00, Aula 7, Presenza\n03/04/2025, 14:00-18:00, Microsoft Teams, Online\n07/04/2025, 09:00-14:00, Aula 7, Presenza\n10/04/2025, 10:00-13:00, Microsoft Teams, Online\n\nArgomenti Modulo 70003:\n- Identificazione dei rischi\n- Analisi qualitativa e quantitativa\n- Strategie di mitigazione\n\nSessioni Modulo 70003 (Solo Online):\n11/04/2025, 10:00-13:00, Zoom, Online\n14/04/2025, 10:00-13:00, Zoom, Online\n16/04/2025, 14:00-17:00, Zoom, Online\n18/04/2025, 14:00-17:00, Zoom, Online\n21/04/2025, 10:00-13:00, Zoom, Online\n23/04/2025, 10:00-13:00, Zoom, Online\n25/04/2025, 14:00-17:00, Zoom, Online\n28/04/2025, 10:00-14:00, Zoom, Online\n30/04/2025, 09:00-13:00, Zoom, Online",
+    "partecipanti_data": "ID | Nome | Cognome | CF | Email | Benefits\nP001 | Anna | Ferrari | FRRNNA82D45H501A | anna.ferrari@email.it | Sì\nP002 | Marco | Conti | CNTMRC88E12H501B | marco.conti@email.it | No\nP003 | Silvia | Romano | RMNSLV90F23H501C | silvia.romano@email.it | Sì\nP004 | Paolo | Marino | MRNPLA85G15H501D | paolo.marino@email.it | No\nP005 | Francesca | Galli | GLLFNC92H18H501E | francesca.galli@email.it | Sì"
+  },
+  "expected_output": {
+    "corso": {
+      "id": "50002",
+      "titolo": "Master in Project Management"
+    },
+    "moduli_count": 3,
+    "moduli": [
+      {
+        "id_sezione": "70001",
+        "titolo": "Introduzione al PM",
+        "tipo_sede": "Misto",
+        "sessioni_raw_count": 6,
+        "has_online_lessons": true,
+        "has_presenza_lessons": true,
+        "online_count": 3,
+        "presenza_count": 3,
+        "argomenti_count": 3
+      },
+      {
+        "id_sezione": "70002",
+        "titolo": "Gestione Risorse",
+        "tipo_sede": "Misto",
+        "sessioni_raw_count": 8,
+        "has_online_lessons": true,
+        "has_presenza_lessons": true,
+        "online_count": 4,
+        "presenza_count": 4,
+        "argomenti_count": 3
+      },
+      {
+        "id_sezione": "70003",
+        "titolo": "Risk Management",
+        "tipo_sede": "Online",
+        "sessioni_raw_count": 9,
+        "has_online_lessons": true,
+        "has_presenza_lessons": false,
+        "online_count": 9,
+        "presenza_count": 0,
+        "argomenti_count": 3
+      }
+    ],
+    "partecipanti_count": 5,
+    "validations": {
+      "total_sessions": 23,
+      "online_sessions_count": 16,
+      "presenza_sessions_count": 7,
+      "lezioni_online_per_documenti_has_3_modules": true,
+      "modulo_1_lezioni_online_count": 3,
+      "modulo_2_lezioni_online_count": 4,
+      "modulo_3_lezioni_online_count": 9
+    }
+  }
+}

@@ -9,6 +9,7 @@ import {
 import { processWordTemplate } from './wordTemplateProcessor';
 import { getTemplateBlob } from '@/services/localDb';
 import { extractCityName, extractZoomDetails } from '@/utils/stringUtils';
+import { generatePlaceholderMap, generateModulePlaceholders } from './placeholderService';
 
 // Define the interface for a template generator
 export type TemplateGenerator = (data: CourseData) => Promise<Blob | null>;
@@ -81,8 +82,26 @@ export const createLocalTemplateGenerator = (templatePath: string, filename: str
                 (data.moduli && data.moduli.length > 0 ? data.moduli[0] : null);
             const currentModuleNumber = currentModule?.index || 1;
 
-            // 2. Prepare data for the template
+            // ============================================================================
+            // 2. Prepare data for the template using NEW placeholder service
+            // ============================================================================
+            // IMPORTANTE: Questo usa il nuovo placeholderService che genera
+            // automaticamente TUTTI i placeholder seguendo la convenzione standard.
+            // Vedi: config/placeholders/placeholder-convention.json
+
+            // Generate all standard placeholders automatically
+            const autoPlaceholders = generatePlaceholderMap(data, {
+                moduleIndex: currentModule ? (currentModule.index - 1) : undefined
+            });
+
+            // Merge with any custom/legacy placeholders for backward compatibility
             const templateData = {
+                ...autoPlaceholders, // New automatic placeholders
+
+                // ============================================================================
+                // LEGACY/CUSTOM placeholders (kept for backward compatibility)
+                // ============================================================================
+                // These will override auto-generated ones if needed
                 // --- DATI CORSO ---
                 NOME_CORSO: data.corso?.titolo || '',
                 ID_CORSO: currentModule?.id_corso || data.corso?.id || '', // Added specific ID_CORSO from module

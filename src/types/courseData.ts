@@ -11,8 +11,27 @@ export interface CourseData {
   responsabile_cert_id?: string;
   partecipanti: Partecipante[];
   partecipanti_count: number;
-  sessioni: Sessione[];
-  sessioni_presenza: Sessione[];
+
+  // ============================================================================
+  // SESSIONI AGGREGATE (tutte le sessioni di tutti i moduli)
+  // ============================================================================
+  sessioni: Sessione[];          // Tutte le sessioni (presenza + online)
+  sessioni_presenza: Sessione[]; // Solo sessioni in presenza aggregate
+
+  // ============================================================================
+  // NUOVO: LEZIONI ONLINE PER DOCUMENTI
+  // ============================================================================
+  // Struttura per accedere facilmente alle lezioni online modulo per modulo
+  // Utile per generare documenti FAD specifici per ogni modulo
+  lezioni_online_per_documenti?: {
+    [modulo_id: string]: {
+      modulo_titolo: string;
+      modulo_id_sezione: string;
+      modulo_id_corso: string;
+      lezioni: Sessione[];
+    };
+  };
+
   verbale?: Verbale;
   registro: Registro;
   calendario_fad?: CalendarioFAD;
@@ -54,10 +73,22 @@ export interface Modulo {
   stato: string;                 // Es: "Aperto"
   tipo_sede: string;             // Es: "Ufficio", "Online"
   provider: string;              // Es: "Andres Moles"
-  // Sessioni specifiche del modulo
-  sessioni: Sessione[];          // Sessioni di QUESTO modulo
-  sessioni_presenza: Sessione[]; // Solo sessioni in presenza di QUESTO modulo
-  argomenti?: string[];          // Argomenti trattati nel modulo
+
+  // ============================================================================
+  // SESSIONI/LEZIONI DEL MODULO
+  // ============================================================================
+  // Tutte le sessioni del modulo (presenza + online)
+  sessioni: Sessione[];
+
+  // Solo sessioni in presenza di QUESTO modulo
+  sessioni_presenza: Sessione[];
+
+  // Solo lezioni ONLINE di QUESTO modulo
+  // Questa lista è cruciale per generare documenti FAD specifici per modulo
+  lezioni_online: Sessione[];
+
+  // Argomenti trattati nel modulo
+  argomenti?: string[];
 }
 
 // ... (Sede, Ente, Trainer, EnteAccreditato, ResponsabileCorso interfaces remain unchanged)
@@ -158,6 +189,15 @@ export interface Sessione {
   sede: string;
   tipo_sede: string;
   is_fad: boolean;
+
+  // ============================================================================
+  // NUOVO: Flag per lezioni online registrate
+  // ============================================================================
+  // Indica se la lezione online è stata registrata (utile per compliance)
+  registrata?: boolean;
+
+  // ID del modulo a cui appartiene questa sessione (opzionale, per tracking)
+  modulo_id?: string;
 }
 
 

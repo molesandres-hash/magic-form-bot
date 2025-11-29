@@ -1,0 +1,39 @@
+{
+  "description": "Corso con 2 moduli - uno in presenza, uno online",
+  "input_text": {
+    "corso_data": "ID Corso: 50001\nTitolo: Corso di Intelligenza Artificiale\nTipo: Formazione Professionale\nData Inizio: 01/02/2025\nData Fine: 15/02/2025\nOre Totali: 40 ore\nStato: Aperto\nCapienza: 10/12",
+    "moduli_data": "ID Corso | ID Sezione | Titolo Modulo | Data Inizio | Data Fine | Ore | Stato\n50001 | 60001 | Fondamenti di AI | 01/02/2025 | 08/02/2025 | 20 ore | Aperto\n50001 | 60002 | Applicazioni Pratiche AI | 09/02/2025 | 15/02/2025 | 20 ore | Aperto\n\nSessioni Modulo 60001:\n01/02/2025, 09:00-13:00, Aula 1, Presenza\n03/02/2025, 09:00-13:00, Aula 1, Presenza\n05/02/2025, 09:00-13:00, Aula 1, Presenza\n07/02/2025, 09:00-13:00, Aula 1, Presenza\n08/02/2025, 09:00-13:00, Aula 1, Presenza\n\nSessioni Modulo 60002:\n09/02/2025, 10:00-12:00, Online, FAD\n10/02/2025, 10:00-12:00, Online, FAD\n12/02/2025, 10:00-12:00, Online, FAD\n13/02/2025, 10:00-12:00, Online, FAD\n14/02/2025, 10:00-12:00, Online, FAD\n15/02/2025, 10:00-14:00, Online, FAD",
+    "partecipanti_data": "ID | Nome | Cognome | CF | Email\nP001 | Mario | Rossi | RSSMRA80A01H501X | mario.rossi@email.it\nP002 | Laura | Bianchi | BNCL RA85B02H501Y | laura.bianchi@email.it\nP003 | Giuseppe | Verdi | VRDGPP90C03H501Z | giuseppe.verdi@email.it"
+  },
+  "expected_output": {
+    "corso": {
+      "id": "50001",
+      "titolo": "Corso di Intelligenza Artificiale"
+    },
+    "moduli_count": 2,
+    "moduli": [
+      {
+        "id_sezione": "60001",
+        "titolo": "Fondamenti di AI",
+        "tipo_sede": "Presenza",
+        "sessioni_raw_count": 5,
+        "has_online_lessons": false
+      },
+      {
+        "id_sezione": "60002",
+        "titolo": "Applicazioni Pratiche AI",
+        "tipo_sede": "Online",
+        "sessioni_raw_count": 6,
+        "has_online_lessons": true
+      }
+    ],
+    "partecipanti_count": 3,
+    "validations": {
+      "modulo_1_has_only_presenza": true,
+      "modulo_2_has_only_online": true,
+      "total_sessions": 11,
+      "online_sessions_count": 6,
+      "presenza_sessions_count": 5
+    }
+  }
+}

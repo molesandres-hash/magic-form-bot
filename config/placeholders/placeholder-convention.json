@@ -1,0 +1,220 @@
+{
+  "version": "1.0.0",
+  "description": "Convenzione per i placeholder nei documenti Word",
+  "convention": {
+    "format": "{{CATEGORIA_CAMPO}}",
+    "examples": [
+      "{{CORSO_TITOLO}} - Titolo del corso",
+      "{{MOD1_NOME}} - Nome del modulo 1",
+      "{{MOD1_LEZ1_DATA}} - Data della lezione 1 del modulo 1",
+      "{{PARTECIPANTE1_NOME}} - Nome del primo partecipante"
+    ]
+  },
+
+  "categories": {
+    "corso": {
+      "prefix": "CORSO_",
+      "description": "Dati generali del corso",
+      "fields": [
+        { "placeholder": "{{CORSO_ID}}", "field": "corso.id", "description": "ID univoco del corso" },
+        { "placeholder": "{{CORSO_TITOLO}}", "field": "corso.titolo", "description": "Titolo del corso" },
+        { "placeholder": "{{CORSO_TIPO}}", "field": "corso.tipo", "description": "Tipo di corso" },
+        { "placeholder": "{{CORSO_DATA_INIZIO}}", "field": "corso.data_inizio", "description": "Data inizio corso" },
+        { "placeholder": "{{CORSO_DATA_FINE}}", "field": "corso.data_fine", "description": "Data fine corso" },
+        { "placeholder": "{{CORSO_ANNO}}", "field": "corso.anno", "description": "Anno del corso" },
+        { "placeholder": "{{CORSO_ORE_TOTALI}}", "field": "corso.ore_totali", "description": "Ore totali del corso" },
+        { "placeholder": "{{CORSO_ORE_RENDICONTABILI}}", "field": "corso.ore_rendicontabili", "description": "Ore rendicontabili" },
+        { "placeholder": "{{CORSO_STATO}}", "field": "corso.stato", "description": "Stato del corso" },
+        { "placeholder": "{{CORSO_CAPIENZA}}", "field": "corso.capienza", "description": "Capienza (es: 4/5)" },
+        { "placeholder": "{{CORSO_PROGRAMMA}}", "field": "corso.programma", "description": "Programma del corso" }
+      ]
+    },
+
+    "modulo": {
+      "prefix": "MOD{N}_",
+      "description": "Dati specifici per modulo (N = numero modulo, es: MOD1_, MOD2_)",
+      "dynamic": true,
+      "fields": [
+        { "placeholder": "{{MOD{N}_ID}}", "field": "moduli[{N}].id", "description": "ID del modulo" },
+        { "placeholder": "{{MOD{N}_TITOLO}}", "field": "moduli[{N}].titolo", "description": "Titolo del modulo" },
+        { "placeholder": "{{MOD{N}_ID_CORSO}}", "field": "moduli[{N}].id_corso", "description": "ID corso del modulo" },
+        { "placeholder": "{{MOD{N}_ID_SEZIONE}}", "field": "moduli[{N}].id_sezione", "description": "ID sezione del modulo" },
+        { "placeholder": "{{MOD{N}_DATA_INIZIO}}", "field": "moduli[{N}].data_inizio", "description": "Data inizio modulo" },
+        { "placeholder": "{{MOD{N}_DATA_FINE}}", "field": "moduli[{N}].data_fine", "description": "Data fine modulo" },
+        { "placeholder": "{{MOD{N}_ORE_TOTALI}}", "field": "moduli[{N}].ore_totali", "description": "Ore totali modulo" },
+        { "placeholder": "{{MOD{N}_STATO}}", "field": "moduli[{N}].stato", "description": "Stato del modulo" },
+        { "placeholder": "{{MOD{N}_TIPO_SEDE}}", "field": "moduli[{N}].tipo_sede", "description": "Tipo sede (Presenza/Online)" },
+        { "placeholder": "{{MOD{N}_PROVIDER}}", "field": "moduli[{N}].provider", "description": "Provider del modulo" },
+        { "placeholder": "{{MOD{N}_ARGOMENTI}}", "field": "moduli[{N}].argomenti", "type": "array_join", "separator": ", ", "description": "Lista argomenti" },
+        { "placeholder": "{{MOD{N}_NUM_LEZIONI}}", "field": "moduli[{N}].numero_sessioni", "description": "Numero di lezioni" },
+        { "placeholder": "{{MOD{N}_NUM_LEZIONI_ONLINE}}", "field": "moduli[{N}].lezioni_online.length", "description": "Numero lezioni online" }
+      ]
+    },
+
+    "lezione": {
+      "prefix": "LEZ{N}_",
+      "description": "Dati per singola lezione (accesso diretto, N = numero progressivo)",
+      "dynamic": true,
+      "fields": [
+        { "placeholder": "{{LEZ{N}_DATA}}", "field": "sessioni[{N}].data_completa", "description": "Data completa lezione" },
+        { "placeholder": "{{LEZ{N}_GIORNO}}", "field": "sessioni[{N}].giorno", "description": "Giorno della lezione" },
+        { "placeholder": "{{LEZ{N}_MESE}}", "field": "sessioni[{N}].mese", "description": "Mese della lezione" },
+        { "placeholder": "{{LEZ{N}_ANNO}}", "field": "sessioni[{N}].anno", "description": "Anno della lezione" },
+        { "placeholder": "{{LEZ{N}_ORA_INIZIO}}", "field": "sessioni[{N}].ora_inizio_giornata", "description": "Ora inizio" },
+        { "placeholder": "{{LEZ{N}_ORA_FINE}}", "field": "sessioni[{N}].ora_fine_giornata", "description": "Ora fine" },
+        { "placeholder": "{{LEZ{N}_SEDE}}", "field": "sessioni[{N}].sede", "description": "Sede della lezione" },
+        { "placeholder": "{{LEZ{N}_TIPO}}", "field": "sessioni[{N}].tipo_sede", "description": "Tipo (Presenza/Online)" },
+        { "placeholder": "{{LEZ{N}_IS_FAD}}", "field": "sessioni[{N}].is_fad", "type": "boolean", "description": "Se è FAD" }
+      ]
+    },
+
+    "lezione_modulo": {
+      "prefix": "MOD{M}_LEZ{N}_",
+      "description": "Lezioni specifiche per modulo (M = modulo, N = lezione del modulo)",
+      "dynamic": true,
+      "note": "Accesso a lezioni online per modulo: lezioni_online_per_documenti[modulo_id].lezioni[N]",
+      "fields": [
+        { "placeholder": "{{MOD{M}_LEZ{N}_DATA}}", "description": "Data lezione N del modulo M" },
+        { "placeholder": "{{MOD{M}_LEZ{N}_ORA_INIZIO}}", "description": "Ora inizio lezione N del modulo M" },
+        { "placeholder": "{{MOD{M}_LEZ{N}_ORA_FINE}}", "description": "Ora fine lezione N del modulo M" },
+        { "placeholder": "{{MOD{M}_LEZ{N}_REGISTRATA}}", "description": "Se la lezione online è registrata" }
+      ]
+    },
+
+    "partecipante": {
+      "prefix": "PART{N}_",
+      "description": "Dati partecipanti (N = numero partecipante)",
+      "dynamic": true,
+      "fields": [
+        { "placeholder": "{{PART{N}_ID}}", "field": "partecipanti[{N}].id", "description": "ID partecipante" },
+        { "placeholder": "{{PART{N}_NOME}}", "field": "partecipanti[{N}].nome", "description": "Nome" },
+        { "placeholder": "{{PART{N}_COGNOME}}", "field": "partecipanti[{N}].cognome", "description": "Cognome" },
+        { "placeholder": "{{PART{N}_NOME_COMPLETO}}", "field": "partecipanti[{N}].nome_completo", "description": "Nome completo" },
+        { "placeholder": "{{PART{N}_CF}}", "field": "partecipanti[{N}].codice_fiscale", "description": "Codice fiscale" },
+        { "placeholder": "{{PART{N}_EMAIL}}", "field": "partecipanti[{N}].email", "description": "Email" },
+        { "placeholder": "{{PART{N}_TELEFONO}}", "field": "partecipanti[{N}].telefono", "description": "Telefono" },
+        { "placeholder": "{{PART{N}_BENEFITS}}", "field": "partecipanti[{N}].benefits", "description": "Benefits (Sì/No)" }
+      ]
+    },
+
+    "ente": {
+      "prefix": "ENTE_",
+      "description": "Dati ente erogatore",
+      "fields": [
+        { "placeholder": "{{ENTE_NOME}}", "field": "ente.nome", "description": "Nome ente" },
+        { "placeholder": "{{ENTE_ID}}", "field": "ente.id", "description": "ID ente" },
+        { "placeholder": "{{ENTE_INDIRIZZO}}", "field": "ente.indirizzo", "description": "Indirizzo ente" },
+        { "placeholder": "{{ENTE_ACCRED_NOME}}", "field": "ente.accreditato.nome", "description": "Nome ente accreditato" },
+        { "placeholder": "{{ENTE_ACCRED_VIA}}", "field": "ente.accreditato.via", "description": "Via ente accreditato" },
+        { "placeholder": "{{ENTE_ACCRED_COMUNE}}", "field": "ente.accreditato.comune", "description": "Comune" },
+        { "placeholder": "{{ENTE_ACCRED_CAP}}", "field": "ente.accreditato.cap", "description": "CAP" },
+        { "placeholder": "{{ENTE_ACCRED_PROVINCIA}}", "field": "ente.accreditato.provincia", "description": "Provincia" }
+      ]
+    },
+
+    "sede": {
+      "prefix": "SEDE_",
+      "description": "Dati sede corso",
+      "fields": [
+        { "placeholder": "{{SEDE_TIPO}}", "field": "sede.tipo", "description": "Tipo sede" },
+        { "placeholder": "{{SEDE_NOME}}", "field": "sede.nome", "description": "Nome sede" },
+        { "placeholder": "{{SEDE_MODALITA}}", "field": "sede.modalita", "description": "Modalità" },
+        { "placeholder": "{{SEDE_INDIRIZZO}}", "field": "sede.indirizzo", "description": "Indirizzo" }
+      ]
+    },
+
+    "trainer": {
+      "prefix": "DOCENTE_",
+      "description": "Dati docente/trainer",
+      "fields": [
+        { "placeholder": "{{DOCENTE_NOME_COMPLETO}}", "field": "trainer.nome_completo", "description": "Nome completo docente" },
+        { "placeholder": "{{DOCENTE_NOME}}", "field": "trainer.nome", "description": "Nome docente" },
+        { "placeholder": "{{DOCENTE_COGNOME}}", "field": "trainer.cognome", "description": "Cognome docente" },
+        { "placeholder": "{{DOCENTE_CF}}", "field": "trainer.codice_fiscale", "description": "Codice fiscale docente" },
+        { "placeholder": "{{DOCENTE_EMAIL}}", "field": "trainer.email", "description": "Email docente" },
+        { "placeholder": "{{DOCENTE_TELEFONO}}", "field": "trainer.telefono", "description": "Telefono docente" }
+      ]
+    },
+
+    "fad": {
+      "prefix": "FAD_",
+      "description": "Dati formazione a distanza",
+      "fields": [
+        { "placeholder": "{{FAD_MODALITA}}", "field": "calendario_fad.modalita", "description": "Modalità gestione FAD" },
+        { "placeholder": "{{FAD_PIATTAFORMA}}", "field": "calendario_fad.strumenti", "description": "Piattaforma/strumenti FAD" },
+        { "placeholder": "{{FAD_OBIETTIVI}}", "field": "calendario_fad.obiettivi", "description": "Obiettivi didattici FAD" },
+        { "placeholder": "{{FAD_VALUTAZIONE}}", "field": "calendario_fad.valutazione", "description": "Modalità valutazione FAD" },
+        { "placeholder": "{{FAD_ID_RIUNIONE}}", "field": "calendario_fad.id_riunione", "description": "ID riunione (es: Zoom)" },
+        { "placeholder": "{{FAD_PASSCODE}}", "field": "calendario_fad.passcode", "description": "Passcode riunione" }
+      ]
+    }
+  },
+
+  "templates": {
+    "registro_didattico": {
+      "name": "Registro Didattico",
+      "description": "Registro didattico e presenze",
+      "required_placeholders": [
+        "CORSO_TITOLO", "CORSO_ID", "CORSO_DATA_INIZIO", "CORSO_DATA_FINE",
+        "CORSO_ORE_TOTALI"
+      ],
+      "optional_placeholders": [
+        "MOD{N}_*", "LEZ{N}_*", "PART{N}_*", "DOCENTE_*"
+      ],
+      "supports_loops": true,
+      "loop_placeholders": ["PARTECIPANTI", "SESSIONI", "MODULI"]
+    },
+
+    "modello_a_fad": {
+      "name": "Modello A FAD",
+      "description": "Calendario FAD per modulo specifico",
+      "required_placeholders": [
+        "CORSO_TITOLO", "CORSO_ID", "MOD1_ID_SEZIONE", "FAD_PIATTAFORMA"
+      ],
+      "optional_placeholders": [
+        "MOD{N}_*", "FAD_*", "DOCENTE_*"
+      ],
+      "supports_loops": true,
+      "loop_placeholders": ["SESSIONI_FAD", "PARTECIPANTI"],
+      "note": "Genera un documento per OGNI modulo che ha lezioni online"
+    },
+
+    "verbale_partecipazione": {
+      "name": "Verbale Partecipazione",
+      "description": "Verbale di partecipazione al corso",
+      "required_placeholders": [
+        "CORSO_TITOLO", "CORSO_ID", "ENTE_NOME"
+      ],
+      "optional_placeholders": [
+        "PART{N}_*", "DOCENTE_*", "SEDE_*"
+      ],
+      "supports_loops": true,
+      "loop_placeholders": ["PARTECIPANTI"]
+    },
+
+    "attestato": {
+      "name": "Attestato di Partecipazione",
+      "description": "Attestato individuale per partecipante",
+      "required_placeholders": [
+        "CORSO_TITOLO", "PART1_NOME_COMPLETO", "PART1_CF"
+      ],
+      "optional_placeholders": [
+        "CORSO_*", "ENTE_*", "DOCENTE_*"
+      ],
+      "supports_loops": false,
+      "note": "Genera un documento per OGNI partecipante"
+    }
+  },
+
+  "usage_guide": {
+    "adding_new_template": "Per aggiungere un nuovo template Word:",
+    "steps": [
+      "1. Crea il file .docx con i placeholder seguendo la convenzione {{CATEGORIA_CAMPO}}",
+      "2. Aggiungi una voce in 'templates' definendo i placeholder richiesti",
+      "3. Carica il template nel sistema tramite l'interfaccia admin",
+      "4. Il sistema genererà automaticamente i valori per i placeholder noti"
+    ],
+    "dynamic_placeholders": "I placeholder dinamici usano {N} per indicare l'indice (es: MOD{N}_, PART{N}_)",
+    "loops": "Per liste ripetute usa i loop: {#PARTECIPANTI}{{nome}} {{cognome}}{/PARTECIPANTI}"
+  }
+}

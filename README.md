@@ -493,3 +493,440 @@ Per informazioni sulla licenza, contatta il proprietario del repository.
   <br>
   <sub>Riducendo la burocrazia, un documento alla volta</sub>
 </div>
+
+---
+
+## 🆕 Nuove Funzionalità v2.0 - Multi-Modulo e Placeholder Configurabili
+
+### 📚 Supporto Multi-Modulo Avanzato
+
+Il sistema ora gestisce correttamente corsi con **più moduli**, ognuno con le proprie caratteristiche:
+
+#### Struttura Dati: CORSO → MODULI → LEZIONI
+
+```
+Corso
+├── Modulo 1: "Fondamenti"
+│   ├── Lezione 1: 01/02/2025, 09:00-13:00, Presenza
+│   ├── Lezione 2: 03/02/2025, 09:00-13:00, Presenza
+│   └── Lezione 3: 05/02/2025, 10:00-13:00, Online ⭐
+├── Modulo 2: "Avanzato"
+│   ├── Lezione 1: 10/02/2025, 09:00-13:00, Presenza
+│   ├── Lezione 2: 12/02/2025, 10:00-13:00, Online ⭐
+│   └── Lezione 3: 14/02/2025, 10:00-13:00, Online ⭐
+└── Modulo 3: "Pratica"
+    ├── Lezione 1: 20/02/2025, 10:00-13:00, Online ⭐
+    └── Lezione 2: 22/02/2025, 10:00-13:00, Online ⭐
+```
+
+#### Caratteristiche Chiave
+
+✅ **Moduli Multipli**: Ogni modulo con:
+- ID Corso proprio
+- ID Sezione dedicato
+- Titolo specifico del modulo
+- Date inizio/fine del modulo
+- Provider/docente del modulo
+
+✅ **Lezioni Miste**: All'interno di uno stesso modulo possono coesistere:
+- Lezioni in PRESENZA (aula fisica)
+- Lezioni ONLINE (FAD, Zoom, Teams, ecc.)
+
+✅ **Separazione Lezioni Online**: Le lezioni online sono **automaticamente separate per modulo**
+- Facilita la generazione di documenti FAD specifici per modulo
+- Ogni modulo ha la sua lista `lezioni_online[]`
+- Flag `registrata` per lezioni online (per compliance)
+
+#### Esempio di Estrazione Multi-Modulo
+
+```json
+{
+  "corso": {
+    "id": "50001",
+    "titolo": "Master in AI"
+  },
+  "moduli": [
+    {
+      "id_sezione": "60001",
+      "titolo": "Fondamenti di AI",
+      "tipo_sede": "Presenza",
+      "sessioni": [...],
+      "lezioni_online": []  // Nessuna lezione online
+    },
+    {
+      "id_sezione": "60002",
+      "titolo": "Applicazioni Pratiche",
+      "tipo_sede": "Misto",
+      "sessioni": [...],      // Tutte le lezioni
+      "sessioni_presenza": [...],  // Solo presenza
+      "lezioni_online": [...]      // Solo online ⭐
+    }
+  ],
+  "lezioni_online_per_documenti": {
+    "60002": {
+      "modulo_titolo": "Applicazioni Pratiche",
+      "modulo_id_corso": "50001",
+      "modulo_id_sezione": "60002",
+      "lezioni": [...]  // Lezioni online del modulo
+    }
+  }
+}
+```
+
+---
+
+### 🔧 Prompt di Estrazione Configurabile
+
+Il prompt per l'AI è ora **configurabile esternamente**, senza modificare il codice!
+
+#### Dove si trova
+
+```
+📁 config/
+  └── 📁 prompts/
+      └── 📄 extraction-prompt.json  ⬅️ Modifica qui!
+```
+
+#### Come modificare il prompt
+
+1. Apri `config/prompts/extraction-prompt.json`
+2. Modifica il campo `system_instruction` con le tue istruzioni
+3. Modifica `extraction_schema` per cambiare la struttura JSON di output
+4. Riavvia l'applicazione
+
+#### Esempio
+
+```json
+{
+  "version": "2.0.0",
+  "system_instruction": "Sei un esperto di estrazione dati...\n\nIMPORTANTE PER MODULI MULTIPLI:\n- Estrai OGNI riga come un oggetto modulo separato\n...",
+  "extraction_schema": {
+    "type": "object",
+    "properties": {
+      "corso": {...},
+      "moduli": {...}
+    }
+  }
+}
+```
+
+#### Vantaggi
+
+✅ Prompt facilmente modificabile senza rebuild
+✅ Versionamento del prompt separato dal codice
+✅ Possibilità di testare diversi prompt rapidamente
+✅ Configurazione centralizzata e documentata
+
+---
+
+### 🏷️ Sistema Placeholder Configurabile
+
+I placeholder nei documenti Word seguono ora una **convenzione standard configurabile**.
+
+#### Convenzione Placeholder
+
+```
+{{CATEGORIA_CAMPO}}
+```
+
+#### Categorie Disponibili
+
+| Categoria | Prefix | Esempio | Descrizione |
+|-----------|--------|---------|-------------|
+| **Corso** | `CORSO_` | `{{CORSO_TITOLO}}` | Dati generali del corso |
+| **Modulo** | `MOD{N}_` | `{{MOD1_TITOLO}}` | Dati specifici per modulo (dinamico) |
+| **Lezione** | `LEZ{N}_` | `{{LEZ1_DATA}}` | Dati per singola lezione |
+| **Lezione/Modulo** | `MOD{M}_LEZ{N}_` | `{{MOD1_LEZ2_DATA}}` | Lezione N del modulo M |
+| **Partecipante** | `PART{N}_` | `{{PART1_NOME}}` | Dati partecipanti |
+| **Ente** | `ENTE_` | `{{ENTE_NOME}}` | Dati ente erogatore |
+| **Sede** | `SEDE_` | `{{SEDE_INDIRIZZO}}` | Dati sede |
+| **Docente** | `DOCENTE_` | `{{DOCENTE_NOME}}` | Dati docente/trainer |
+| **FAD** | `FAD_` | `{{FAD_PIATTAFORMA}}` | Dati formazione a distanza |
+
+#### File di Configurazione
+
+```
+📁 config/
+  └── 📁 placeholders/
+      └── 📄 placeholder-convention.json  ⬅️ Convenzione completa
+```
+
+#### Esempio Pratico: Modulo-Specifico
+
+```
+Template Word: Modello_A_FAD.docx
+
+Corso: {{CORSO_TITOLO}}
+ID Corso: {{MOD1_ID_CORSO}}
+ID Sezione: {{MOD1_ID_SEZIONE}}
+Titolo Modulo: {{MOD1_TITOLO}}
+
+Lezioni Online Modulo 1:
+{{#MOD1_LEZIONI_ONLINE}}
+- {{data}}: {{ora_inizio}}-{{ora_fine}} (Registrata: {{registrata}})
+{{/MOD1_LEZIONI_ONLINE}}
+```
+
+#### Generazione Automatica
+
+Il servizio `placeholderService.ts` genera **automaticamente** tutti i placeholder:
+
+```typescript
+import { generatePlaceholderMap } from '@/services/placeholderService';
+
+const placeholders = generatePlaceholderMap(courseData);
+
+// Risultato:
+{
+  CORSO_TITOLO: "Master in AI",
+  MOD1_ID_SEZIONE: "60001",
+  MOD1_TITOLO: "Fondamenti di AI",
+  MOD1_NUM_LEZIONI_ONLINE: 0,
+  MOD2_ID_SEZIONE: "60002",
+  MOD2_TITOLO: "Applicazioni Pratiche",
+  MOD2_NUM_LEZIONI_ONLINE: 3,
+  PART1_NOME: "Mario",
+  PART1_COGNOME: "Rossi",
+  ...
+}
+```
+
+---
+
+### 🎯 Come Aggiungere Nuovi Template Word
+
+Ora è **facilissimo** aggiungere nuovi documenti senza modificare codice:
+
+#### Step 1: Crea il Template Word
+
+```
+File: nuovo_documento.docx
+
+Titolo Corso: {{CORSO_TITOLO}}
+Cliente: {{ENTE_NOME}}
+
+Moduli:
+{{#MODULI}}
+- {{titolo}} ({{id_sezione}})
+{{/MODULI}}
+
+Partecipanti:
+{{#PARTECIPANTI}}
+{{numero}}. {{nome_completo}} - {{codice_fiscale}}
+{{/PARTECIPANTI}}
+```
+
+#### Step 2: Carica nel Sistema
+
+1. Vai su **Impostazioni → Template**
+2. Carica il file `.docx`
+3. Definisci quali placeholder usa (opzionale)
+4. Salva
+
+#### Step 3: Usa!
+
+Il sistema **genererà automaticamente** tutti i valori per i placeholder noti seguendo la convenzione.
+
+---
+
+### 🧪 Test Automatici
+
+Sono stati aggiunti test completi per validare:
+
+```
+📁 src/tests/
+  ├── 📄 extraction.test.ts        ⬅️ Test estrazione multi-modulo
+  └── 📁 fixtures/
+      ├── 📄 corso-2-moduli-misto.json    ⬅️ Caso test: 2 moduli
+      └── 📄 corso-3-moduli-mixed.json    ⬅️ Caso test: 3 moduli misti
+```
+
+#### Esegui i Test
+
+```bash
+npm test
+# oppure
+npx vitest
+```
+
+#### Cosa Viene Testato
+
+✅ Estrazione corretta di moduli multipli
+✅ Separazione lezioni online/presenza per modulo
+✅ Generazione placeholder per tutti i moduli
+✅ Struttura `lezioni_online_per_documenti`
+✅ Flag `registrata` per lezioni online
+✅ Placeholder dinamici (MOD{N}_, PART{N}_, ecc.)
+
+---
+
+### 📖 Flusso Dati Completo (Aggiornato)
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│  1️⃣ UTENTE: Copia dati dal gestionale                                   │
+│     • Dati corso                                                         │
+│     • Tabella moduli (può contenere PIÙ righe)                          │
+│     • Elenco partecipanti                                                │
+└────────────────────────┬────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  2️⃣ AI EXTRACTION (Gemini 2.5 Flash)                                    │
+│     📄 Prompt: config/prompts/extraction-prompt.json                    │
+│     📋 Schema: extraction_schema nel JSON                                │
+│                                                                          │
+│     Estrae:                                                              │
+│     • corso {...}                                                        │
+│     • moduli [{...}, {...}, {...}]  ⬅️ Array di moduli                  │
+│     • partecipanti [{...}, {...}]                                        │
+│                                                                          │
+│     Per ogni modulo estrae:                                              │
+│     • id_sezione, titolo, date                                           │
+│     • sessioni_raw [{data, ora, tipo_sede}, ...]                        │
+└────────────────────────┬────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  3️⃣ POST-PROCESSING (geminiService.ts)                                  │
+│                                                                          │
+│     Per ogni modulo:                                                     │
+│     • Separa sessioni_presenza (tipo_sede = "Presenza")                 │
+│     • Separa lezioni_online (tipo_sede = "Online"|"FAD")                │
+│     • Aggiunge modulo_id alle lezioni                                    │
+│     • Aggiunge flag registrata alle lezioni online                       │
+│                                                                          │
+│     Crea struttura lezioni_online_per_documenti:                         │
+│     {                                                                    │
+│       "60001": { modulo_titolo, lezioni: [...] },                       │
+│       "60002": { modulo_titolo, lezioni: [...] }                        │
+│     }                                                                    │
+└────────────────────────┬────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  4️⃣ PLACEHOLDER GENERATION (placeholderService.ts)                      │
+│                                                                          │
+│     generatePlaceholderMap(courseData) →                                │
+│     {                                                                    │
+│       CORSO_TITOLO: "...",                                               │
+│       MOD1_ID_SEZIONE: "60001",                                          │
+│       MOD1_TITOLO: "...",                                                │
+│       MOD1_NUM_LEZIONI_ONLINE: 0,                                        │
+│       MOD2_ID_SEZIONE: "60002",                                          │
+│       MOD2_NUM_LEZIONI_ONLINE: 3,                                        │
+│       PART1_NOME: "...",                                                 │
+│       ...                                                                │
+│     }                                                                    │
+└────────────────────────┬────────────────────────────────────────────────┘
+                         │
+                         ▼
+┌─────────────────────────────────────────────────────────────────────────┐
+│  5️⃣ WORD GENERATION (wordTemplateProcessor.ts)                          │
+│                                                                          │
+│     Template.docx + Placeholder Map →                                   │
+│                                                                          │
+│     {{CORSO_TITOLO}}  →  "Master in AI"                                 │
+│     {{MOD1_TITOLO}}   →  "Fondamenti"                                   │
+│     {{MOD2_TITOLO}}   →  "Applicazioni"                                 │
+│                                                                          │
+│     Genera documenti:                                                    │
+│     • Registro Didattico (generale)                                      │
+│     • Modello A FAD per OGNI modulo con lezioni online                  │
+│     • Verbali, attestati, ecc.                                           │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### 🔍 Dove Modificare Cosa
+
+| Cosa vuoi fare | Dove andare | File |
+|----------------|-------------|------|
+| **Modificare prompt AI** | Configurazione prompt | `config/prompts/extraction-prompt.json` |
+| **Cambiare schema JSON output** | Configurazione schema | `config/prompts/extraction-prompt.json` → `extraction_schema` |
+| **Aggiungere nuovi placeholder** | Convezione placeholder | `config/placeholders/placeholder-convention.json` |
+| **Vedere placeholder disponibili** | Documentazione | `config/placeholders/placeholder-convention.json` → `categories` |
+| **Aggiungere nuovo template Word** | UI Admin | Impostazioni → Template (carica .docx) |
+| **Modificare logica estrazione** | Codice backend | `src/services/geminiService.ts` → `processExtractedData()` |
+| **Aggiungere nuovi campi modulo** | Tipo TypeScript | `src/types/courseData.ts` → `interface Modulo` |
+| **Testare estrazione** | Test | `src/tests/extraction.test.ts` |
+
+---
+
+### 🚀 Benefici per le Aziende
+
+Con queste nuove features, le aziende possono:
+
+✅ **Gestire corsi complessi** con moduli multipli e modalità miste
+✅ **Aggiungere nuovi template Word** senza chiamare uno sviluppatore
+✅ **Modificare il prompt AI** per adattarlo ai propri gestionali
+✅ **Scalare il sistema** per supportare nuovi tipi di documenti
+✅ **Documentazione FAD per modulo** automatica e separata
+✅ **Compliance** con flag registrata per lezioni online
+
+---
+
+### 📝 Changelog v2.0
+
+#### Nuovo Modello Dati
+- ✅ `Modulo.lezioni_online[]` - Lezioni online separate per modulo
+- ✅ `Sessione.registrata` - Flag per lezioni online registrate
+- ✅ `Sessione.modulo_id` - Link sessione → modulo
+- ✅ `CourseData.lezioni_online_per_documenti` - Struttura per generazione documenti FAD
+
+#### Nuovi Servizi
+- ✅ `placeholderService.ts` - Generazione automatica placeholder
+- ✅ Caricamento prompt da `config/prompts/extraction-prompt.json`
+- ✅ Funzioni `getSystemInstruction()` e `getExtractionSchema()`
+
+#### Nuove Configurazioni
+- ✅ `config/prompts/extraction-prompt.json` - Prompt configurabile
+- ✅ `config/placeholders/placeholder-convention.json` - Convenzione placeholder
+
+#### Nuovi Test
+- ✅ `src/tests/extraction.test.ts` - Test completi multi-modulo
+- ✅ Fixtures con casi 2-moduli e 3-moduli misti
+- ✅ Validazione schema e placeholder
+
+---
+
+### 💡 Esempi d'Uso
+
+#### Generare Modello A FAD per Modulo Specifico
+
+```typescript
+import { generateModulePlaceholders } from '@/services/placeholderService';
+
+// Per il primo modulo (index 0)
+const placeholders = generateModulePlaceholders(courseData, 0);
+
+// Placeholders specifici per questo modulo:
+placeholders.MODULO_ID_SEZIONE  // ID del modulo corrente
+placeholders.MODULO_TITOLO      // Titolo del modulo corrente
+placeholders.MODULO_NUM_LEZIONI_ONLINE  // Numero lezioni online
+```
+
+#### Accedere alle Lezioni Online per Modulo
+
+```typescript
+import { getOnlineLessonsByModule } from '@/services/placeholderService';
+
+const grouped = getOnlineLessonsByModule(courseData);
+
+// Itera per modulo
+grouped.forEach(({ module, lessons }) => {
+  console.log(`Modulo: ${module.titolo}`);
+  console.log(`Lezioni online: ${lessons.length}`);
+  
+  lessons.forEach(lesson => {
+    console.log(`- ${lesson.data_completa}: ${lesson.ora_inizio}-${lesson.ora_fine}`);
+    if (lesson.registrata) {
+      console.log('  ✓ Registrata');
+    }
+  });
+});
+```
+
+---
+
