@@ -930,3 +930,83 @@ grouped.forEach(({ module, lessons }) => {
 
 ---
 
+
+---
+
+## 📄 Generazione PDF (Nuova Feature!)
+
+### Cosa Fa
+
+Il sistema ora può **generare automaticamente versioni PDF** di tutti i documenti Word quando si scarica lo ZIP completo!
+
+### Come Funziona
+
+1. **Toggle PDF**: Nella schermata di generazione documenti, troverai un interruttore "Includi versioni PDF"
+2. **Attiva/Disattiva**: Scegli se vuoi solo Word o Word + PDF
+3. **Scarica ZIP**: I PDF saranno inclusi automaticamente nello ZIP insieme ai Word
+
+### Documenti con PDF
+
+✅ **Registro Didattico** - `Registro_Didattico_{ID}.pdf`
+✅ **Verbale Partecipazione** - `Verbale_Partecipazione_{ID}.pdf`
+✅ **Verbale Scrutinio** - `Verbale_Scrutinio_{ID}.pdf`
+✅ **Modello A FAD** - `Modello_A_FAD_{ID}.pdf`
+
+### Struttura ZIP con PDF
+
+```
+📦 Corso_50001_Master_AI.zip
+├── 📁 Documenti/
+│   ├── 📄 Registro_Didattico_50001.docx    ⬅️ Word (editabile)
+│   ├── 📕 Registro_Didattico_50001.pdf     ⬅️ PDF (stampa/lettura)
+│   ├── 📄 Verbale_Partecipazione_50001.docx
+│   ├── 📕 Verbale_Partecipazione_50001.pdf
+│   ├── 📄 Verbale_Scrutinio_50001.docx
+│   ├── 📕 Verbale_Scrutinio_50001.pdf
+│   └── ...
+├── 📁 Excel/
+│   └── ...
+└── 📄 README.txt
+```
+
+### Vantaggi
+
+✅ **Non serve più convertire manualmente** - I PDF sono già pronti
+✅ **Formato professionale** - Layout pulito con tabelle e intestazioni
+✅ **Pronto per la stampa** - PDF ottimizzati per stampa e archiviazione
+✅ **Compatibilità universale** - Apribile su qualsiasi dispositivo senza Word
+✅ **Versione read-only** - Perfetto per invii ufficiali e archiviazione
+✅ **Opzionale** - Puoi disattivarlo se vuoi solo i Word
+
+### Caratteristiche PDF
+
+- ✅ **Intestazioni professionali** con titolo documento
+- ✅ **Tabelle formattate** per partecipanti e sessioni
+- ✅ **Numerazione pagine** automatica
+- ✅ **Layout responsive** che si adatta al contenuto
+- ✅ **Colori corporate** con header colorati
+- ✅ **Line separators** per sezioni chiare
+
+### Come Disattivare i PDF
+
+Se preferisci scaricare **solo i file Word**:
+
+1. Vai alla schermata di generazione documenti
+2. Disattiva l'interruttore "Includi versioni PDF"
+3. Scarica lo ZIP normalmente
+
+Lo ZIP conterrà solo i file Word (.docx)
+
+### Dettagli Tecnici
+
+**Librerie usate:**
+- `jsPDF` - Generazione PDF nel browser
+- `jspdf-autotable` - Tabelle professionali nei PDF
+
+**Codice:**
+- `src/services/pdfDocumentGenerator.ts` - Generatori PDF
+- `src/services/zipPackager.ts` - Integrazione ZIP
+- `src/components/steps/GenerationStep.tsx` - UI toggle
+
+---
+
