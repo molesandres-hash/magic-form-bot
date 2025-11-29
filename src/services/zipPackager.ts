@@ -40,6 +40,8 @@ import { loadTemplateBufferFromPublic, addCertificatesToZip } from './zipPackage
 import { addRegistroIDToZip } from './zipPackagerRegistroID';
 import { loadPredefinedData } from '@/utils/predefinedDataUtils';
 import { extractCityName } from '@/utils/stringUtils';
+// NEW: Import PDF generators
+import { PDFGenerators } from './pdfDocumentGenerator';
 
 // ============================================================================
 // CONSTANTS - Folder structure and configuration
@@ -58,6 +60,27 @@ const FILE_PREFIX = {
   ATTENDANCE: 'Registro_Presenze',
   REPORT: 'Report_Completo',
 } as const;
+
+/**
+ * Configuration for PDF generation
+ * Set to true to generate PDF versions of documents alongside Word files
+ */
+let GENERATE_PDF_VERSIONS = true; // Can be changed via setGeneratePDF()
+
+/**
+ * Sets whether to generate PDF versions of documents
+ * @param enabled - true to generate PDFs, false for Word only
+ */
+export function setGeneratePDF(enabled: boolean) {
+  GENERATE_PDF_VERSIONS = enabled;
+}
+
+/**
+ * Gets current PDF generation setting
+ */
+export function isGeneratePDFEnabled(): boolean {
+  return GENERATE_PDF_VERSIONS;
+}
 
 /**
  * Creates a complete ZIP package with all course documents
@@ -226,6 +249,39 @@ function shouldGenerateFAD(data: CourseData): boolean {
   const hasFADSessions = (data.sessioni || []).some((session) => session.is_fad);
   const isFADCourse = data.corso?.tipo?.toLowerCase().includes('fad');
   return hasFADSessions || isFADCourse;
+}
+
+/**
+ * Generates PDF version for a specific template
+ * Maps system template IDs to PDF generators
+ *
+ * @param templateId - ID of the template to generate
+ * @param data - Course data
+ * @returns PDF blob or null if not applicable
+ */
+async function generatePDFForTemplate(templateId: string, data: CourseData): Promise<Blob | null> {
+  switch (templateId) {
+    case 'system-registro-didattico':
+      return await PDFGenerators.registroDidattico(data);
+
+    case 'system-verbale-partecipazione':
+      return await PDFGenerators.verbalePartecipazione(data);
+
+    case 'system-verbale-scrutinio':
+      return await PDFGenerators.verbaleScrutinio(data);
+
+    case 'system-modello-fad':
+      if (shouldGenerateFAD(data)) {
+        return await PDFGenerators.modelloFAD(data);
+      }
+      return null;
+
+    default:
+      // For custom templates, we don't have PDF generators (yet)
+      // Could implement a generic DOCX-to-PDF converter in the future
+      console.log(`No PDF generator available for template: ${templateId}`);
+      return null;
+  }
 }
 
 // ============================================================================
@@ -672,6 +728,23 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
               // Use configured filename or default
               const filename = `${templateInfo.filename}_${courseId}.docx`;
               zipFolder.file(filename, blob);
+
+              // ============================================================================
+              // NEW: Generate PDF version if enabled
+              // ============================================================================
+              if (GENERATE_PDF_VERSIONS) {
+                try {
+                  const pdfBlob = await generatePDFForTemplate(templateId, data);
+                  if (pdfBlob) {
+                    const pdfFilename = `${templateInfo.filename}_${courseId}.pdf`;
+                    zipFolder.file(pdfFilename, pdfBlob);
+                    console.log(`✓ Generated PDF: ${pdfFilename}`);
+                  }
+                } catch (pdfErr) {
+                  console.warn(`Could not generate PDF for ${templateId}:`, pdfErr);
+                  // Continue even if PDF fails - Word is the primary format
+                }
+              }
             }
           } catch (err) {
             console.error(`Failed to generate template ${templateId}`, err);

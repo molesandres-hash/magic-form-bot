@@ -6,7 +6,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Download, FileText, CheckCircle, ChevronLeft, Loader2 } from "lucide-react";
+import { Download, FileText, CheckCircle, ChevronLeft, Loader2, FileType } from "lucide-react";
 import { toast } from "sonner";
 import type { CourseData } from "@/types/courseData";
 import {
@@ -21,11 +21,13 @@ import {
   generateAttendanceExcel,
   generateCourseReportExcel,
 } from "@/services/excelGenerator";
-import { createCompleteZIPPackage } from "@/services/zipPackager";
+import { createCompleteZIPPackage, setGeneratePDF, isGeneratePDFEnabled } from "@/services/zipPackager";
 import { generateAllFADRegistries } from "@/services/fadMultiFileGenerator";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import { Copy, Mail, Calendar } from "lucide-react";
 import {
   getStudentTaxCodes,
@@ -41,6 +43,7 @@ interface GenerationStepProps {
 const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
   const [isGenerating, setIsGenerating] = useState<string | null>(null);
   const [isGeneratingZIP, setIsGeneratingZIP] = useState(false);
+  const [includePDF, setIncludePDF] = useState(isGeneratePDFEnabled());
 
   // Determine which documents should be available
   const hasFADSessions = (data.sessioni || []).some((s) => s.is_fad);
@@ -210,14 +213,20 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
     setIsGeneratingZIP(true);
 
     try {
+      // Set PDF generation preference before creating ZIP
+      setGeneratePDF(includePDF);
+
+      const formatInfo = includePDF ? "Word + PDF" : "Solo Word";
       toast.info("Generazione ZIP in corso...", {
-        description: "Potrebbe richiedere alcuni secondi",
+        description: `Potrebbe richiedere alcuni secondi (${formatInfo})`,
       });
 
       await createCompleteZIPPackage(data);
 
       toast.success("ZIP scaricato con successo!", {
-        description: "Tutti i documenti sono stati inclusi",
+        description: includePDF
+          ? "Tutti i documenti sono stati inclusi (Word + PDF)"
+          : "Tutti i documenti Word sono stati inclusi",
       });
     } catch (error: any) {
       console.error("Error creating ZIP:", error);
@@ -447,6 +456,35 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
                 </Card>
               </div>
             </div>
+          </div>
+
+          {/* PDF Format Option */}
+          <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg border border-border mt-4">
+            <div className="flex items-center gap-3">
+              <FileType className="h-5 w-5 text-primary" />
+              <div>
+                <Label htmlFor="pdf-toggle" className="text-sm font-medium cursor-pointer">
+                  Includi versioni PDF
+                </Label>
+                <p className="text-xs text-muted-foreground">
+                  Genera anche le versioni PDF di tutti i documenti Word
+                </p>
+              </div>
+            </div>
+            <Switch
+              id="pdf-toggle"
+              checked={includePDF}
+              onCheckedChange={(checked) => {
+                setIncludePDF(checked);
+                setGeneratePDF(checked);
+                toast.info(
+                  checked
+                    ? "PDF abilitati - saranno inclusi nello ZIP"
+                    : "PDF disabilitati - solo documenti Word",
+                  { duration: 2000 }
+                );
+              }}
+            />
           </div>
 
           {/* Actions */}
