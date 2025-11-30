@@ -99,9 +99,10 @@ const PredefinedDataSettings = () => {
             const importedData = await importPredefinedData(file);
             setData(importedData);
             toast.success('Dati importati con successo!');
-        } catch (error: any) {
+        } catch (error: unknown) {
             console.error('Import error:', error);
-            toast.error(`Errore durante l'importazione: ${error.message || 'File non valido'}`);
+            const message = error instanceof Error ? error.message : 'File non valido';
+            toast.error(`Errore durante l'importazione: ${message}`);
         }
 
         // Reset input to allow re-importing the same file

@@ -17,6 +17,11 @@ export interface CourseData {
   registro: Registro;
   calendario_fad?: CalendarioFAD;
   metadata: Metadata;
+  responsabili?: {
+    direttore?: ResponsabileCorso;
+    supervisore?: ResponsabileCorso;
+    responsabile_certificazione?: ResponsabileCorso;
+  };
 }
 
 export interface Corso {
@@ -94,6 +99,7 @@ export interface Trainer {
   nome: string;
   cognome: string;
   codice_fiscale?: string;
+  codiceFiscale?: string; // Legacy/Alternative format
   email?: string;
   telefono?: string;
 }
@@ -152,13 +158,16 @@ export interface Partecipante {
 export interface Sessione {
   numero: number;
   data_completa: string;
+  data?: string; // Legacy/Alternative format
   giorno: string;
   mese: string;
   mese_numero: string;
   anno: string;
   giorno_settimana: string;
   ora_inizio_giornata: string;
+  ora_inizio?: string; // Legacy/Alternative format
   ora_fine_giornata: string;
+  ora_fine?: string; // Legacy/Alternative format
   sede: string;
   tipo_sede: string;
   is_fad: boolean;
@@ -180,6 +189,8 @@ export interface Verbale {
     descrizione: string;
     indicatori: string;
     peso: string;
+    punteggio_minimo?: string;
+    punteggio_massimo?: string;
   };
   esiti: {
     positivi: string[];

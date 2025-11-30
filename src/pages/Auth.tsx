@@ -14,7 +14,6 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [loginData, setLoginData] = useState({ email: "", password: "" });
   const [signupData, setSignupData] = useState({ email: "", password: "", fullName: "" });
-
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
@@ -22,11 +21,11 @@ const Auth = () => {
     try {
       const { user } = await signIn(loginData.email, loginData.password);
       if (user) {
-        toast.success("Accesso eseguito in locale");
+        toast.success("Login effettuato con successo!");
         navigate("/");
       }
     } catch (error: any) {
-      toast.error("Errore durante il login");
+      toast.error("Credenziali non valide");
     } finally {
       setLoading(false);
     }
@@ -40,7 +39,7 @@ const Auth = () => {
       const { user } = await signUp(signupData.email, signupData.password, signupData.fullName);
       if (user) {
         toast.success("Utente creato in locale! Accedi ora.");
-        const loginTab = document.querySelector('[value=\"login\"]') as HTMLElement;
+        const loginTab = document.querySelector('[value="login"]') as HTMLElement;
         loginTab?.click();
       }
     } catch (error: any) {

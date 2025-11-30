@@ -166,10 +166,11 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
               toast.success("Registri FAD scaricati!", {
                 description: `${fadFiles.length} file inclusi nel ZIP`
               });
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error("Error generating FAD ZIP:", error);
+              const message = error instanceof Error ? error.message : "Errore sconosciuto";
               toast.error("Errore durante la generazione", {
-                description: error.message || "Riprova"
+                description: message || "Riprova"
               });
             }
           }
@@ -193,10 +194,11 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
         default:
           toast.error("Documento non trovato");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error downloading document:", error);
+      const message = error instanceof Error ? error.message : "Errore sconosciuto";
       toast.error("Errore durante il download", {
-        description: error.message || "Riprova",
+        description: message || "Riprova",
       });
     } finally {
       setIsGenerating(null);
@@ -219,10 +221,11 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
       toast.success("ZIP scaricato con successo!", {
         description: "Tutti i documenti sono stati inclusi",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating ZIP:", error);
+      const message = error instanceof Error ? error.message : "Errore sconosciuto";
       toast.error("Errore durante la creazione del ZIP", {
-        description: error.message || "Riprova",
+        description: message || "Riprova",
       });
     } finally {
       setIsGeneratingZIP(false);

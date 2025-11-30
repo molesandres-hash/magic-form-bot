@@ -191,7 +191,7 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
 
     // Hours of FAD calculated on all FAD sessions
     const fadHours = fadSessions.reduce((acc, s) => {
-        return acc + calculateDuration(s.ora_inizio_giornata || (s as any).ora_inizio, s.ora_fine_giornata || (s as any).ora_fine);
+        return acc + calculateDuration(s.ora_inizio_giornata || s.ora_inizio || '09:00', s.ora_fine_giornata || s.ora_fine || '13:00');
     }, 0);
 
     // Flattened topics list (argomenti) across modules
@@ -205,15 +205,15 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
     // Full FAD calendar for the table section
     const sessioniFad = fadSessions.map(s => ({
         DATA: s.data_completa,
-        ORA_INIZIO: s.ora_inizio_giornata || (s as any).ora_inizio,
-        ORA_FINE: s.ora_fine_giornata || (s as any).ora_fine,
-        DURATA: calculateDuration(s.ora_inizio_giornata || (s as any).ora_inizio, s.ora_fine_giornata || (s as any).ora_fine).toFixed(1).replace('.0', ''),
+        ORA_INIZIO: s.ora_inizio_giornata || s.ora_inizio,
+        ORA_FINE: s.ora_fine_giornata || s.ora_fine,
+        DURATA: calculateDuration(s.ora_inizio_giornata || s.ora_inizio || '09:00', s.ora_fine_giornata || s.ora_fine || '13:00').toFixed(1).replace('.0', ''),
 
         // Keep lowercase for compatibility
         data: s.data_completa,
-        ora_inizio: s.ora_inizio_giornata || (s as any).ora_inizio,
-        ora_fine: s.ora_fine_giornata || (s as any).ora_fine,
-        durata: calculateDuration(s.ora_inizio_giornata || (s as any).ora_inizio, s.ora_fine_giornata || (s as any).ora_fine).toFixed(1).replace('.0', '')
+        ora_inizio: s.ora_inizio_giornata || s.ora_inizio,
+        ora_fine: s.ora_fine_giornata || s.ora_fine,
+        durata: calculateDuration(s.ora_inizio_giornata || s.ora_inizio || '09:00', s.ora_fine_giornata || s.ora_fine || '13:00').toFixed(1).replace('.0', '')
     }));
 
     // Dynamic participant placeholders (PARTECIPANTE 1, PARTECIPANTE 1 EMAIL, ...)
@@ -234,8 +234,8 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
 
     // Calculate FAD hours (duration) for this specific session
     const duration = calculateDuration(
-        session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
-        session.ora_fine_giornata || (session as any).ora_fine || '13:00'
+        session.ora_inizio_giornata || session.ora_inizio || '09:00',
+        session.ora_fine_giornata || session.ora_fine || '13:00'
     );
 
     return {
@@ -245,8 +245,8 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
         anno: anno,
 
         // Time placeholders
-        ora_inizio: session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
-        ora_fine: session.ora_fine_giornata || (session as any).ora_fine || '13:00',
+        ora_inizio: session.ora_inizio_giornata || session.ora_inizio || '09:00',
+        ora_fine: session.ora_fine_giornata || session.ora_fine || '13:00',
 
         // Topic placeholder
         argomento_sessione: argomento,
@@ -282,13 +282,13 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
         // Session list (even if it's just one for this file, the template might use a loop)
         SESSIONI_FAD: [{
             DATA: session.data_completa,
-            ORA_INIZIO: session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
-            ORA_FINE: session.ora_fine_giornata || (session as any).ora_fine || '13:00',
+            ORA_INIZIO: session.ora_inizio_giornata || session.ora_inizio || '09:00',
+            ORA_FINE: session.ora_fine_giornata || session.ora_fine || '13:00',
 
             // Keep lowercase
             data: session.data_completa,
-            ora_inizio: session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
-            ora_fine: session.ora_fine_giornata || (session as any).ora_fine || '13:00',
+            ora_inizio: session.ora_inizio_giornata || session.ora_inizio || '09:00',
+            ora_fine: session.ora_fine_giornata || session.ora_fine || '13:00',
 
             NOME_CORSO: data.corso?.titolo || 'N/A',
             NOME_DOCENTE: data.trainer?.nome_completo || 'N/A'

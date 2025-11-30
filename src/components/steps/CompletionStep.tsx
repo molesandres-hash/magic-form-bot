@@ -20,7 +20,7 @@ interface ExtractedDataType {
     data_inizio?: string;
     data_fine?: string;
   };
-  partecipanti?: any[]; // Keep any for participants for now, can be refined later if needed
+  partecipanti?: unknown[]; // Keep unknown for participants for now, can be refined later if needed
 }
 
 interface CompletionStepProps {
@@ -44,7 +44,7 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate required fields
     if (!formData.direttore || !formData.responsabile_nome || !formData.responsabile_cognome) {
       toast.error("Compila tutti i campi obbligatori");

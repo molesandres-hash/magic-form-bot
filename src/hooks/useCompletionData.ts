@@ -5,7 +5,7 @@
  * Clean Code Principle: Separation of Concerns - Data fetching logic isolated from UI
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import type { CourseData, EnteAccreditato, ResponsabileCorso } from "@/types/courseData";
 import { getEnabledEntities, getEnabledResponsabili, getEnabledSupervisors, getEnabledLocations } from "@/utils/predefinedDataUtils";
@@ -29,12 +29,9 @@ export const useCompletionData = (
         formData.trainer?.nome_completo ||
         '';
 
-    // Load data on mount
-    useEffect(() => {
-        loadData();
-    }, []);
 
-    const applyFallbackData = (message?: string) => {
+
+    const applyFallbackData = useCallback((message?: string) => {
         const fallbackEnti: EnteAccreditato[] = getEnabledEntities().map(entity => ({
             id: `local-ente-${entity.id}`,
             nome: entity.name,
@@ -90,9 +87,9 @@ export const useCompletionData = (
                 toast.info(message);
             }
         }
-    };
+    }, []);
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
             const [entiData, responsabiliData] = await Promise.all([
                 listEnti(),
@@ -136,7 +133,12 @@ export const useCompletionData = (
         } finally {
             setLoading(false);
         }
-    };
+    }, [applyFallbackData]);
+
+    // Load data on mount
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     // Auto-select direttore using the trainer info when possible
     useEffect(() => {

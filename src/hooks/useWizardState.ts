@@ -16,7 +16,7 @@ import {
     WARNING_MESSAGES
 } from '@/constants/wizardConstants';
 import { WIZARD_EXAMPLES } from '@/constants/examples';
-import { getStoredApiKey } from '@/components/settings/ApiKeySettings';
+import { getStoredApiKey } from '@/utils/apiKeyUtils';
 import { extractCourseDataWithGemini, extractCourseDataWithDoubleCheck } from '@/services/geminiService';
 
 export const useWizardState = (onComplete: (data: any) => void) => {

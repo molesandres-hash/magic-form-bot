@@ -12,7 +12,7 @@ import AdditionalDataStep from '@/components/steps/AdditionalDataStep';
 import DataPreviewStep from '@/components/steps/DataPreviewStep';
 import ErrorBoundary from '@/components/ErrorBoundary';
 import { extractCourseDataWithGemini } from '@/services/geminiService';
-import { getStoredApiKey } from '@/components/settings/ApiKeySettings';
+import { getStoredApiKey } from '@/utils/apiKeyUtils';
 import {
   exportDataAsJSON,
   loadAutoSavedData,
@@ -247,21 +247,19 @@ const CompleteWorkflowExample = () => {
               return (
                 <div key={step} className="flex items-center">
                   <div
-                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${
-                      isCurrent
+                    className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${isCurrent
                         ? 'bg-primary text-primary-foreground'
                         : isComplete
-                        ? 'bg-green-500 text-white'
-                        : 'bg-muted text-muted-foreground'
-                    }`}
+                          ? 'bg-green-500 text-white'
+                          : 'bg-muted text-muted-foreground'
+                      }`}
                   >
                     {isComplete ? '✓' : idx + 1}
                   </div>
                   {idx < Object.values(WorkflowStep).length - 1 && (
                     <div
-                      className={`h-1 w-16 mx-2 ${
-                        isComplete ? 'bg-green-500' : 'bg-muted'
-                      }`}
+                      className={`h-1 w-16 mx-2 ${isComplete ? 'bg-green-500' : 'bg-muted'
+                        }`}
                     />
                   )}
                 </div>

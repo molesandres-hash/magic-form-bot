@@ -473,11 +473,6 @@ const PlaceholderSettings = () => {
   );
 };
 
-export default PlaceholderSettings;
+import { loadPlaceholderSettings } from '@/utils/settingsUtils';
 
-/**
- * Export function to load settings (for use in other components)
- */
-export function loadPlaceholderSettings(): PlaceholderConfig {
-  return loadSettings();
-}
+export default PlaceholderSettings;

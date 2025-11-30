@@ -57,24 +57,10 @@ export function combineFullName(nome: string, cognome: string): string {
 }
 
 /**
- * Cleans and normalizes a string by trimming and removing extra spaces
- *
- * @param str - String to clean
- * @returns Cleaned string
+ * Extracts the city name from a location string
+ * Handles formats like "City - Address", "City (Prov)", etc.
  */
-export function cleanString(str: string): string {
-  return str.trim().replace(/\s+/g, ' ');
-}
-
-/**
- * Extracts the city name from a location string.
- * Heuristic: Splits by common separators (comma, dash) and returns the first part
- * that doesn't look like an address (e.g. contains numbers).
- *
- * @param location - The full location string (e.g. "Milano - Via Roma 1")
- * @returns The extracted city name (e.g. "Milano")
- */
-export function extractCityName(location: string | undefined | null): string {
+export function extractCityName(location: string): string {
   if (!location) return '';
 
   // Normalize

@@ -200,15 +200,8 @@ export function findPlatformById(id: string): PredefinedPlatform | undefined {
 // VALIDATION FUNCTIONS
 // ============================================================================
 
-/**
- * Validates Codice Fiscale format
- * @param cf - Codice Fiscale to validate
- * @returns true if valid, false otherwise
- */
-export function validateCodiceFiscale(cf: string): boolean {
-    const CF_PATTERN = /^[A-Z]{6}[0-9]{2}[A-Z][0-9]{2}[A-Z][0-9]{3}[A-Z]$/;
-    return CF_PATTERN.test(cf.toUpperCase().trim());
-}
+import { validateCodiceFiscale } from '@/utils/validators';
+export { validateCodiceFiscale };
 
 /**
  * Validates date format (DD/MM/YYYY)

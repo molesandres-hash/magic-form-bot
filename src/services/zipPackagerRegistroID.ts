@@ -111,20 +111,19 @@ export async function addRegistroIDToZip(zipRoot: JSZip, data: CourseData, templ
 
         // Sort sessions by date to be safe
         presenceSessions.sort((a, b) => {
-            const da = new Date(a.data_completa || (a as any).data || 0).getTime();
-            const db = new Date(b.data_completa || (b as any).data || 0).getTime();
+            const da = new Date(a.data_completa || a.data || 0).getTime();
+            const db = new Date(b.data_completa || b.data || 0).getTime();
             return da - db;
         });
 
-        // We will append the body of each processed Giornata to the Head document
-        // This requires manipulating the underlying XML
-        let combinedXml = headDoc.getZip().file("word/document.xml")?.asText();
-        if (!combinedXml) throw new Error("Could not read document.xml from Head template");
+        // Get the XML of the HEAD document
+        let combinedXml = headDoc.getZip().file("word/document.xml")?.asText() || "";
 
-        // Find the end of the body in the Head document
-        const bodyEndIndex = combinedXml.lastIndexOf("</body>");
-        if (bodyEndIndex === -1) throw new Error("Invalid Head document XML");
-
+        // Find the end of the body tag to insert new pages before it
+        const bodyEndIndex = combinedXml.lastIndexOf("</w:body>");
+        if (bodyEndIndex === -1) {
+            throw new Error("Impossibile trovare </w:body> nel template HEAD");
+        }
         const xmlHeader = combinedXml.substring(0, bodyEndIndex);
         const xmlFooter = combinedXml.substring(bodyEndIndex);
 

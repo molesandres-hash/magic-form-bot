@@ -454,7 +454,8 @@ const AdditionalDataStep = ({
     handleLocationSelect,
     handleTrainerSelect,
     initialData,
-    selectedPlatform
+    selectedPlatform,
+    availableSupervisors
   ]);
 
   const hasTrainers = availableTrainers.length > 0;

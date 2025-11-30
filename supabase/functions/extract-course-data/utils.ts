@@ -66,13 +66,12 @@ function validateEmail(email: string): boolean {
  */
 function validatePhone(phone: string): boolean {
   if (!phone) return false;
-  const cleaned = phone.replace(/[\s\-]/g, '');
-  return /^0?\d{9,10}$/.test(cleaned);
+  // Basic validation for Italian numbers (landline or mobile)
+  // Accepts optional +39 prefix, spaces, dashes
+  const regex = /^(\+39|0039)?\s?((3\d{2})|(0\d{1,4}))\s?\d{5,10}$/;
+  const cleanPhone = phone.replace(/[\s\-\.]/g, '');
+  return regex.test(cleanPhone);
 }
-
-// ============================================================================
-// PARSING FUNCTIONS
-// ============================================================================
 
 /**
  * Parses capacity string in format "current/total"
@@ -138,7 +137,7 @@ function isFAD(tipo_sede: string, sede: string): boolean {
   const tipo = (tipo_sede || '').toLowerCase();
   const sedeLower = (sede || '').toLowerCase();
   return tipo.includes('online') || tipo.includes('fad') ||
-         sedeLower.includes('online') || sedeLower.includes('fad');
+    sedeLower.includes('online') || sedeLower.includes('fad');
 }
 
 // ============================================================================

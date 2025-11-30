@@ -74,6 +74,7 @@ export const generateICSContent = (data: CourseData): string => {
         if (thursdays.length === 0) return null;
 
         // Sort by date descending to get the last one
+        // Sort by date descending to get the last one
         thursdays.sort((a, b) => {
             const da = parseDate(a.data_completa);
             const db = parseDate(b.data_completa);
@@ -83,15 +84,11 @@ export const generateICSContent = (data: CourseData): string => {
         return thursdays[0];
     };
 
-    // Logic to find relevant sessions
-    let relevantSessions: Sessione[] = [];
-
     if (data.moduli && data.moduli.length > 0) {
-        // If modules exist, find last Thursday for EACH module
+        // Multiple modules
         data.moduli.forEach(modulo => {
             const lastThursday = findLastThursday(modulo.sessioni);
             if (lastThursday) {
-                // Create event
                 const date = parseDate(lastThursday.data_completa);
                 if (date) {
                     // Set time to 10:15

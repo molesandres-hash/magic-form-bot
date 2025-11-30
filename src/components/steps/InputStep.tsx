@@ -6,7 +6,7 @@ import { Sparkles, Upload, FileText } from "lucide-react";
 import { toast } from "sonner";
 
 interface InputStepProps {
-  onComplete: (data: any) => void;
+  onComplete: (data: unknown) => void;
 }
 
 const InputStep = ({ onComplete }: InputStepProps) => {
@@ -20,11 +20,11 @@ const InputStep = ({ onComplete }: InputStepProps) => {
     }
 
     setIsProcessing(true);
-    
+
     try {
       // Simulate AI extraction (will be replaced with actual Lovable AI call)
       await new Promise(resolve => setTimeout(resolve, 2000));
-      
+
       // Mock extracted data
       const mockData = {
         corso: {
@@ -99,7 +99,7 @@ PARTECIPANTI:
 
 Trainer: Dott. Giovanni Verdi
 Provider: Ente Formazione Professionale`;
-    
+
     setInputText(exampleText);
     toast.success("Esempio caricato! Clicca 'Estrai con AI' per continuare");
   };

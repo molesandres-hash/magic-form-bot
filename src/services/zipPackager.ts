@@ -26,7 +26,7 @@ import {
 } from './wordDocumentGenerator';
 import { processWordTemplate } from './wordTemplateProcessor';
 import * as XLSX from 'xlsx';
-import { loadFolderStructureSettings } from '@/components/settings/FolderStructureSettings';
+import { loadFolderStructureSettings } from '@/utils/settingsUtils';
 import {
   SYSTEM_TEMPLATES,
   createLocalTemplateGenerator,
@@ -571,21 +571,10 @@ function parseSessionDate(session: any): number {
 }
 
 function resolveSupervisorInfo(data: CourseData): SupervisorInfo {
-  let nome = (data as any).responsabili?.supervisore?.nome || '';
-  let cognome = (data as any).responsabili?.supervisore?.cognome || '';
+  let nome = data.responsabili?.supervisore?.nome || '';
+  let cognome = data.responsabili?.supervisore?.cognome || '';
 
   if (!nome && !cognome) {
-    try {
-      const predefined = loadPredefinedData();
-      const enabledSupervisor = (predefined.supervisors || []).find((s) => s.enabled !== false);
-      if (enabledSupervisor?.nomeCompleto) {
-        const parts = enabledSupervisor.nomeCompleto.trim().split(/\s+/);
-        nome = parts.shift() || '';
-        cognome = parts.join(' ');
-      }
-    } catch (error) {
-      console.error('Errore nel caricamento del supervisore predefinito:', error);
-    }
   }
 
   return {
@@ -1235,12 +1224,12 @@ function generateHoursExcelBlob(data: CourseData): Blob {
 function generateSectionCalendarExcelBlob(data: CourseData, sectionId?: string): Blob {
   const idSezione = sectionId || data.corso?.id || '';
   const materia = data.corso?.titolo || '';
-  const cfDocente = (data.trainer as any)?.codice_fiscale || (data.trainer as any)?.codiceFiscale || '';
+  const cfDocente = data.trainer?.codice_fiscale || data.trainer?.codiceFiscale || '';
 
   const sessions = sortSessionsByDate(data.sessioni || []).map((session) => ({
-    data: session?.data_completa || (session as any)?.data || '',
-    ora_inizio: session?.ora_inizio_giornata || (session as any)?.ora_inizio || '',
-    ora_fine: session?.ora_fine_giornata || (session as any)?.ora_fine || '',
+    data: session?.data_completa || session?.data || '',
+    ora_inizio: session?.ora_inizio_giornata || session?.ora_inizio || '',
+    ora_fine: session?.ora_fine_giornata || session?.ora_fine || '',
     luogo: resolveSessionLocation(session, data),
   }));
 
