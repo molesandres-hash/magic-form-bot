@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Wand2, Plus, X, BookOpen } from "lucide-react";
 import { toast } from "sonner";
 import { GoogleGenAI } from "@google/genai";
-import { getStoredApiKey } from "@/components/settings/ApiKeySettings";
+import { getStoredApiKey } from "@/utils/apiKeyUtils";
 import type { Modulo } from "@/types/courseData";
 
 interface CompletionModulesProps {
@@ -57,26 +57,23 @@ export const CompletionModules = ({ modules, onUpdate }: CompletionModulesProps)
         }
 
         setGeneratingId(modules[moduleIndex].id);
-        toast.info("Generazione argomenti in corso...");
 
         try {
-            const ai = new GoogleGenAI({ apiKey });
+            const genAI = new GoogleGenAI({ apiKey });
 
-            const prompt = `Genera una lista di 5-7 argomenti didattici dettagliati per un modulo formativo intitolato: "${moduleTitle}".
-            Restituisci SOLO un elenco puntato semplice, senza numeri o prefissi. Esempio:
-            Argomento 1
-            Argomento 2
-            Argomento 3`;
+            const prompt = `Genera una lista di 5-7 argomenti didattici dettagliati per un modulo formativo intitolato "${moduleTitle}". 
+            Gli argomenti devono essere brevi, concisi e professionali. 
+            Restituisci SOLO la lista puntata, senza premesse o altro testo.`;
 
-            const result = await ai.models.generateContent({
-                model: 'gemini-2.5-flash',
-                contents: [{ role: "user", parts: [{ text: prompt }] }]
+            const response = await genAI.models.generateContent({
+                model: 'gemini-2.0-flash',
+                contents: prompt
             });
 
-            const text = result.text || "";
+            const text = response.text || "";
 
             const generatedArgs = text.split('\n')
-                .map(line => line.replace(/^[•\-\*]\s*/, '').trim())
+                .map(line => line.replace(/^[•\-*]\s*/, '').trim())
                 .filter(line => line.length > 0);
 
             if (generatedArgs.length > 0) {

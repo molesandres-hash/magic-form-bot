@@ -1,6 +1,8 @@
 import Dexie, { Table } from 'dexie';
 import type { EnteAccreditato, ResponsabileCorso } from '@/types/courseData';
 import { DEFAULT_PREDEFINED_DATA } from '@/types/userSettings';
+import { SYSTEM_INSTRUCTION, EXTRACTION_SCHEMA } from './extractionConfig';
+import DEFAULT_MAPPINGS from '@/config/field_mappings.json';
 
 export interface DocumentTemplateRecord {
   id: string;
@@ -21,20 +23,94 @@ export interface LocalUser {
   password?: string;
 }
 
+export interface SystemConfig {
+  key: string;
+  value: any;
+  updated_at: string;
+}
+
+export interface FieldMapping {
+  id?: number;
+  placeholder: string;
+  path: string;
+  description: string;
+}
+
 class LocalDatabase extends Dexie {
   enti_accreditati!: Table<EnteAccreditato, string>;
   responsabili_corso!: Table<ResponsabileCorso, string>;
   document_templates!: Table<DocumentTemplateRecord, string>;
   users!: Table<LocalUser, string>;
+  system_configs!: Table<SystemConfig, string>;
+  field_mappings!: Table<FieldMapping, number>;
 
   constructor() {
     super('magic_form_bot');
 
-    this.version(2).stores({
+    this.version(5).stores({
       enti_accreditati: 'id, nome, comune, provincia',
       responsabili_corso: 'id, tipo, cognome',
       document_templates: 'id, template_type, created_at, file_name',
       users: 'id, email, role',
+      system_configs: 'key, updated_at',
+      field_mappings: '++id, placeholder, path',
+    }).upgrade(async tx => {
+      // Add standard AK GROUP entities if they don't exist
+      const entiTable = tx.table('enti_accreditati');
+      const standardEnti = [
+        {
+          id: 'ak-group-milano-romana',
+          nome: 'AK GROUP S.R.L.',
+          via: 'CORSO DI PORTA ROMANA',
+          numero_civico: '122',
+          comune: 'Milano',
+          cap: '20121',
+          provincia: 'MI',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: 'ak-group-varese',
+          nome: 'AK GROUP S.R.L.',
+          via: 'VIA MARCOBÌ',
+          numero_civico: '4',
+          comune: 'Varese',
+          cap: '21100',
+          provincia: 'VA',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: 'ak-group-milano-veneto',
+          nome: 'AK GROUP S.R.L.',
+          via: 'VIALE VITTORIO VENETO',
+          numero_civico: '20/22',
+          comune: 'Milano',
+          cap: '20124',
+          provincia: 'MI',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: 'ak-group-milano-decembrio',
+          nome: 'AK GROUP S.R.L.',
+          via: 'VIA DECEMBRIO',
+          numero_civico: '28',
+          comune: 'Milano',
+          cap: '20137',
+          provincia: 'MI',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }
+      ];
+
+      // Check and add each one
+      for (const ente of standardEnti) {
+        const exists = await entiTable.get(ente.id);
+        if (!exists) {
+          await entiTable.add(ente);
+        }
+      }
     });
 
     this.on('populate', () => this.seed());
@@ -49,6 +125,23 @@ class LocalDatabase extends Dexie {
         role: 'admin',
       }
     ]);
+
+    // Seed system configs
+    await this.system_configs.bulkPut([
+      {
+        key: 'system_instruction',
+        value: SYSTEM_INSTRUCTION,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        key: 'extraction_schema',
+        value: EXTRACTION_SCHEMA,
+        updated_at: new Date().toISOString(),
+      }
+    ]);
+
+    // Seed field mappings
+    await this.field_mappings.bulkPut(DEFAULT_MAPPINGS);
 
     // Seed responsabili from predefined data
     const responsabili = DEFAULT_PREDEFINED_DATA.responsabili.map((resp, index) => ({
@@ -67,42 +160,73 @@ class LocalDatabase extends Dexie {
     }));
 
     const supervisors = DEFAULT_PREDEFINED_DATA.supervisors.map((sup, index) => {
-      const [firstName, ...rest] = sup.nomeCompleto.split(' ');
       return {
         id: `seed-sup-${index}`,
         tipo: 'supervisore' as const,
-        nome: firstName || sup.nomeCompleto,
-        cognome: rest.join(' ') || sup.nomeCompleto,
+        nome: sup.nome,
+        cognome: sup.cognome,
         qualifica: sup.qualifica,
       };
     });
 
     const directors = DEFAULT_PREDEFINED_DATA.supervisors.map((sup, index) => {
-      const [firstName, ...rest] = sup.nomeCompleto.split(' ');
       return {
         id: `seed-dir-${index}`,
         tipo: 'direttore' as const,
-        nome: firstName || sup.nomeCompleto,
-        cognome: rest.join(' ') || sup.nomeCompleto,
+        nome: sup.nome,
+        cognome: sup.cognome,
         qualifica: sup.qualifica,
       };
     });
 
     await this.responsabili_corso.bulkPut([...responsabili, ...supervisors, ...directors]);
 
-    // Seed a sample ente if none exist
+    // Seed standard AK GROUP entities
     await this.enti_accreditati.bulkPut([
       {
-        id: 'seed-ente-1',
-        nome: 'Ente Demo Locale',
-        via: 'Via Demo 1',
-        numero_civico: '1',
+        id: 'ak-group-milano-romana',
+        nome: 'AK GROUP S.R.L.',
+        via: 'CORSO DI PORTA ROMANA',
+        numero_civico: '122',
         comune: 'Milano',
-        cap: '20100',
+        cap: '20121',
         provincia: 'MI',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      } as EnteAccreditato,
+      },
+      {
+        id: 'ak-group-varese',
+        nome: 'AK GROUP S.R.L.',
+        via: 'VIA MARCOBÌ',
+        numero_civico: '4',
+        comune: 'Varese',
+        cap: '21100',
+        provincia: 'VA',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 'ak-group-milano-veneto',
+        nome: 'AK GROUP S.R.L.',
+        via: 'VIALE VITTORIO VENETO',
+        numero_civico: '20/22',
+        comune: 'Milano',
+        cap: '20124',
+        provincia: 'MI',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      },
+      {
+        id: 'ak-group-milano-decembrio',
+        nome: 'AK GROUP S.R.L.',
+        via: 'VIA DECEMBRIO',
+        numero_civico: '28',
+        comune: 'Milano',
+        cap: '20137',
+        provincia: 'MI',
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      }
     ]);
   }
 }

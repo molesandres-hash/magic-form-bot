@@ -26,7 +26,7 @@ import {
 } from './wordDocumentGenerator';
 import { processWordTemplate } from './wordTemplateProcessor';
 import * as XLSX from 'xlsx';
-import { loadFolderStructureSettings } from '@/components/settings/FolderStructureSettings';
+import { loadFolderStructureSettings } from '@/utils/settingsUtils';
 import {
   SYSTEM_TEMPLATES,
   createLocalTemplateGenerator,
@@ -39,6 +39,7 @@ import { listTemplates } from '@/services/localDb';
 import { loadTemplateBufferFromPublic, addCertificatesToZip } from './zipPackagerCertificates';
 import { addRegistroIDToZip } from './zipPackagerRegistroID';
 import { loadPredefinedData } from '@/utils/predefinedDataUtils';
+import { extractCityName } from '@/utils/stringUtils';
 
 // ============================================================================
 // CONSTANTS - Folder structure and configuration
@@ -469,7 +470,7 @@ function buildModulo5TemplateData(options: Modulo5TemplateDataOptions): Record<s
     DATA_INIZIO: startDate,
     DATA_FINE: endDate,
     ORE_TOTALI: data.corso?.ore_totali || data.corso?.durata_totale || '',
-    VERBALE_LUOGO: data.verbale?.luogo || data.sede?.nome || data.ente?.accreditato?.comune || '',
+    VERBALE_LUOGO: extractCityName(data.verbale?.luogo || data.sede?.nome || data.ente?.accreditato?.comune || ''),
     NOME_DOCENTE: docenteName,
     RESP_CERT_NOME_COMPLETO: respCertName,
     SUPERVISORE_NOME: supervisor.nome.toLowerCase(),
@@ -570,21 +571,10 @@ function parseSessionDate(session: any): number {
 }
 
 function resolveSupervisorInfo(data: CourseData): SupervisorInfo {
-  let nome = (data as any).responsabili?.supervisore?.nome || '';
-  let cognome = (data as any).responsabili?.supervisore?.cognome || '';
+  let nome = data.responsabili?.supervisore?.nome || '';
+  let cognome = data.responsabili?.supervisore?.cognome || '';
 
   if (!nome && !cognome) {
-    try {
-      const predefined = loadPredefinedData();
-      const enabledSupervisor = (predefined.supervisors || []).find((s) => s.enabled !== false);
-      if (enabledSupervisor?.nomeCompleto) {
-        const parts = enabledSupervisor.nomeCompleto.trim().split(/\s+/);
-        nome = parts.shift() || '';
-        cognome = parts.join(' ');
-      }
-    } catch (error) {
-      console.error('Errore nel caricamento del supervisore predefinito:', error);
-    }
   }
 
   return {
@@ -893,6 +883,8 @@ function buildModulo7TemplateData(data: CourseData, session: any, participant: a
     data: session?.data_completa || '',
     ora_inizio: session?.ora_inizio_giornata || session?.ora_inizio || '',
     ora_fine: session?.ora_fine_giornata || session?.ora_fine || '',
+    MOD_PRESENZA: resolveSessionLocation(session, data) === 'online' ? '' : 'X',
+    MOD_DISTANZA: resolveSessionLocation(session, data) === 'online' ? 'X' : '',
   };
 }
 
@@ -1232,12 +1224,12 @@ function generateHoursExcelBlob(data: CourseData): Blob {
 function generateSectionCalendarExcelBlob(data: CourseData, sectionId?: string): Blob {
   const idSezione = sectionId || data.corso?.id || '';
   const materia = data.corso?.titolo || '';
-  const cfDocente = (data.trainer as any)?.codice_fiscale || (data.trainer as any)?.codiceFiscale || '';
+  const cfDocente = data.trainer?.codice_fiscale || data.trainer?.codiceFiscale || '';
 
   const sessions = sortSessionsByDate(data.sessioni || []).map((session) => ({
-    data: session?.data_completa || (session as any)?.data || '',
-    ora_inizio: session?.ora_inizio_giornata || (session as any)?.ora_inizio || '',
-    ora_fine: session?.ora_fine_giornata || (session as any)?.ora_fine || '',
+    data: session?.data_completa || session?.data || '',
+    ora_inizio: session?.ora_inizio_giornata || session?.ora_inizio || '',
+    ora_fine: session?.ora_fine_giornata || session?.ora_fine || '',
     luogo: resolveSessionLocation(session, data),
   }));
 

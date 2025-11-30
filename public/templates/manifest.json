@@ -1,53 +1,13 @@
 {
-  "generatedAt": "2025-11-26T21:59:43.230Z",
+  "generatedAt": "2025-11-30T15:25:15.912Z",
   "templates": [
-    {
-      "id": "local-Registro ID.docx",
-      "name": "Registro ID",
-      "filename": "Registro ID.docx",
-      "path": "/templates/Registro ID.docx",
-      "size": 207658,
-      "lastModified": "2025-11-21T19:12:03.220Z"
-    },
-    {
-      "id": "local-Registro_ID_con_placeholder.docx",
-      "name": "Registro ID con placeholder",
-      "filename": "Registro_ID_con_placeholder.docx",
-      "path": "/templates/Registro_ID_con_placeholder.docx",
-      "size": 165502,
-      "lastModified": "2025-11-23T15:16:58.181Z"
-    },
-    {
-      "id": "local-Verbale - Corso di formazione ID XXXXX.docx",
-      "name": "Verbale - Corso di formazione ID XXXXX",
-      "filename": "Verbale - Corso di formazione ID XXXXX.docx",
-      "path": "/templates/Verbale - Corso di formazione ID XXXXX.docx",
-      "size": 387211,
-      "lastModified": "2025-11-21T19:12:03.221Z"
-    },
-    {
-      "id": "local-Verbale_Ammissione_Esame_con_placeholder.docx",
-      "name": "Verbale Ammissione Esame con placeholder",
-      "filename": "Verbale_Ammissione_Esame_con_placeholder.docx",
-      "path": "/templates/Verbale_Ammissione_Esame_con_placeholder.docx",
-      "size": 37742,
-      "lastModified": "2025-11-24T22:02:52.579Z"
-    },
-    {
-      "id": "local-Verbale_con_placeholder.docx",
-      "name": "Verbale con placeholder",
-      "filename": "Verbale_con_placeholder.docx",
-      "path": "/templates/Verbale_con_placeholder.docx",
-      "size": 142499,
-      "lastModified": "2025-11-23T20:39:52.445Z"
-    },
     {
       "id": "local-modello B FAD.docx",
       "name": "modello B FAD",
       "filename": "modello B FAD.docx",
       "path": "/templates/modello B FAD.docx",
       "size": 137072,
-      "lastModified": "2025-11-21T19:12:03.218Z"
+      "lastModified": "2025-11-30T10:21:15.539Z"
     },
     {
       "id": "local-modello B FAD_placeholder.docx",
@@ -55,15 +15,63 @@
       "filename": "modello B FAD_placeholder.docx",
       "path": "/templates/modello B FAD_placeholder.docx",
       "size": 112800,
-      "lastModified": "2025-11-23T17:26:39.582Z"
+      "lastModified": "2025-11-30T10:21:15.552Z"
     },
     {
       "id": "local-modello_A_FAD_con_placeholder.docx",
       "name": "modello A FAD con placeholder",
       "filename": "modello_A_FAD_con_placeholder.docx",
       "path": "/templates/modello_A_FAD_con_placeholder.docx",
-      "size": 307559,
-      "lastModified": "2025-11-26T21:12:43.521Z"
+      "size": 273795,
+      "lastModified": "2025-11-30T10:59:08.672Z"
+    },
+    {
+      "id": "local-Modello_A_FAD_template.docx",
+      "name": "Modello A FAD template",
+      "filename": "Modello_A_FAD_template.docx",
+      "path": "/templates/Modello_A_FAD_template.docx",
+      "size": 120549,
+      "lastModified": "2025-11-30T10:59:08.657Z"
+    },
+    {
+      "id": "local-Registro ID.docx",
+      "name": "Registro ID",
+      "filename": "Registro ID.docx",
+      "path": "/templates/Registro ID.docx",
+      "size": 207658,
+      "lastModified": "2025-11-30T10:21:15.522Z"
+    },
+    {
+      "id": "local-Registro_ID_con_placeholder.docx",
+      "name": "Registro ID con placeholder",
+      "filename": "Registro_ID_con_placeholder.docx",
+      "path": "/templates/Registro_ID_con_placeholder.docx",
+      "size": 165502,
+      "lastModified": "2025-11-30T10:21:15.522Z"
+    },
+    {
+      "id": "local-Verbale - Corso di formazione ID XXXXX.docx",
+      "name": "Verbale - Corso di formazione ID XXXXX",
+      "filename": "Verbale - Corso di formazione ID XXXXX.docx",
+      "path": "/templates/Verbale - Corso di formazione ID XXXXX.docx",
+      "size": 387211,
+      "lastModified": "2025-11-30T10:21:15.531Z"
+    },
+    {
+      "id": "local-Verbale_Ammissione_Esame_con_placeholder.docx",
+      "name": "Verbale Ammissione Esame con placeholder",
+      "filename": "Verbale_Ammissione_Esame_con_placeholder.docx",
+      "path": "/templates/Verbale_Ammissione_Esame_con_placeholder.docx",
+      "size": 37742,
+      "lastModified": "2025-11-30T10:21:15.533Z"
+    },
+    {
+      "id": "local-Verbale_con_placeholder.docx",
+      "name": "Verbale con placeholder",
+      "filename": "Verbale_con_placeholder.docx",
+      "path": "/templates/Verbale_con_placeholder.docx",
+      "size": 142499,
+      "lastModified": "2025-11-30T10:21:15.536Z"
     }
   ]
 }

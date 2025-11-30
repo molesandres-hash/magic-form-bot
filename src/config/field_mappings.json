@@ -1,0 +1,57 @@
+[
+    {
+        "placeholder": "NOME_CORSO",
+        "path": "corso.titolo",
+        "description": "Titolo del corso"
+    },
+    {
+        "placeholder": "ID_CORSO",
+        "path": "corso.id",
+        "description": "Identificativo del corso"
+    },
+    {
+        "placeholder": "DATA_INIZIO",
+        "path": "corso.data_inizio",
+        "description": "Data inizio corso"
+    },
+    {
+        "placeholder": "DATA_FINE",
+        "path": "corso.data_fine",
+        "description": "Data fine corso"
+    },
+    {
+        "placeholder": "ORE_TOTALI",
+        "path": "corso.ore_totali",
+        "description": "Ore totali del corso"
+    },
+    {
+        "placeholder": "ENTE_NOME",
+        "path": "ente.nome",
+        "description": "Nome dell'ente erogatore"
+    },
+    {
+        "placeholder": "ENTE_INDIRIZZO",
+        "path": "ente.indirizzo",
+        "description": "Indirizzo dell'ente"
+    },
+    {
+        "placeholder": "SEDE_NOME",
+        "path": "sede.nome",
+        "description": "Nome della sede"
+    },
+    {
+        "placeholder": "SEDE_INDIRIZZO",
+        "path": "sede.indirizzo",
+        "description": "Indirizzo della sede"
+    },
+    {
+        "placeholder": "DOCENTE_NOME_COMPLETO",
+        "path": "trainer.nome_completo",
+        "description": "Nome completo del docente"
+    },
+    {
+        "placeholder": "DOCENTE_CF",
+        "path": "trainer.codice_fiscale",
+        "description": "Codice fiscale del docente"
+    }
+]

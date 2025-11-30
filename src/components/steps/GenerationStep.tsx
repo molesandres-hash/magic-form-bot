@@ -25,6 +25,13 @@ import { createCompleteZIPPackage } from "@/services/zipPackager";
 import { generateAllFADRegistries } from "@/services/fadMultiFileGenerator";
 import JSZip from "jszip";
 import { saveAs } from "file-saver";
+import { Textarea } from "@/components/ui/textarea";
+import { Copy, Mail, Calendar } from "lucide-react";
+import {
+  getStudentTaxCodes,
+  generateEmailData,
+  generateICSContent
+} from "@/utils/generationUtils";
 
 interface GenerationStepProps {
   data: CourseData;
@@ -159,10 +166,11 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
               toast.success("Registri FAD scaricati!", {
                 description: `${fadFiles.length} file inclusi nel ZIP`
               });
-            } catch (error: any) {
+            } catch (error: unknown) {
               console.error("Error generating FAD ZIP:", error);
+              const message = error instanceof Error ? error.message : "Errore sconosciuto";
               toast.error("Errore durante la generazione", {
-                description: error.message || "Riprova"
+                description: message || "Riprova"
               });
             }
           }
@@ -186,10 +194,11 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
         default:
           toast.error("Documento non trovato");
       }
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error downloading document:", error);
+      const message = error instanceof Error ? error.message : "Errore sconosciuto";
       toast.error("Errore durante il download", {
-        description: error.message || "Riprova",
+        description: message || "Riprova",
       });
     } finally {
       setIsGenerating(null);
@@ -212,14 +221,52 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
       toast.success("ZIP scaricato con successo!", {
         description: "Tutti i documenti sono stati inclusi",
       });
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Error creating ZIP:", error);
+      const message = error instanceof Error ? error.message : "Errore sconosciuto";
       toast.error("Errore durante la creazione del ZIP", {
-        description: error.message || "Riprova",
+        description: message || "Riprova",
       });
     } finally {
       setIsGeneratingZIP(false);
     }
+  };
+
+  const taxCodes = getStudentTaxCodes(data);
+  const emailData = generateEmailData(data);
+
+  const handleCopyTaxCodes = () => {
+    navigator.clipboard.writeText(taxCodes);
+    toast.success("Codici fiscali copiati!");
+  };
+
+  const handleDownloadCalendar = () => {
+    const icsContent = generateICSContent(data);
+    if (!icsContent.includes("BEGIN:VEVENT")) {
+      toast.warning("Nessuna data utile trovata per il calendario.");
+      return;
+    }
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    saveAs(blob, 'calendario_presenze.ics');
+    toast.success("Evento calendario scaricato!");
+  };
+
+  const handleSendEmail = () => {
+    const { to, bcc, subject, body } = emailData;
+    const mailtoLink = `mailto:${to}?bcc=${bcc}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink, '_blank');
+  };
+
+  const handleCopyEmailBody = () => {
+    navigator.clipboard.writeText(emailData.body);
+    toast.success("Testo email copiato!");
+  };
+
+  const handleSendModuleAEmail = () => {
+    const subject = `Invio Modulo A - ${data.corso?.titolo || 'Corso'}`;
+    const body = `Buongiorno,\n\nIn allegato il Modulo A relativo al corso in oggetto.\n\nCordiali saluti.`;
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink, '_blank');
   };
 
   return (
@@ -344,35 +391,117 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
               ))}
           </div>
 
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-            <Button
-              onClick={handleDownloadAll}
-              className="flex-1 h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90"
-              disabled={isGeneratingZIP}
-            >
-              {isGeneratingZIP ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Creazione ZIP in corso...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-5 w-5" />
-                  Scarica Tutti i Documenti (ZIP)
-                </>
-              )}
-            </Button>
-            <Button onClick={() => window.location.reload()} variant="outline" className="flex-1 h-12">
-              <FileText className="mr-2 h-5 w-5" />
-              Nuovo Corso
-            </Button>
+          {/* Strumenti Utili Section */}
+          <div className="space-y-6 pt-6 border-t">
+            <h3 className="font-semibold text-foreground">🛠️ Strumenti Utili</h3>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {/* Codici Fiscali */}
+              <Card className="p-4 space-y-3">
+                <div className="flex items-center justify-between">
+                  <h4 className="font-medium text-sm">Codici Fiscali per Ricerca su 360</h4>
+                  <Button variant="ghost" size="sm" onClick={handleCopyTaxCodes}>
+                    <Copy className="h-4 w-4 mr-2" />
+                    Copia
+                  </Button>
+                </div>
+                <Textarea
+                  value={taxCodes}
+                  readOnly
+                  className="font-mono text-xs h-32 resize-none bg-muted"
+                />
+              </Card>
+
+              {/* Azioni Rapide */}
+              <div className="space-y-4">
+                {/* Calendario */}
+                <Card className="p-4">
+                  <h4 className="font-medium text-sm mb-3">📅 Calendario</h4>
+                  <Button variant="outline" className="w-full justify-start" onClick={handleDownloadCalendar}>
+                    <Calendar className="h-4 w-4 mr-2" />
+                    Scarica Evento "Inserire Presenze"
+                  </Button>
+                  <p className="text-xs text-muted-foreground mt-2">
+                    Scarica un evento .ics per l'ultimo giovedì del corso (10:15)
+                  </p>
+                </Card>
+
+                {/* Email Responsabile */}
+                <Card className="p-4">
+                  <h4 className="font-medium text-sm mb-3">📧 Comunicazioni</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Docente</p>
+                      <Button variant="outline" className="w-full justify-start" onClick={handleSendEmail}>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Invia Link Lezione
+                      </Button>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Responsabile</p>
+                      <Button variant="outline" className="w-full justify-start" onClick={handleSendModuleAEmail}>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Invia Modulo A
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        *Ricorda di allegare manualmente il file
+                      </p>
+                    </div>
+
+                    <div className="pt-2 border-t mt-2">
+                      <p className="text-xs font-medium mb-1">Template Link Lezione:</p>
+                      <div className="relative">
+                        <Textarea
+                          value={emailData.body}
+                          readOnly
+                          className="text-xs h-20 resize-none bg-muted pr-8"
+                        />
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="absolute top-1 right-1 h-6 w-6"
+                          onClick={handleCopyEmailBody}
+                        >
+                          <Copy className="h-3 w-3" />
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              </div>
+            </div>
           </div>
         </div>
-      </Card>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+          <Button
+            onClick={handleDownloadAll}
+            className="flex-1 h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            disabled={isGeneratingZIP}
+          >
+            {isGeneratingZIP ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Creazione ZIP in corso...
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-5 w-5" />
+                Scarica Tutti i Documenti (ZIP)
+              </>
+            )}
+          </Button>
+          <Button onClick={() => window.location.reload()} variant="outline" className="flex-1 h-12">
+            <FileText className="mr-2 h-5 w-5" />
+            Nuovo Corso
+          </Button>
+        </div>
+      </Card >
 
       {/* Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      < div className="grid grid-cols-1 md:grid-cols-3 gap-4" >
         <Card className="p-4 bg-card">
           <h4 className="font-semibold text-sm mb-2 text-foreground">⚡ Tempo Risparmiato</h4>
           <p className="text-2xl font-bold text-primary">~55 minuti</p>
@@ -388,8 +517,8 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
           <p className="text-2xl font-bold text-accent">{documents.filter((d) => d.generated).length}</p>
           <p className="text-xs text-muted-foreground mt-1">Generati automaticamente</p>
         </Card>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

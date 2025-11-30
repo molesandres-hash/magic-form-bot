@@ -61,7 +61,16 @@ export interface PredefinedLocation {
   /** Location name */
   name: string;
   /** Full address */
+  /** Full address */
   address: string;
+  /** CAP */
+  cap?: string;
+  /** City */
+  city?: string;
+  /** Province */
+  province?: string;
+  /** Linked Entity ID */
+  enteId?: string;
   /** Whether this location is enabled */
   enabled: boolean;
 }
@@ -105,8 +114,10 @@ export interface PredefinedResponsabile {
 export interface PredefinedSupervisor {
   /** Unique ID */
   id: string;
-  /** Full name */
-  nomeCompleto: string;
+  /** First Name */
+  nome: string;
+  /** Last Name */
+  cognome: string;
   /** Job title/role */
   qualifica: string;
   /** Whether this supervisor is enabled */
@@ -124,6 +135,10 @@ export interface PredefinedTrainer {
   nomeCompleto?: string;
   /** Tax ID (Codice Fiscale) */
   codiceFiscale?: string;
+  /** Email (es: nome.cognome@akgitalia.it) */
+  email?: string;
+  /** Telefono/contatto */
+  telefono?: string;
   /** Whether this trainer is enabled */
   enabled: boolean;
 }
@@ -135,6 +150,10 @@ export interface PredefinedPlatform {
   name: string;
   /** Optional link (e.g., meeting URL) */
   link?: string;
+  /** Optional meeting ID */
+  meetingId?: string;
+  /** Optional access code/passcode */
+  accessCode?: string;
   /** Whether this platform is enabled */
   enabled: boolean;
 }
@@ -166,45 +185,103 @@ export interface PredefinedDataSettings {
  */
 export const DEFAULT_PREDEFINED_DATA: PredefinedDataSettings = {
   locations: [
-    { id: 'loc_1', name: 'Varese', address: 'Via Carcano 18', enabled: true },
-    { id: 'loc_2', name: 'Milano Porta Romana', address: 'Corso di Porta Romana 46', enabled: true },
-    { id: 'loc_3', name: 'Milano Academy', address: 'Viale Col di Lana 6A', enabled: true },
-    { id: 'loc_4', name: 'Milano Porta Venezia', address: 'Viale Piave 40B', enabled: true },
-    { id: 'loc_5', name: 'External Training', address: 'Presso Cliente', enabled: true },
-    { id: 'loc_6', name: 'Milano Decembrio', address: 'Via Decembrio 28', enabled: true },
+    {
+      id: "loc_1",
+      name: "Varese",
+      address: "Via Walter Marcobi 4",
+      cap: "21100",
+      city: "Varese",
+      province: "VA",
+      enabled: true
+    },
+    {
+      id: "loc_2",
+      name: "Milano - Porta Romana",
+      address: "Corso di Porta Romana 122",
+      cap: "20122",
+      city: "Milano",
+      province: "MI",
+      enabled: true,
+      enteId: "ent_default" // Linking to the default entity
+    },
+    {
+      id: "loc_3",
+      name: "Milano - Stazione Centrale",
+      address: "Via Recanate 2",
+      cap: "20124",
+      city: "Milano",
+      province: "MI",
+      enabled: true
+    },
+    {
+      id: "loc_4",
+      name: "Milano - Porta Venezia",
+      address: "Viale Vittorio Veneto 20",
+      cap: "20124",
+      city: "Milano",
+      province: "MI",
+      enabled: true
+    },
+    {
+      id: "loc_6",
+      name: "Milano Decembrio",
+      address: "Via Pier Candido Decembrio 28",
+      cap: "20137",
+      city: "Milano",
+      province: "MI",
+      enabled: true
+    }
   ],
-  entities: [],
+  entities: [
+    {
+      id: "ent_default",
+      name: "Ak Group s.r.l",
+      address: "Corso di Porta Romana, 122",
+      enabled: true
+    }
+  ],
   responsabili: [
     {
-      id: 'resp_1',
-      nome: 'Gianfranco',
-      cognome: 'Torre',
-      dataNascita: '12/03/1976',
-      cittaNascita: 'Milano',
-      provinciaNascita: 'MI',
-      cittaResidenza: 'Milano',
-      viaResidenza: 'Via Example',
-      numeroCivico: '1',
-      documento: 'CA12345AA',
+      id: "resp_1",
+      nome: "Gianfranco",
+      cognome: "Torre",
+      dataNascita: "12/03/1976",
+      cittaNascita: "Milano",
+      provinciaNascita: "MI",
+      cittaResidenza: "Milano",
+      viaResidenza: "Via Example",
+      numeroCivico: "1",
+      documento: "CA12345AA",
       enabled: true
     }
   ],
   supervisors: [
-    { id: 'sup_1', nomeCompleto: 'Hubbard Andrea', qualifica: 'Supervisore', enabled: true }
+    {
+      id: "sup_1",
+      nome: "Andrea",
+      cognome: "Hubbard",
+      qualifica: "Supervisore",
+      enabled: true
+    }
   ],
   trainers: [
     {
-      id: 'tr_1',
-      nome: 'Andres',
-      cognome: 'Moles',
-      nomeCompleto: 'Andres Moles',
-      codiceFiscale: 'MLSNRS97S25F205C',
+      id: "tr_1",
+      nome: "Andres",
+      cognome: "Moles",
+      nomeCompleto: "Andres Moles",
+      codiceFiscale: "MLSNRS97S25F205C",
+      email: "andres.moles@akgitalia.it",
+      telefono: "",
       enabled: true
     }
   ],
   platforms: [
-    { id: 'teams', name: 'Microsoft Teams', enabled: true },
-    { id: 'meet', name: 'Google Meet', enabled: true },
+    {
+      id: "zoom",
+      name: "Zoom",
+      enabled: true
+    }
   ],
   argumentLists: [],
 };

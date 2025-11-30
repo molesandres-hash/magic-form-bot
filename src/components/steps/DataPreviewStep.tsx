@@ -40,13 +40,15 @@ import {
   clearAutoSavedData,
 } from '@/services/jsonExportImportService';
 
+import type { CourseData } from '@/types/courseData';
+
 // ============================================================================
 // TYPES
 // ============================================================================
 
 interface DataPreviewStepProps {
-  data: any;
-  onDataChange: (updatedData: any) => void;
+  data: CourseData;
+  onDataChange: (updatedData: CourseData) => void;
   onContinue: () => void;
   onBack?: () => void;
 }
@@ -67,7 +69,7 @@ const DataPreviewStep = ({
   onContinue,
   onBack,
 }: DataPreviewStepProps) => {
-  const [editedData, setEditedData] = useState(data);
+  const [editedData, setEditedData] = useState<CourseData>(data);
   const [showRawJSON, setShowRawJSON] = useState(false);
   const [validationIssues, setValidationIssues] = useState<ValidationIssue[]>([]);
   const [lastSaveTime, setLastSaveTime] = useState<Date>(new Date());
@@ -87,7 +89,7 @@ const DataPreviewStep = ({
   /**
    * Validates data and returns issues
    */
-  const validateData = (dataToValidate: any): ValidationIssue[] => {
+  const validateData = (dataToValidate: CourseData): ValidationIssue[] => {
     const issues: ValidationIssue[] = [];
 
     // Check corso
@@ -116,7 +118,7 @@ const DataPreviewStep = ({
       });
     } else {
       // Check for invalid codici fiscali
-      dataToValidate.partecipanti.forEach((p: any, idx: number) => {
+      dataToValidate.partecipanti.forEach((p, idx) => {
         if (p._validations && !p._validations.cf_valid) {
           issues.push({
             field: `partecipanti[${idx}].codice_fiscale`,
@@ -155,8 +157,9 @@ const DataPreviewStep = ({
     try {
       exportDataAsJSON(editedData);
       toast.success('JSON esportato con successo!');
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Errore sconosciuto';
+      toast.error(message);
     }
   };
 
@@ -169,14 +172,15 @@ const DataPreviewStep = ({
 
     try {
       const importedData = await importDataFromJSON(file);
-      setEditedData(importedData);
-      onDataChange(importedData);
+      setEditedData(importedData as CourseData);
+      onDataChange(importedData as CourseData);
       toast.success('JSON importato con successo!');
 
       // Reset file input
       event.target.value = '';
-    } catch (error: any) {
-      toast.error(error.message);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : 'Errore sconosciuto';
+      toast.error(message);
     }
   };
 
@@ -292,13 +296,12 @@ const DataPreviewStep = ({
             {validationIssues.map((issue, idx) => (
               <div
                 key={idx}
-                className={`flex items-start gap-2 p-3 rounded-lg ${
-                  issue.type === 'error'
+                className={`flex items-start gap-2 p-3 rounded-lg ${issue.type === 'error'
                     ? 'bg-red-50 dark:bg-red-950 border border-red-200 dark:border-red-800'
                     : issue.type === 'warning'
-                    ? 'bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800'
-                    : 'bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800'
-                }`}
+                      ? 'bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800'
+                      : 'bg-blue-50 dark:bg-blue-950 border border-blue-200 dark:border-blue-800'
+                  }`}
               >
                 {issue.type === 'error' && <XCircle className="h-4 w-4 text-red-600 flex-shrink-0 mt-0.5" />}
                 {issue.type === 'warning' && <AlertTriangle className="h-4 w-4 text-amber-600 flex-shrink-0 mt-0.5" />}

@@ -87,8 +87,10 @@ const FolderStructureSettings = () => {
         if (response.ok) {
           const manifest = await response.json();
           if (manifest.templates) {
-            manifest.templates.forEach((t: any) => {
-              options.push({ id: t.id, name: t.name, type: 'local' });
+            manifest.templates.forEach((t: unknown) => {
+              // Type guard or casting would be better here, but for now unknown + cast or just unknown
+              const template = t as { id: string; name: string };
+              options.push({ id: template.id, name: template.name, type: 'local' });
             });
           }
         }
@@ -302,8 +304,8 @@ const FolderStructureSettings = () => {
                 <Card
                   key={folder.id}
                   className={`p-4 border-l-4 ${folder.enabled
-                      ? 'border-l-primary bg-card'
-                      : 'border-l-muted bg-muted/20'
+                    ? 'border-l-primary bg-card'
+                    : 'border-l-muted bg-muted/20'
                     }`}
                 >
                   <div className="flex items-center gap-4">
@@ -521,11 +523,6 @@ const FolderStructureSettings = () => {
   );
 };
 
-export default FolderStructureSettings;
+import { loadFolderStructureSettings } from '@/utils/settingsUtils';
 
-/**
- * Export function to load settings (for use in other components)
- */
-export function loadFolderStructureSettings(): FolderStructureSettings {
-  return loadSettings();
-}
+export default FolderStructureSettings;

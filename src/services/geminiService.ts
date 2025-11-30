@@ -16,7 +16,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import type { CourseData } from '@/types/courseData';
-import { SYSTEM_INSTRUCTION, EXTRACTION_SCHEMA } from './extractionConfig';
+import { getSystemInstruction, getExtractionSchema } from './configService';
 
 // ============================================================================
 // CONSTANTS - Configuration and thresholds
@@ -122,6 +122,10 @@ export async function extractCourseDataWithGemini(
 
     console.log('Starting extraction with Google Gemini API...');
 
+    // Fetch dynamic configuration
+    const systemInstruction = await getSystemInstruction();
+    const extractionSchema = await getExtractionSchema();
+
     // Call Gemini API with structured output
     const response = await ai.models.generateContent({
       model: API_CONFIG.MODEL,
@@ -136,9 +140,9 @@ ${modulesData}
 === ELENCO PARTECIPANTI ===
 ${participantsData}`,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction,
         responseMimeType: 'application/json',
-        responseSchema: EXTRACTION_SCHEMA,
+        responseSchema: extractionSchema,
       },
     });
 
@@ -208,6 +212,14 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     moduliRaw = [moduliRaw];
   }
 
+  // Helper to normalize duration strings (hours -> ore)
+  const normalizeDuration = (duration: string): string => {
+    if (!duration) return '';
+    return duration
+      .replace(/\bhours\b/gi, 'ore')
+      .replace(/\bhour\b/gi, 'ora');
+  };
+
   // Process corso data
   const capienzaCorso = parseCapienza(extractedData.corso?.capienza || DEFAULTS.CAPACITY);
   const corso = {
@@ -215,6 +227,10 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     anno: extractedData.corso?.data_inizio ? extractYear(extractedData.corso.data_inizio) : '',
     capienza_numero: capienzaCorso.current,
     capienza_totale: capienzaCorso.total,
+    // Normalize durations
+    ore_totali: normalizeDuration(extractedData.corso?.ore_totali),
+    durata_totale: normalizeDuration(extractedData.corso?.durata_totale),
+    ore_rendicontabili: normalizeDuration(extractedData.corso?.ore_rendicontabili),
   };
 
   // Process trainer
@@ -267,9 +283,9 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
       id_sezione: mod.id_sezione || '',
       data_inizio: mod.data_inizio || '',
       data_fine: mod.data_fine || '',
-      ore_totali: mod.ore_totali || '',
-      durata: mod.durata || '',
-      ore_rendicontabili: mod.ore_rendicontabili || '',
+      ore_totali: normalizeDuration(mod.ore_totali || ''),
+      durata: normalizeDuration(mod.durata || ''),
+      ore_rendicontabili: normalizeDuration(mod.ore_rendicontabili || ''),
       capienza: mod.capienza || '0/0',
       capienza_numero: capienzaMod.current,
       capienza_totale: capienzaMod.total,
@@ -282,6 +298,11 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
       sessioni_presenza: sessioni_presenza_modulo,
     };
   });
+
+  // Calculate verbale date from last session of the LAST module
+  const lastModule = moduli_processati[moduli_processati.length - 1];
+  const lastSession = lastModule?.sessioni[lastModule.sessioni.length - 1];
+  const dataVerbale = lastSession?.data_completa || '';
 
   // Aggregate sessions
   const sessioni_totali = moduli_processati.flatMap((m: any) => m.sessioni);
@@ -329,9 +350,9 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     // New Fields Processing
     responsabili: extractedData.responsabili || {},
     verbale: extractedData.verbale || {
-      data: '',
+      data: dataVerbale,
       ora: '',
-      luogo: '',
+      luogo: extractedData.sede?.citta || extractedData.sede?.indirizzo || '',
       data_completa: '',
       prova: { descrizione: '', tipo: '', durata: '', modalita: '' },
       criteri: { descrizione: '', indicatori: '', peso: '' },
@@ -387,6 +408,10 @@ export async function extractCourseDataWithDoubleCheck(
     console.log('Starting double-check extraction with Google Gemini API...');
     onProgress?.('Prima estrazione in corso...', 10);
 
+    // Fetch dynamic configuration
+    const systemInstruction = await getSystemInstruction();
+    const extractionSchema = await getExtractionSchema();
+
     const userPrompt = `Estrai i dati da questi 3 blocchi:
 
 === DATI CORSO PRINCIPALE ===
@@ -404,9 +429,9 @@ ${participantsData}`;
       model: API_CONFIG.MODEL,
       contents: userPrompt,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction,
         responseMimeType: 'application/json',
-        responseSchema: EXTRACTION_SCHEMA,
+        responseSchema: extractionSchema,
       },
     });
 
@@ -420,9 +445,9 @@ ${participantsData}`;
       model: API_CONFIG.MODEL,
       contents: userPrompt,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction,
         responseMimeType: 'application/json',
-        responseSchema: EXTRACTION_SCHEMA,
+        responseSchema: extractionSchema,
       },
     });
 

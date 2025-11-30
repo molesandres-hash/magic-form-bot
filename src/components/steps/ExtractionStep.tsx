@@ -3,7 +3,7 @@ import { Card } from "@/components/ui/card";
 import { Sparkles } from "lucide-react";
 
 interface ExtractionStepProps {
-  data: any;
+  data: unknown;
   onComplete: () => void;
 }
 
@@ -26,7 +26,7 @@ const ExtractionStep = ({ data, onComplete }: ExtractionStepProps) => {
           </div>
           <div className="absolute inset-0 rounded-full bg-gradient-to-br from-primary to-accent opacity-20 animate-ping"></div>
         </div>
-        
+
         <div className="space-y-2">
           <h2 className="text-2xl font-bold text-foreground">Estrazione in Corso...</h2>
           <p className="text-muted-foreground max-w-md">

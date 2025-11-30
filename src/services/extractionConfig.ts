@@ -38,7 +38,8 @@ IMPORTANTE GENERALE:
 - Per le date usa formato DD/MM/YYYY
 - Per gli orari usa formato HH:MM
 - Estrai TUTTI i partecipanti dall'elenco
-- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile`;
+- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile
+- Se trovi durate in inglese (es. "20 hours"), TRADUCILE in italiano (es. "20 ore")`;
 
 /**
  * Response schema for structured extraction
@@ -60,7 +61,8 @@ export const EXTRACTION_SCHEMA = {
                 ore_rendicontabili: { type: Type.STRING },
                 stato: { type: Type.STRING },
                 capienza: { type: Type.STRING },
-                programma: { type: Type.STRING }
+                programma: { type: Type.STRING },
+                id_offerta_formativa: { type: Type.STRING }
             },
             required: ['id', 'titolo']
         },
@@ -109,7 +111,8 @@ export const EXTRACTION_SCHEMA = {
                 tipo: { type: Type.STRING },
                 nome: { type: Type.STRING },
                 modalita: { type: Type.STRING },
-                indirizzo: { type: Type.STRING }
+                indirizzo: { type: Type.STRING },
+                citta: { type: Type.STRING }
             }
         },
         ente: {

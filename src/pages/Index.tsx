@@ -65,18 +65,26 @@ const Index = () => {
           nome: data.nomeDocente || extractedData.trainer?.nome,
           cognome: data.cognomeDocente || extractedData.trainer?.cognome,
           codice_fiscale: data.codiceFiscaleDocente || extractedData.trainer?.codice_fiscale,
+          email: data.emailDocente || extractedData.trainer?.email,
+          telefono: data.telefonoDocente || extractedData.trainer?.telefono,
           nome_completo: `${data.nomeDocente || ''} ${data.cognomeDocente || ''}`.trim() || extractedData.trainer?.nome_completo,
         },
         sede: {
           ...extractedData.sede,
           nome: data.sedeAccreditata || extractedData.sede?.nome,
           indirizzo: data.indirizzoSede || extractedData.sede?.indirizzo,
+          citta: data.cittaSede || extractedData.sede?.citta,
+        },
+        corso: {
+          ...extractedData.corso,
+          id_offerta_formativa: data.idOffertaFormativa || extractedData.corso?.id_offerta_formativa,
         },
         ente: {
           ...extractedData.ente,
           nome: data.nomeEnte || extractedData.ente?.nome,
           indirizzo: data.indirizzoEnte || extractedData.ente?.indirizzo,
         },
+        ente_accreditato_id: data.enteAccreditatoId || extractedData.ente_accreditato_id,
 
         calendario_fad: {
           ...extractedData.calendario_fad,
@@ -203,9 +211,11 @@ const Index = () => {
                 cognomeDocente: extractedData.trainer?.cognome,
                 sedeAccreditata: extractedData.sede?.nome,
                 indirizzoSede: extractedData.sede?.indirizzo,
+                cittaSede: extractedData.sede?.citta,
                 nomeEnte: extractedData.ente?.nome,
                 indirizzoEnte: extractedData.ente?.indirizzo,
-                piattaforma: extractedData.fad_info?.piattaforma,
+                piattaforma: extractedData.calendario_fad?.piattaforma,
+                idOffertaFormativa: extractedData.corso?.id_offerta_formativa,
               }}
             />
           )}

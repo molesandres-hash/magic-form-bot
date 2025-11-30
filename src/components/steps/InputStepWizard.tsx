@@ -25,7 +25,7 @@ import {
 } from "@/constants/wizardConstants";
 
 interface InputStepWizardProps {
-  onComplete: (data: any) => void;
+  onComplete: (data: unknown) => void;
 }
 
 const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {

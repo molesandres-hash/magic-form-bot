@@ -17,6 +17,11 @@ export interface CourseData {
   registro: Registro;
   calendario_fad?: CalendarioFAD;
   metadata: Metadata;
+  responsabili?: {
+    direttore?: ResponsabileCorso;
+    supervisore?: ResponsabileCorso;
+    responsabile_certificazione?: ResponsabileCorso;
+  };
 }
 
 export interface Corso {
@@ -34,6 +39,7 @@ export interface Corso {
   capienza_numero: number;
   capienza_totale: number;
   programma: string;
+  id_offerta_formativa?: string;
 }
 
 export interface Modulo {
@@ -69,6 +75,9 @@ export interface Sede {
   nome: string;
   modalita: string;
   indirizzo: string;
+  citta?: string;
+  cap?: string;
+  provincia?: string;
 }
 
 export interface Ente {
@@ -90,6 +99,9 @@ export interface Trainer {
   nome: string;
   cognome: string;
   codice_fiscale?: string;
+  codiceFiscale?: string; // Legacy/Alternative format
+  email?: string;
+  telefono?: string;
 }
 
 // Interfacce per DB
@@ -101,6 +113,8 @@ export interface EnteAccreditato {
   comune: string;
   cap: string;
   provincia: string;
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface ResponsabileCorso {
@@ -144,13 +158,16 @@ export interface Partecipante {
 export interface Sessione {
   numero: number;
   data_completa: string;
+  data?: string; // Legacy/Alternative format
   giorno: string;
   mese: string;
   mese_numero: string;
   anno: string;
   giorno_settimana: string;
   ora_inizio_giornata: string;
+  ora_inizio?: string; // Legacy/Alternative format
   ora_fine_giornata: string;
+  ora_fine?: string; // Legacy/Alternative format
   sede: string;
   tipo_sede: string;
   is_fad: boolean;
@@ -172,6 +189,8 @@ export interface Verbale {
     descrizione: string;
     indicatori: string;
     peso: string;
+    punteggio_minimo?: string;
+    punteggio_massimo?: string;
   };
   esiti: {
     positivi: string[];

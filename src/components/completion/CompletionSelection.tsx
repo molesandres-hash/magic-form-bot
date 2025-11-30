@@ -81,25 +81,47 @@ export const CompletionSelection = ({
                     {/* Ente Accreditato */}
                     <div>
                         <Label htmlFor="ente">Ente Accreditato *</Label>
-                        <Select
-                            value={formData.ente_accreditato_id || ""}
-                            onValueChange={(value) => updateFormData({ ente_accreditato_id: value })}
-                        >
-                            <SelectTrigger id="ente">
-                                <SelectValue placeholder="Seleziona ente accreditato" />
-                            </SelectTrigger>
-                            <SelectContent>
-                                {enti.map(ente => (
-                                    <SelectItem key={ente.id} value={ente.id}>
-                                        {formatEnteLabel(ente)}
-                                    </SelectItem>
-                                ))}
-                            </SelectContent>
-                        </Select>
-                        {enti.length === 0 && (
-                            <p className="text-sm text-muted-foreground mt-1">
-                                Nessun ente disponibile. Contatta l'amministratore.
-                            </p>
+                        {formData.ente_accreditato_id ? (
+                            <div className="space-y-1">
+                                <Input
+                                    value={enti.find(e => e.id === formData.ente_accreditato_id)?.nome || "Ente Selezionato"}
+                                    disabled
+                                    className="bg-muted text-muted-foreground"
+                                />
+                                <p className="text-xs text-muted-foreground">
+                                    Selezionato nel passaggio precedente (Dati Aggiuntivi).
+                                    <button
+                                        onClick={() => updateFormData({ ente_accreditato_id: undefined })}
+                                        className="ml-1 text-primary hover:underline"
+                                        type="button"
+                                    >
+                                        Modifica
+                                    </button>
+                                </p>
+                            </div>
+                        ) : (
+                            <>
+                                <Select
+                                    value={formData.ente_accreditato_id || ""}
+                                    onValueChange={(value) => updateFormData({ ente_accreditato_id: value })}
+                                >
+                                    <SelectTrigger id="ente">
+                                        <SelectValue placeholder="Seleziona ente accreditato" />
+                                    </SelectTrigger>
+                                    <SelectContent>
+                                        {enti.map(ente => (
+                                            <SelectItem key={ente.id} value={ente.id}>
+                                                {formatEnteLabel(ente)}
+                                            </SelectItem>
+                                        ))}
+                                    </SelectContent>
+                                </Select>
+                                {enti.length === 0 && (
+                                    <p className="text-sm text-muted-foreground mt-1">
+                                        Nessun ente disponibile. Contatta l'amministratore.
+                                    </p>
+                                )}
+                            </>
                         )}
                     </div>
 

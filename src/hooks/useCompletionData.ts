@@ -5,10 +5,10 @@
  * Clean Code Principle: Separation of Concerns - Data fetching logic isolated from UI
  */
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import type { CourseData, EnteAccreditato, ResponsabileCorso } from "@/types/courseData";
-import { getEnabledEntities, getEnabledResponsabili, getEnabledSupervisors } from "@/utils/predefinedDataUtils";
+import { getEnabledEntities, getEnabledResponsabili, getEnabledSupervisors, getEnabledLocations } from "@/utils/predefinedDataUtils";
 import { listEnti, listResponsabili } from "@/services/localDb";
 
 export const useCompletionData = (
@@ -29,12 +29,9 @@ export const useCompletionData = (
         formData.trainer?.nome_completo ||
         '';
 
-    // Load data on mount
-    useEffect(() => {
-        loadData();
-    }, []);
 
-    const applyFallbackData = (message?: string) => {
+
+    const applyFallbackData = useCallback((message?: string) => {
         const fallbackEnti: EnteAccreditato[] = getEnabledEntities().map(entity => ({
             id: `local-ente-${entity.id}`,
             nome: entity.name,
@@ -47,23 +44,21 @@ export const useCompletionData = (
 
         const supervisors = getEnabledSupervisors();
         const fallbackDirettori: ResponsabileCorso[] = supervisors.map(sup => {
-            const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
             return {
                 id: `local-dir-${sup.id}`,
                 tipo: "direttore",
-                nome: firstName || sup.nomeCompleto,
-                cognome: rest.join(" ") || sup.nomeCompleto,
+                nome: sup.nome,
+                cognome: sup.cognome,
                 qualifica: sup.qualifica
             };
         });
 
         const fallbackSupervisori: ResponsabileCorso[] = supervisors.map(sup => {
-            const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
             return {
                 id: `local-sup-${sup.id}`,
                 tipo: "supervisore",
-                nome: firstName || sup.nomeCompleto,
-                cognome: rest.join(" ") || sup.nomeCompleto,
+                nome: sup.nome,
+                cognome: sup.cognome,
                 qualifica: sup.qualifica
             };
         });
@@ -92,16 +87,32 @@ export const useCompletionData = (
                 toast.info(message);
             }
         }
-    };
+    }, []);
 
-    const loadData = async () => {
+    const loadData = useCallback(async () => {
         try {
             const [entiData, responsabiliData] = await Promise.all([
                 listEnti(),
                 listResponsabili()
             ]);
 
-            setEnti(entiData || []);
+            // Include Locations as Entities to support selection from Step 2
+            const locationsAsEntities: EnteAccreditato[] = getEnabledLocations().map(loc => ({
+                id: loc.id,
+                nome: loc.name,
+                via: loc.address,
+                numero_civico: "",
+                comune: "",
+                cap: "",
+                provincia: ""
+            }));
+
+            // Merge unique entities (prefer real entities over locations if ID conflicts, though unlikely)
+            const allEnti = [...(entiData || []), ...locationsAsEntities];
+            // Remove duplicates by ID
+            const uniqueEnti = Array.from(new Map(allEnti.map(item => [item.id, item])).values());
+
+            setEnti(uniqueEnti);
 
             const typedResponsabili = (responsabiliData || []).map(r => ({
                 ...r,
@@ -122,7 +133,12 @@ export const useCompletionData = (
         } finally {
             setLoading(false);
         }
-    };
+    }, [applyFallbackData]);
+
+    // Load data on mount
+    useEffect(() => {
+        loadData();
+    }, [loadData]);
 
     // Auto-select direttore using the trainer info when possible
     useEffect(() => {
@@ -130,9 +146,9 @@ export const useCompletionData = (
 
         const normalizedTrainer = trainerFullName.toLowerCase();
         const match = direttori.find((dir) =>
-            `${dir.nome} ${dir.cognome}`.toLowerCase().trim() === normalizedTrainer ||
-            dir.nome.toLowerCase() === normalizedTrainer ||
-            dir.cognome.toLowerCase() === normalizedTrainer
+            `${dir.nome || ''} ${dir.cognome || ''}`.toLowerCase().trim() === normalizedTrainer ||
+            (dir.nome && dir.nome.toLowerCase() === normalizedTrainer) ||
+            (dir.cognome && dir.cognome.toLowerCase() === normalizedTrainer)
         );
 
         if (match) {
