@@ -267,6 +267,8 @@ const PredefinedDataSettings = () => {
             id: generatePredefinedDataId('platform'),
             name: newPlatform.name,
             link: newPlatform.link || undefined,
+            meetingId: newPlatform.meetingId || undefined,
+            accessCode: newPlatform.accessCode || undefined,
             enabled: true,
         };
 
@@ -409,15 +411,16 @@ const PredefinedDataSettings = () => {
     const [newSupervisor, setNewSupervisor] = useState<Partial<PredefinedSupervisor>>({});
 
     const handleAddSupervisor = () => {
-        if (!newSupervisor.nomeCompleto || !newSupervisor.qualifica) {
-            toast.error('Nome completo e qualifica sono obbligatori');
+        if (!newSupervisor.nome || !newSupervisor.cognome) {
+            toast.error('Nome e cognome sono obbligatori');
             return;
         }
 
         const supervisor: PredefinedSupervisor = {
             id: generatePredefinedDataId('supervisor'),
-            nomeCompleto: newSupervisor.nomeCompleto,
-            qualifica: newSupervisor.qualifica,
+            nome: newSupervisor.nome,
+            cognome: newSupervisor.cognome,
+            qualifica: newSupervisor.qualifica || 'Supervisore',
             enabled: true,
         };
 
@@ -772,14 +775,20 @@ const PredefinedDataSettings = () => {
                                 {/* Add New Form */}
                                 <div className="grid grid-cols-2 gap-3 p-4 bg-accent/5 rounded-lg">
                                     <Input
-                                        placeholder="Nome Completo"
-                                        value={newSupervisor.nomeCompleto || ''}
-                                        onChange={(e) => setNewSupervisor({ ...newSupervisor, nomeCompleto: e.target.value })}
+                                        placeholder="Nome"
+                                        value={newSupervisor.nome || ''}
+                                        onChange={(e) => setNewSupervisor({ ...newSupervisor, nome: e.target.value })}
                                     />
                                     <Input
-                                        placeholder="Qualifica"
+                                        placeholder="Cognome"
+                                        value={newSupervisor.cognome || ''}
+                                        onChange={(e) => setNewSupervisor({ ...newSupervisor, cognome: e.target.value })}
+                                    />
+                                    <Input
+                                        placeholder="Qualifica (opzionale)"
                                         value={newSupervisor.qualifica || ''}
                                         onChange={(e) => setNewSupervisor({ ...newSupervisor, qualifica: e.target.value })}
+                                        className="col-span-2"
                                     />
                                     <Button onClick={handleAddSupervisor} size="sm" className="col-span-2">
                                         <Plus className="mr-2 h-4 w-4" />
@@ -796,7 +805,7 @@ const PredefinedDataSettings = () => {
                                                 className="flex items-center justify-between p-3 border rounded-lg"
                                             >
                                                 <div className="flex-1">
-                                                    <p className="font-medium">{sup.nomeCompleto}</p>
+                                                    <p className="font-medium">{sup.nome} {sup.cognome}</p>
                                                     <p className="text-sm text-muted-foreground">{sup.qualifica}</p>
                                                 </div>
                                                 <div className="flex items-center gap-2">
@@ -946,18 +955,30 @@ const PredefinedDataSettings = () => {
                         <AccordionContent>
                             <CardContent className="space-y-4">
                                 {/* Add New Form */}
-                                <div className="grid gap-3 p-4 bg-accent/5 rounded-lg">
+                                <div className="grid grid-cols-2 gap-3 p-4 bg-accent/5 rounded-lg">
                                     <Input
-                                        placeholder="Nome piattaforma (es: Zoom, Teams)"
+                                        placeholder="Nome Piattaforma"
                                         value={newPlatform.name || ''}
                                         onChange={(e) => setNewPlatform({ ...newPlatform, name: e.target.value })}
+                                        className="col-span-2"
                                     />
                                     <Input
-                                        placeholder="Link piattaforma (es: https://zoom.us/j/123456789)"
+                                        placeholder="Link (opzionale)"
                                         value={newPlatform.link || ''}
                                         onChange={(e) => setNewPlatform({ ...newPlatform, link: e.target.value })}
+                                        className="col-span-2"
                                     />
-                                    <Button onClick={handleAddPlatform} size="sm">
+                                    <Input
+                                        placeholder="Codice Riunione (opzionale)"
+                                        value={newPlatform.meetingId || ''}
+                                        onChange={(e) => setNewPlatform({ ...newPlatform, meetingId: e.target.value })}
+                                    />
+                                    <Input
+                                        placeholder="Codice Accesso (opzionale)"
+                                        value={newPlatform.accessCode || ''}
+                                        onChange={(e) => setNewPlatform({ ...newPlatform, accessCode: e.target.value })}
+                                    />
+                                    <Button onClick={handleAddPlatform} size="sm" className="col-span-2">
                                         <Plus className="mr-2 h-4 w-4" />
                                         Aggiungi Piattaforma
                                     </Button>
@@ -974,8 +995,15 @@ const PredefinedDataSettings = () => {
                                                 <div className="flex-1">
                                                     <p className="font-medium">{platform.name}</p>
                                                     {platform.link && (
-                                                        <p className="text-sm text-muted-foreground truncate max-w-[400px]">
+                                                        <p className="text-sm text-muted-foreground truncate max-w-[300px]">
                                                             {platform.link}
+                                                        </p>
+                                                    )}
+                                                    {(platform.meetingId || platform.accessCode) && (
+                                                        <p className="text-xs text-muted-foreground mt-1">
+                                                            {platform.meetingId && `ID: ${platform.meetingId}`}
+                                                            {platform.meetingId && platform.accessCode && ' | '}
+                                                            {platform.accessCode && `Pass: ${platform.accessCode}`}
                                                         </p>
                                                     )}
                                                 </div>
@@ -1005,6 +1033,7 @@ const PredefinedDataSettings = () => {
                         </AccordionContent>
                     </Card>
                 </AccordionItem>
+
 
                 {/* ARGUMENT LISTS SECTION */}
                 <AccordionItem value="arglists">
@@ -1112,10 +1141,11 @@ const PredefinedDataSettings = () => {
                             </CardContent>
                         </AccordionContent>
                     </Card>
-                </AccordionItem>
-            </Accordion>
-        </div>
+                </AccordionItem >
+            </Accordion >
+        </div >
     );
 };
 
 export default PredefinedDataSettings;
+

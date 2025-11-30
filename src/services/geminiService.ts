@@ -299,6 +299,11 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     };
   });
 
+  // Calculate verbale date from last session of the LAST module
+  const lastModule = moduli_processati[moduli_processati.length - 1];
+  const lastSession = lastModule?.sessioni[lastModule.sessioni.length - 1];
+  const dataVerbale = lastSession?.data_completa || '';
+
   // Aggregate sessions
   const sessioni_totali = moduli_processati.flatMap((m: any) => m.sessioni);
   const sessioni_presenza_totali = moduli_processati.flatMap((m: any) => m.sessioni_presenza);
@@ -345,9 +350,9 @@ async function processExtractedData(extractedData: AIExtractedData): Promise<any
     // New Fields Processing
     responsabili: extractedData.responsabili || {},
     verbale: extractedData.verbale || {
-      data: '',
+      data: dataVerbale,
       ora: '',
-      luogo: '',
+      luogo: extractedData.sede?.citta || extractedData.sede?.indirizzo || '',
       data_completa: '',
       prova: { descrizione: '', tipo: '', durata: '', modalita: '' },
       criteri: { descrizione: '', indicatori: '', peso: '' },

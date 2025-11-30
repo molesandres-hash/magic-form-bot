@@ -15,7 +15,7 @@ import { Card } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { UserCheck, Video, ChevronRight, MapPin, Settings as SettingsIcon } from 'lucide-react';
+import { UserCheck, Video, ChevronRight, MapPin, Settings as SettingsIcon, FileText } from 'lucide-react';
 import { toast } from 'sonner';
 import {
   Select,
@@ -26,9 +26,11 @@ import {
 } from '@/components/ui/select';
 import {
   getEnabledTrainers,
+  getEnabledSupervisors,
   getEnabledLocations,
   getEnabledPlatforms,
   findTrainerById,
+  findSupervisorById,
   findLocationById,
   validateCodiceFiscale as utilValidateCodiceFiscale,
 } from '@/utils/predefinedDataUtils';
@@ -132,6 +134,8 @@ export interface AdditionalData {
   cognomeDocente?: string;
   emailDocente?: string;
   telefonoDocente?: string;
+  nomeSupervisore?: string;
+  cognomeSupervisore?: string;
   linkZoom?: string;
   idRiunione?: string;
   passcode?: string;
@@ -142,6 +146,10 @@ export interface AdditionalData {
   indirizzoEnte?: string;
   note?: string;
   enteAccreditatoId?: string;
+  cittaSede?: string;
+  capSede?: string;
+  provinciaSede?: string;
+  idOffertaFormativa?: string;
 }
 
 // ============================================================================
@@ -155,13 +163,15 @@ const AdditionalDataStep = ({
 }: AdditionalDataStepProps) => {
   // State for predefined data
   const [availableTrainers] = useState(getEnabledTrainers());
+  const [availableSupervisors] = useState(getEnabledSupervisors());
   const [availableLocations] = useState(getEnabledLocations());
   const [availablePlatforms] = useState(getEnabledPlatforms());
 
   // State for selections
   const [selectedTrainerId, setSelectedTrainerId] = useState<string>(CUSTOM_OPTION_VALUE);
+  const [selectedSupervisorId, setSelectedSupervisorId] = useState<string>(CUSTOM_OPTION_VALUE);
   const [selectedLocationId, setSelectedLocationId] = useState<string>(CUSTOM_OPTION_VALUE);
-  const [selectedPlatform, setSelectedPlatform] = useState<string>(initialData?.piattaforma || '');
+  const [selectedPlatform, setSelectedPlatform] = useState<string>(initialData?.piattaforma || 'Zoom');
 
   // State for manual inputs
   const [codiceFiscaleDocente, setCodiceFiscaleDocente] = useState(
@@ -171,13 +181,20 @@ const AdditionalDataStep = ({
   const [cognomeDocente, setCognomeDocente] = useState(initialData?.cognomeDocente || '');
   const [emailDocente, setEmailDocente] = useState(initialData?.emailDocente || '');
   const [telefonoDocente, setTelefonoDocente] = useState(initialData?.telefonoDocente || '');
+  const [nomeSupervisore, setNomeSupervisore] = useState(initialData?.nomeSupervisore || '');
+  const [cognomeSupervisore, setCognomeSupervisore] = useState(initialData?.cognomeSupervisore || '');
   const [linkZoom, setLinkZoom] = useState(initialData?.linkZoom || '');
   const [idRiunione, setIdRiunione] = useState(initialData?.idRiunione || '');
   const [passcode, setPasscode] = useState(initialData?.passcode || '');
   const [sedeAccreditata, setSedeAccreditata] = useState(initialData?.sedeAccreditata || '');
   const [indirizzoSede, setIndirizzoSede] = useState(initialData?.indirizzoSede || '');
-  const [nomeEnte] = useState(initialData?.nomeEnte || '');
-  const [indirizzoEnte] = useState(initialData?.indirizzoEnte || '');
+  const [cittaSede, setCittaSede] = useState(initialData?.cittaSede || '');
+  const [capSede, setCapSede] = useState(initialData?.capSede || '');
+  const [provinciaSede, setProvinciaSede] = useState(initialData?.provinciaSede || '');
+  const [nomeEnte, setNomeEnte] = useState(initialData?.nomeEnte || '');
+  const [indirizzoEnte, setIndirizzoEnte] = useState(initialData?.indirizzoEnte || '');
+  const [idOffertaFormativa, setIdOffertaFormativa] = useState(initialData?.idOffertaFormativa || '1020');
+  const [customIdOfferta, setCustomIdOfferta] = useState('');
   const [note, setNote] = useState(initialData?.note || '');
   const [autoMatchApplied, setAutoMatchApplied] = useState(false);
 
@@ -234,6 +251,25 @@ const AdditionalDataStep = ({
   };
 
   /**
+   * Handles supervisor selection from dropdown
+   */
+  const handleSupervisorSelect = (value: string) => {
+    setSelectedSupervisorId(value);
+
+    if (value !== CUSTOM_OPTION_VALUE) {
+      const supervisor = findSupervisorById(value);
+      if (supervisor) {
+        setNomeSupervisore(supervisor.nome);
+        setCognomeSupervisore(supervisor.cognome);
+      }
+    } else {
+      // Clear fields when "Custom" is selected
+      setNomeSupervisore('');
+      setCognomeSupervisore('');
+    }
+  };
+
+  /**
    * Handles location selection from dropdown
    */
   const handleLocationSelect = (value: string) => {
@@ -244,10 +280,22 @@ const AdditionalDataStep = ({
       if (location) {
         setSedeAccreditata(location.name);
         setIndirizzoSede(location.address);
+        setCittaSede(location.city || '');
+        setCapSede(location.cap || '');
+        setProvinciaSede(location.province || '');
+
+        // Auto-select Ente if linked
+        if (location.enteId) {
+          // Logic to select Ente would go here if Ente selection was in this component
+          // Currently Ente selection is in CompletionStep, but we pass the ID
+        }
       }
     } else {
       setSedeAccreditata('');
       setIndirizzoSede('');
+      setCittaSede('');
+      setCapSede('');
+      setProvinciaSede('');
     }
   };
 
@@ -301,16 +349,22 @@ const AdditionalDataStep = ({
       cognomeDocente: cognomeDocente.trim() || undefined,
       emailDocente: emailDocente.trim() || undefined,
       telefonoDocente: telefonoDocente.trim() || undefined,
+      nomeSupervisore: nomeSupervisore.trim() || undefined,
+      cognomeSupervisore: cognomeSupervisore.trim() || undefined,
       linkZoom: linkZoom.trim() || undefined,
       idRiunione: idRiunione.trim() || undefined,
       passcode: passcode.trim() || undefined,
       piattaforma: (selectedPlatform && selectedPlatform !== 'NONE') ? selectedPlatform : undefined,
       sedeAccreditata: sedeAccreditata.trim() || undefined,
       indirizzoSede: indirizzoSede.trim() || undefined,
+      cittaSede: cittaSede.trim() || undefined,
+      capSede: capSede.trim() || undefined,
+      provinciaSede: provinciaSede.trim() || undefined,
       nomeEnte: nomeEnte.trim() || undefined,
       indirizzoEnte: indirizzoEnte.trim() || undefined,
       note: note.trim() || undefined,
       enteAccreditatoId: selectedLocationId !== CUSTOM_OPTION_VALUE ? selectedLocationId : undefined,
+      idOffertaFormativa: idOffertaFormativa === 'CUSTOM' ? customIdOfferta : idOffertaFormativa,
     };
 
     onComplete(data);
@@ -353,6 +407,21 @@ const AdditionalDataStep = ({
       handleTrainerSelect(trainerMatch.id);
     }
 
+    const supervisorMatch = findBestMatch(
+      availableSupervisors,
+      [
+        `${initialData.nomeSupervisore || ''} ${initialData.cognomeSupervisore || ''}`
+      ],
+      (supervisor) => [
+        `${supervisor.nome || ''} ${supervisor.cognome || ''}`
+      ],
+      TRAINER_NAME_THRESHOLD
+    )?.item;
+
+    if (supervisorMatch) {
+      handleSupervisorSelect(supervisorMatch.id);
+    }
+
     const locationMatch = findBestMatch(
       availableLocations,
       [initialData.sedeAccreditata, initialData.indirizzoSede],
@@ -389,6 +458,7 @@ const AdditionalDataStep = ({
   ]);
 
   const hasTrainers = availableTrainers.length > 0;
+  const hasSupervisors = availableSupervisors.length > 0;
   const hasLocations = availableLocations.length > 0;
   const hasPlatforms = availablePlatforms.length > 0;
 
@@ -411,6 +481,40 @@ const AdditionalDataStep = ({
 
         {/* Form Fields */}
         <div className="space-y-5">
+          {/* ID OFFERTA FORMATIVA */}
+          <div className="space-y-3 p-4 border rounded-lg bg-accent/5">
+            <Label className="text-base font-semibold flex items-center gap-2">
+              <FileText className="h-4 w-4 text-primary" />
+              Dati Offerta Formativa
+            </Label>
+
+            <div className="space-y-2">
+              <Label htmlFor="id-offerta" className="text-sm">ID Offerta Formativa</Label>
+              <Select value={idOffertaFormativa} onValueChange={setIdOffertaFormativa}>
+                <SelectTrigger id="id-offerta">
+                  <SelectValue placeholder="Seleziona ID Offerta..." />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1020">1020 - GOL (Inserimento lavorativo)</SelectItem>
+                  <SelectItem value="1540">1540 - GOL FAD 100% (Inserimento lavorativo)</SelectItem>
+                  <SelectItem value="CUSTOM">✏️ Altro (Inserisci manualmente)</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+
+            {idOffertaFormativa === 'CUSTOM' && (
+              <div className="space-y-2 animate-in fade-in slide-in-from-top-2">
+                <Label htmlFor="custom-id-offerta" className="text-sm">ID Personalizzato</Label>
+                <Input
+                  id="custom-id-offerta"
+                  value={customIdOfferta}
+                  onChange={(e) => setCustomIdOfferta(e.target.value)}
+                  placeholder="Es. 2040"
+                />
+              </div>
+            )}
+          </div>
+
           {/* TRAINER/DOCENTE - with predefined dropdown */}
           <div className="space-y-3 p-4 border rounded-lg bg-accent/5">
             <div className="flex items-center justify-between">
@@ -517,6 +621,124 @@ const AdditionalDataStep = ({
             </div>
           </div>
 
+          {/* SUPERVISORE - with predefined dropdown */}
+          <div className="space-y-3 p-4 border rounded-lg bg-accent/5">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-primary" />
+                Supervisore (opzionale)
+              </Label>
+              {hasSupervisors && (
+                <span className="text-xs text-muted-foreground">
+                  {availableSupervisors.length} predefiniti disponibili
+                </span>
+              )}
+            </div>
+
+            {hasSupervisors && (
+              <div className="space-y-2">
+                <Label htmlFor="supervisor-select" className="text-sm">Seleziona da predefiniti</Label>
+                <Select value={selectedSupervisorId} onValueChange={handleSupervisorSelect}>
+                  <SelectTrigger id="supervisor-select">
+                    <SelectValue placeholder="Scegli un supervisore..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={CUSTOM_OPTION_VALUE}>
+                      ✏️ Inserimento manuale
+                    </SelectItem>
+                    {availableSupervisors.map((supervisor) => (
+                      <SelectItem key={supervisor.id} value={supervisor.id}>
+                        {supervisor.nome} {supervisor.cognome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="nome-supervisore" className="text-sm">Nome</Label>
+                <Input
+                  id="nome-supervisore"
+                  value={nomeSupervisore}
+                  onChange={(e) => setNomeSupervisore(e.target.value)}
+                  placeholder="Nome"
+                  disabled={selectedSupervisorId !== CUSTOM_OPTION_VALUE && hasSupervisors}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cognome-supervisore" className="text-sm">Cognome</Label>
+                <Input
+                  id="cognome-supervisore"
+                  value={cognomeSupervisore}
+                  onChange={(e) => setCognomeSupervisore(e.target.value)}
+                  placeholder="Cognome"
+                  disabled={selectedSupervisorId !== CUSTOM_OPTION_VALUE && hasSupervisors}
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* SUPERVISORE - with predefined dropdown */}
+          <div className="space-y-3 p-4 border rounded-lg bg-accent/5">
+            <div className="flex items-center justify-between">
+              <Label className="text-base font-semibold flex items-center gap-2">
+                <UserCheck className="h-4 w-4 text-primary" />
+                Supervisore (opzionale)
+              </Label>
+              {hasSupervisors && (
+                <span className="text-xs text-muted-foreground">
+                  {availableSupervisors.length} predefiniti disponibili
+                </span>
+              )}
+            </div>
+
+            {hasSupervisors && (
+              <div className="space-y-2">
+                <Label htmlFor="supervisor-select" className="text-sm">Seleziona da predefiniti</Label>
+                <Select value={selectedSupervisorId} onValueChange={handleSupervisorSelect}>
+                  <SelectTrigger id="supervisor-select">
+                    <SelectValue placeholder="Scegli un supervisore..." />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={CUSTOM_OPTION_VALUE}>
+                      ✏️ Inserimento manuale
+                    </SelectItem>
+                    {availableSupervisors.map((supervisor) => (
+                      <SelectItem key={supervisor.id} value={supervisor.id}>
+                        {supervisor.nome} {supervisor.cognome}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <Label htmlFor="nome-supervisore" className="text-sm">Nome</Label>
+                <Input
+                  id="nome-supervisore"
+                  value={nomeSupervisore}
+                  onChange={(e) => setNomeSupervisore(e.target.value)}
+                  placeholder="Nome"
+                  disabled={selectedSupervisorId !== CUSTOM_OPTION_VALUE && hasSupervisors}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="cognome-supervisore" className="text-sm">Cognome</Label>
+                <Input
+                  id="cognome-supervisore"
+                  value={cognomeSupervisore}
+                  onChange={(e) => setCognomeSupervisore(e.target.value)}
+                  placeholder="Cognome"
+                  disabled={selectedSupervisorId !== CUSTOM_OPTION_VALUE && hasSupervisors}
+                />
+              </div>
+            </div>
+          </div>
+
           {/* SEDE ACCREDITATA - with predefined dropdown */}
           <div className="space-y-3 p-4 border rounded-lg bg-accent/5">
             <div className="flex items-center justify-between">
@@ -573,6 +795,17 @@ const AdditionalDataStep = ({
                 disabled={selectedLocationId !== CUSTOM_OPTION_VALUE && hasLocations}
               />
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="sede-citta" className="text-sm">Città</Label>
+              <Input
+                id="sede-citta"
+                value={cittaSede}
+                onChange={(e) => setCittaSede(e.target.value)}
+                placeholder="Milano"
+                disabled={selectedLocationId !== CUSTOM_OPTION_VALUE && hasLocations}
+              />
+            </div>
           </div>
 
           <p className="text-xs text-muted-foreground italic px-1">
@@ -622,7 +855,7 @@ const AdditionalDataStep = ({
 
             <div className="grid grid-cols-2 gap-3">
               <div className="space-y-2">
-                <Label htmlFor="id-riunione" className="text-sm">ID Riunione</Label>
+                <Label htmlFor="id-riunione" className="text-sm">Codice Riunione</Label>
                 <Input
                   id="id-riunione"
                   value={idRiunione}
@@ -632,7 +865,7 @@ const AdditionalDataStep = ({
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="passcode" className="text-sm">Passcode</Label>
+                <Label htmlFor="passcode" className="text-sm">Codice Accesso</Label>
                 <Input
                   id="passcode"
                   value={passcode}

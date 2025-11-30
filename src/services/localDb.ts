@@ -160,23 +160,21 @@ class LocalDatabase extends Dexie {
     }));
 
     const supervisors = DEFAULT_PREDEFINED_DATA.supervisors.map((sup, index) => {
-      const [firstName, ...rest] = sup.nomeCompleto.split(' ');
       return {
         id: `seed-sup-${index}`,
         tipo: 'supervisore' as const,
-        nome: firstName || sup.nomeCompleto,
-        cognome: rest.join(' ') || sup.nomeCompleto,
+        nome: sup.nome,
+        cognome: sup.cognome,
         qualifica: sup.qualifica,
       };
     });
 
     const directors = DEFAULT_PREDEFINED_DATA.supervisors.map((sup, index) => {
-      const [firstName, ...rest] = sup.nomeCompleto.split(' ');
       return {
         id: `seed-dir-${index}`,
         tipo: 'direttore' as const,
-        nome: firstName || sup.nomeCompleto,
-        cognome: rest.join(' ') || sup.nomeCompleto,
+        nome: sup.nome,
+        cognome: sup.cognome,
         qualifica: sup.qualifica,
       };
     });

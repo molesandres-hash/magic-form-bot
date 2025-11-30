@@ -34,6 +34,7 @@ export interface Corso {
   capienza_numero: number;
   capienza_totale: number;
   programma: string;
+  id_offerta_formativa?: string;
 }
 
 export interface Modulo {
@@ -69,6 +70,9 @@ export interface Sede {
   nome: string;
   modalita: string;
   indirizzo: string;
+  citta?: string;
+  cap?: string;
+  provincia?: string;
 }
 
 export interface Ente {

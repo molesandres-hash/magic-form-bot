@@ -73,6 +73,11 @@ const Index = () => {
           ...extractedData.sede,
           nome: data.sedeAccreditata || extractedData.sede?.nome,
           indirizzo: data.indirizzoSede || extractedData.sede?.indirizzo,
+          citta: data.cittaSede || extractedData.sede?.citta,
+        },
+        corso: {
+          ...extractedData.corso,
+          id_offerta_formativa: data.idOffertaFormativa || extractedData.corso?.id_offerta_formativa,
         },
         ente: {
           ...extractedData.ente,
@@ -206,9 +211,11 @@ const Index = () => {
                 cognomeDocente: extractedData.trainer?.cognome,
                 sedeAccreditata: extractedData.sede?.nome,
                 indirizzoSede: extractedData.sede?.indirizzo,
+                cittaSede: extractedData.sede?.citta,
                 nomeEnte: extractedData.ente?.nome,
                 indirizzoEnte: extractedData.ente?.indirizzo,
                 piattaforma: extractedData.calendario_fad?.piattaforma,
+                idOffertaFormativa: extractedData.corso?.id_offerta_formativa,
               }}
             />
           )}

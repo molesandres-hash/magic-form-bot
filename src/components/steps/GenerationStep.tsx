@@ -259,6 +259,13 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
     toast.success("Testo email copiato!");
   };
 
+  const handleSendModuleAEmail = () => {
+    const subject = `Invio Modulo A - ${data.corso?.titolo || 'Corso'}`;
+    const body = `Buongiorno,\n\nIn allegato il Modulo A relativo al corso in oggetto.\n\nCordiali saluti.`;
+    const mailtoLink = `mailto:?subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+    window.open(mailtoLink, '_blank');
+  };
+
   return (
     <div className="space-y-6">
       <Card className="p-8 shadow-xl">
@@ -416,17 +423,31 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
                   </p>
                 </Card>
 
-                {/* Email */}
+                {/* Email Responsabile */}
                 <Card className="p-4">
-                  <h4 className="font-medium text-sm mb-3">📧 Comunicazione Docente</h4>
-                  <div className="space-y-2">
-                    <Button variant="outline" className="w-full justify-start" onClick={handleSendEmail}>
-                      <Mail className="h-4 w-4 mr-2" />
-                      Invia Email con Link Lezione
-                    </Button>
+                  <h4 className="font-medium text-sm mb-3">📧 Comunicazioni</h4>
+                  <div className="space-y-3">
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Docente</p>
+                      <Button variant="outline" className="w-full justify-start" onClick={handleSendEmail}>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Invia Link Lezione
+                      </Button>
+                    </div>
+
+                    <div>
+                      <p className="text-xs text-muted-foreground mb-2">Responsabile</p>
+                      <Button variant="outline" className="w-full justify-start" onClick={handleSendModuleAEmail}>
+                        <Mail className="h-4 w-4 mr-2" />
+                        Invia Modulo A
+                      </Button>
+                      <p className="text-[10px] text-muted-foreground mt-1">
+                        *Ricorda di allegare manualmente il file
+                      </p>
+                    </div>
 
                     <div className="pt-2 border-t mt-2">
-                      <p className="text-xs font-medium mb-1">Template Messaggio:</p>
+                      <p className="text-xs font-medium mb-1">Template Link Lezione:</p>
                       <div className="relative">
                         <Textarea
                           value={emailData.body}
@@ -448,36 +469,36 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
               </div>
             </div>
           </div>
-
-          {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
-            <Button
-              onClick={handleDownloadAll}
-              className="flex-1 h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90"
-              disabled={isGeneratingZIP}
-            >
-              {isGeneratingZIP ? (
-                <>
-                  <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Creazione ZIP in corso...
-                </>
-              ) : (
-                <>
-                  <Download className="mr-2 h-5 w-5" />
-                  Scarica Tutti i Documenti (ZIP)
-                </>
-              )}
-            </Button>
-            <Button onClick={() => window.location.reload()} variant="outline" className="flex-1 h-12">
-              <FileText className="mr-2 h-5 w-5" />
-              Nuovo Corso
-            </Button>
-          </div>
         </div>
-      </Card>
+
+        {/* Actions */}
+        <div className="flex flex-col sm:flex-row gap-3 pt-6 border-t">
+          <Button
+            onClick={handleDownloadAll}
+            className="flex-1 h-12 bg-gradient-to-r from-primary to-accent hover:opacity-90"
+            disabled={isGeneratingZIP}
+          >
+            {isGeneratingZIP ? (
+              <>
+                <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                Creazione ZIP in corso...
+              </>
+            ) : (
+              <>
+                <Download className="mr-2 h-5 w-5" />
+                Scarica Tutti i Documenti (ZIP)
+              </>
+            )}
+          </Button>
+          <Button onClick={() => window.location.reload()} variant="outline" className="flex-1 h-12">
+            <FileText className="mr-2 h-5 w-5" />
+            Nuovo Corso
+          </Button>
+        </div>
+      </Card >
 
       {/* Info Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      < div className="grid grid-cols-1 md:grid-cols-3 gap-4" >
         <Card className="p-4 bg-card">
           <h4 className="font-semibold text-sm mb-2 text-foreground">⚡ Tempo Risparmiato</h4>
           <p className="text-2xl font-bold text-primary">~55 minuti</p>
@@ -493,8 +514,8 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
           <p className="text-2xl font-bold text-accent">{documents.filter((d) => d.generated).length}</p>
           <p className="text-xs text-muted-foreground mt-1">Generati automaticamente</p>
         </Card>
-      </div>
-    </div>
+      </div >
+    </div >
   );
 };
 

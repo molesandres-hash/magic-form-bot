@@ -47,23 +47,21 @@ export const useCompletionData = (
 
         const supervisors = getEnabledSupervisors();
         const fallbackDirettori: ResponsabileCorso[] = supervisors.map(sup => {
-            const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
             return {
                 id: `local-dir-${sup.id}`,
                 tipo: "direttore",
-                nome: firstName || sup.nomeCompleto,
-                cognome: rest.join(" ") || sup.nomeCompleto,
+                nome: sup.nome,
+                cognome: sup.cognome,
                 qualifica: sup.qualifica
             };
         });
 
         const fallbackSupervisori: ResponsabileCorso[] = supervisors.map(sup => {
-            const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
             return {
                 id: `local-sup-${sup.id}`,
                 tipo: "supervisore",
-                nome: firstName || sup.nomeCompleto,
-                cognome: rest.join(" ") || sup.nomeCompleto,
+                nome: sup.nome,
+                cognome: sup.cognome,
                 qualifica: sup.qualifica
             };
         });
@@ -146,9 +144,9 @@ export const useCompletionData = (
 
         const normalizedTrainer = trainerFullName.toLowerCase();
         const match = direttori.find((dir) =>
-            `${dir.nome} ${dir.cognome}`.toLowerCase().trim() === normalizedTrainer ||
-            dir.nome.toLowerCase() === normalizedTrainer ||
-            dir.cognome.toLowerCase() === normalizedTrainer
+            `${dir.nome || ''} ${dir.cognome || ''}`.toLowerCase().trim() === normalizedTrainer ||
+            (dir.nome && dir.nome.toLowerCase() === normalizedTrainer) ||
+            (dir.cognome && dir.cognome.toLowerCase() === normalizedTrainer)
         );
 
         if (match) {
