@@ -1,6 +1,8 @@
 import Dexie, { Table } from 'dexie';
 import type { EnteAccreditato, ResponsabileCorso } from '@/types/courseData';
 import { DEFAULT_PREDEFINED_DATA } from '@/types/userSettings';
+import { SYSTEM_INSTRUCTION, EXTRACTION_SCHEMA } from './extractionConfig';
+import DEFAULT_MAPPINGS from '@/config/field_mappings.json';
 
 export interface DocumentTemplateRecord {
   id: string;
@@ -21,20 +23,37 @@ export interface LocalUser {
   password?: string;
 }
 
+export interface SystemConfig {
+  key: string;
+  value: any;
+  updated_at: string;
+}
+
+export interface FieldMapping {
+  id?: number;
+  placeholder: string;
+  path: string;
+  description: string;
+}
+
 class LocalDatabase extends Dexie {
   enti_accreditati!: Table<EnteAccreditato, string>;
   responsabili_corso!: Table<ResponsabileCorso, string>;
   document_templates!: Table<DocumentTemplateRecord, string>;
   users!: Table<LocalUser, string>;
+  system_configs!: Table<SystemConfig, string>;
+  field_mappings!: Table<FieldMapping, number>;
 
   constructor() {
     super('magic_form_bot');
 
-    this.version(3).stores({
+    this.version(5).stores({
       enti_accreditati: 'id, nome, comune, provincia',
       responsabili_corso: 'id, tipo, cognome',
       document_templates: 'id, template_type, created_at, file_name',
       users: 'id, email, role',
+      system_configs: 'key, updated_at',
+      field_mappings: '++id, placeholder, path',
     }).upgrade(async tx => {
       // Add standard AK GROUP entities if they don't exist
       const entiTable = tx.table('enti_accreditati');
@@ -106,6 +125,23 @@ class LocalDatabase extends Dexie {
         role: 'admin',
       }
     ]);
+
+    // Seed system configs
+    await this.system_configs.bulkPut([
+      {
+        key: 'system_instruction',
+        value: SYSTEM_INSTRUCTION,
+        updated_at: new Date().toISOString(),
+      },
+      {
+        key: 'extraction_schema',
+        value: EXTRACTION_SCHEMA,
+        updated_at: new Date().toISOString(),
+      }
+    ]);
+
+    // Seed field mappings
+    await this.field_mappings.bulkPut(DEFAULT_MAPPINGS);
 
     // Seed responsabili from predefined data
     const responsabili = DEFAULT_PREDEFINED_DATA.responsabili.map((resp, index) => ({

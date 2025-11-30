@@ -16,7 +16,7 @@
 
 import { GoogleGenAI } from '@google/genai';
 import type { CourseData } from '@/types/courseData';
-import { SYSTEM_INSTRUCTION, EXTRACTION_SCHEMA } from './extractionConfig';
+import { getSystemInstruction, getExtractionSchema } from './configService';
 
 // ============================================================================
 // CONSTANTS - Configuration and thresholds
@@ -122,6 +122,10 @@ export async function extractCourseDataWithGemini(
 
     console.log('Starting extraction with Google Gemini API...');
 
+    // Fetch dynamic configuration
+    const systemInstruction = await getSystemInstruction();
+    const extractionSchema = await getExtractionSchema();
+
     // Call Gemini API with structured output
     const response = await ai.models.generateContent({
       model: API_CONFIG.MODEL,
@@ -136,9 +140,9 @@ ${modulesData}
 === ELENCO PARTECIPANTI ===
 ${participantsData}`,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction,
         responseMimeType: 'application/json',
-        responseSchema: EXTRACTION_SCHEMA,
+        responseSchema: extractionSchema,
       },
     });
 
@@ -399,6 +403,10 @@ export async function extractCourseDataWithDoubleCheck(
     console.log('Starting double-check extraction with Google Gemini API...');
     onProgress?.('Prima estrazione in corso...', 10);
 
+    // Fetch dynamic configuration
+    const systemInstruction = await getSystemInstruction();
+    const extractionSchema = await getExtractionSchema();
+
     const userPrompt = `Estrai i dati da questi 3 blocchi:
 
 === DATI CORSO PRINCIPALE ===
@@ -416,9 +424,9 @@ ${participantsData}`;
       model: API_CONFIG.MODEL,
       contents: userPrompt,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction,
         responseMimeType: 'application/json',
-        responseSchema: EXTRACTION_SCHEMA,
+        responseSchema: extractionSchema,
       },
     });
 
@@ -432,9 +440,9 @@ ${participantsData}`;
       model: API_CONFIG.MODEL,
       contents: userPrompt,
       config: {
-        systemInstruction: SYSTEM_INSTRUCTION,
+        systemInstruction,
         responseMimeType: 'application/json',
-        responseSchema: EXTRACTION_SCHEMA,
+        responseSchema: extractionSchema,
       },
     });
 

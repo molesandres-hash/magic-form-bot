@@ -5,11 +5,12 @@
 
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Settings, Key, FolderOpen, FileText, Building2, Variable, Database } from "lucide-react";
+import { Settings, Key, FolderOpen, FileText, Building2, Variable, Database, Brain } from "lucide-react";
 import ApiKeySettings from "@/components/settings/ApiKeySettings";
 import FolderStructureSettings from "@/components/settings/FolderStructureSettings";
 import PlaceholderSettings from "@/components/settings/PlaceholderSettings";
 import PredefinedDataSettings from "@/components/settings/PredefinedDataSettings";
+import { ExtractionSettings } from "@/components/settings/ExtractionSettings";
 import { Button } from "@/components/ui/button";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
@@ -51,10 +52,14 @@ export default function SettingsDialog({ open, onOpenChange, defaultTab = "gener
         </DialogHeader>
 
         <Tabs defaultValue={defaultTab} className="flex-1 overflow-hidden flex flex-col">
-          <TabsList className="grid w-full grid-cols-5">
+          <TabsList className="grid w-full grid-cols-6">
             <TabsTrigger value="general" className="flex items-center gap-2">
               <Settings className="h-4 w-4" />
               <span className="hidden sm:inline">Generali</span>
+            </TabsTrigger>
+            <TabsTrigger value="extraction" className="flex items-center gap-2">
+              <Brain className="h-4 w-4" />
+              <span className="hidden sm:inline">AI & Estrazione</span>
             </TabsTrigger>
             <TabsTrigger value="folders" className="flex items-center gap-2">
               <FolderOpen className="h-4 w-4" />
@@ -79,6 +84,10 @@ export default function SettingsDialog({ open, onOpenChange, defaultTab = "gener
               <div className="space-y-6">
                 <ApiKeySettings />
               </div>
+            </TabsContent>
+
+            <TabsContent value="extraction" className="mt-0">
+              <ExtractionSettings />
             </TabsContent>
 
             <TabsContent value="folders" className="mt-0">

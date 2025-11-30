@@ -1,0 +1,320 @@
+{
+    "type": "OBJECT",
+    "properties": {
+        "corso": {
+            "type": "OBJECT",
+            "properties": {
+                "id": {
+                    "type": "STRING"
+                },
+                "titolo": {
+                    "type": "STRING"
+                },
+                "tipo": {
+                    "type": "STRING"
+                },
+                "data_inizio": {
+                    "type": "STRING"
+                },
+                "data_fine": {
+                    "type": "STRING"
+                },
+                "durata_totale": {
+                    "type": "STRING"
+                },
+                "ore_totali": {
+                    "type": "STRING"
+                },
+                "ore_rendicontabili": {
+                    "type": "STRING"
+                },
+                "stato": {
+                    "type": "STRING"
+                },
+                "capienza": {
+                    "type": "STRING"
+                },
+                "programma": {
+                    "type": "STRING"
+                }
+            },
+            "required": [
+                "id",
+                "titolo"
+            ]
+        },
+        "moduli": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "id": {
+                        "type": "STRING"
+                    },
+                    "id_corso": {
+                        "type": "STRING"
+                    },
+                    "id_sezione": {
+                        "type": "STRING"
+                    },
+                    "titolo": {
+                        "type": "STRING"
+                    },
+                    "data_inizio": {
+                        "type": "STRING"
+                    },
+                    "data_fine": {
+                        "type": "STRING"
+                    },
+                    "ore_totali": {
+                        "type": "STRING"
+                    },
+                    "durata": {
+                        "type": "STRING"
+                    },
+                    "ore_rendicontabili": {
+                        "type": "STRING"
+                    },
+                    "capienza": {
+                        "type": "STRING"
+                    },
+                    "stato": {
+                        "type": "STRING"
+                    },
+                    "tipo_sede": {
+                        "type": "STRING"
+                    },
+                    "provider": {
+                        "type": "STRING"
+                    },
+                    "argomenti": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "STRING"
+                        }
+                    },
+                    "sessioni_raw": {
+                        "type": "ARRAY",
+                        "items": {
+                            "type": "OBJECT",
+                            "properties": {
+                                "data": {
+                                    "type": "STRING"
+                                },
+                                "ora_inizio": {
+                                    "type": "STRING"
+                                },
+                                "ora_fine": {
+                                    "type": "STRING"
+                                },
+                                "sede": {
+                                    "type": "STRING"
+                                },
+                                "tipo_sede": {
+                                    "type": "STRING"
+                                }
+                            }
+                        }
+                    }
+                },
+                "required": [
+                    "id",
+                    "id_corso",
+                    "id_sezione",
+                    "titolo"
+                ]
+            }
+        },
+        "sede": {
+            "type": "OBJECT",
+            "properties": {
+                "tipo": {
+                    "type": "STRING"
+                },
+                "nome": {
+                    "type": "STRING"
+                },
+                "modalita": {
+                    "type": "STRING"
+                },
+                "indirizzo": {
+                    "type": "STRING"
+                }
+            }
+        },
+        "ente": {
+            "type": "OBJECT",
+            "properties": {
+                "nome": {
+                    "type": "STRING"
+                },
+                "id": {
+                    "type": "STRING"
+                },
+                "indirizzo": {
+                    "type": "STRING"
+                }
+            }
+        },
+        "trainer": {
+            "type": "OBJECT",
+            "properties": {
+                "nome_completo": {
+                    "type": "STRING"
+                },
+                "codice_fiscale": {
+                    "type": "STRING"
+                }
+            }
+        },
+        "partecipanti": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "id": {
+                        "type": "STRING"
+                    },
+                    "nome": {
+                        "type": "STRING"
+                    },
+                    "cognome": {
+                        "type": "STRING"
+                    },
+                    "codice_fiscale": {
+                        "type": "STRING"
+                    },
+                    "telefono": {
+                        "type": "STRING"
+                    },
+                    "cellulare": {
+                        "type": "STRING"
+                    },
+                    "email": {
+                        "type": "STRING"
+                    },
+                    "programma": {
+                        "type": "STRING"
+                    },
+                    "ufficio": {
+                        "type": "STRING"
+                    },
+                    "case_manager": {
+                        "type": "STRING"
+                    },
+                    "benefits": {
+                        "type": "STRING"
+                    },
+                    "frequenza": {
+                        "type": "STRING"
+                    }
+                },
+                "required": [
+                    "id",
+                    "nome",
+                    "cognome"
+                ]
+            }
+        },
+        "responsabili": {
+            "type": "OBJECT",
+            "properties": {
+                "responsabile_certificazione": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "nome": {
+                            "type": "STRING"
+                        },
+                        "cognome": {
+                            "type": "STRING"
+                        }
+                    }
+                },
+                "direttore": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "nome": {
+                            "type": "STRING"
+                        },
+                        "cognome": {
+                            "type": "STRING"
+                        }
+                    }
+                },
+                "supervisore": {
+                    "type": "OBJECT",
+                    "properties": {
+                        "nome": {
+                            "type": "STRING"
+                        },
+                        "cognome": {
+                            "type": "STRING"
+                        }
+                    }
+                }
+            }
+        },
+        "verbale": {
+            "type": "OBJECT",
+            "properties": {
+                "data": {
+                    "type": "STRING"
+                },
+                "ora": {
+                    "type": "STRING"
+                },
+                "luogo": {
+                    "type": "STRING"
+                },
+                "tipo_prova": {
+                    "type": "STRING"
+                },
+                "descrizione_prova": {
+                    "type": "STRING"
+                }
+            }
+        },
+        "fad_info": {
+            "type": "OBJECT",
+            "properties": {
+                "piattaforma": {
+                    "type": "STRING"
+                },
+                "modalita_gestione": {
+                    "type": "STRING"
+                },
+                "modalita_valutazione": {
+                    "type": "STRING"
+                }
+            }
+        },
+        "sessioni_raw": {
+            "type": "ARRAY",
+            "items": {
+                "type": "OBJECT",
+                "properties": {
+                    "data": {
+                        "type": "STRING"
+                    },
+                    "ora_inizio": {
+                        "type": "STRING"
+                    },
+                    "ora_fine": {
+                        "type": "STRING"
+                    },
+                    "sede": {
+                        "type": "STRING"
+                    },
+                    "tipo_sede": {
+                        "type": "STRING"
+                    }
+                }
+            }
+        }
+    },
+    "required": [
+        "corso",
+        "moduli",
+        "partecipanti"
+    ]
+}
