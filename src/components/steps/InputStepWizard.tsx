@@ -37,12 +37,14 @@ const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {
     participantsData,
     isProcessing,
     useDoubleCheck,
+    useThreeStepExtraction,
     progressMessage,
     progressPercent,
     setCourseData,
     setModulesData,
     setParticipantsData,
     setUseDoubleCheck,
+    setUseThreeStepExtraction,
     handleNext,
     handleBack,
     handlePasteExample,
@@ -105,6 +107,8 @@ const InputStepWizard = ({ onComplete }: InputStepWizardProps) => {
             isProcessing={isProcessing}
             useDoubleCheck={useDoubleCheck}
             setUseDoubleCheck={setUseDoubleCheck}
+            useThreeStepExtraction={useThreeStepExtraction}
+            setUseThreeStepExtraction={setUseThreeStepExtraction}
             progressMessage={progressMessage}
             progressPercent={progressPercent}
           />

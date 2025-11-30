@@ -18,6 +18,7 @@ import {
 import { WIZARD_EXAMPLES } from '@/constants/examples';
 import { getStoredApiKey } from '@/utils/apiKeyUtils';
 import { extractCourseDataWithGemini, extractCourseDataWithDoubleCheck } from '@/services/geminiService';
+import { extractCourseDataThreeSteps } from '@/services/threeStepExtractionService';
 
 export const useWizardState = (onComplete: (data: any) => void) => {
     // State
@@ -27,6 +28,7 @@ export const useWizardState = (onComplete: (data: any) => void) => {
     const [participantsData, setParticipantsData] = useState("");
     const [isProcessing, setIsProcessing] = useState(false);
     const [useDoubleCheck, setUseDoubleCheck] = useState(true);
+    const [useThreeStepExtraction, setUseThreeStepExtraction] = useState(true); // Use three-step by default
     const [progressMessage, setProgressMessage] = useState("");
     const [progressPercent, setProgressPercent] = useState(0);
 
@@ -97,8 +99,28 @@ export const useWizardState = (onComplete: (data: any) => void) => {
         try {
             let result;
 
-            if (useDoubleCheck) {
-                // Double Check Extraction
+            if (useThreeStepExtraction) {
+                // Three-Step Extraction (NEW METHOD)
+                setProgressMessage("Avvio estrazione in 3 fasi...");
+                result = await extractCourseDataThreeSteps(
+                    apiKey,
+                    courseData,
+                    modulesData,
+                    participantsData,
+                    (msg, percent) => {
+                        setProgressMessage(msg);
+                        setProgressPercent(percent);
+                    }
+                );
+
+                // Show three-step results
+                if (result.metadata?.step_info) {
+                    toast.success("Estrazione in 3 fasi completata", {
+                        description: `Rilevati ${result.metadata.step_info.numero_moduli_rilevati} moduli e ${result.partecipanti_count} partecipanti`
+                    });
+                }
+            } else if (useDoubleCheck) {
+                // Double Check Extraction (LEGACY METHOD)
                 setProgressMessage("Avvio doppia verifica...");
                 result = await extractCourseDataWithDoubleCheck(
                     apiKey,
@@ -129,7 +151,7 @@ export const useWizardState = (onComplete: (data: any) => void) => {
                     }
                 }
             } else {
-                // Standard Extraction
+                // Standard Extraction (LEGACY METHOD)
                 setProgressMessage("Estrazione con AI in corso...");
                 setProgressPercent(30);
                 result = await extractCourseDataWithGemini(
@@ -180,6 +202,7 @@ export const useWizardState = (onComplete: (data: any) => void) => {
         participantsData,
         isProcessing,
         useDoubleCheck,
+        useThreeStepExtraction,
         progressMessage,
         progressPercent,
 
@@ -188,6 +211,7 @@ export const useWizardState = (onComplete: (data: any) => void) => {
         setModulesData,
         setParticipantsData,
         setUseDoubleCheck,
+        setUseThreeStepExtraction,
 
         // Handlers
         handleNext,
