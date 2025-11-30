@@ -21,6 +21,8 @@ interface WizardStepParticipantsProps {
     isProcessing: boolean;
     useDoubleCheck: boolean;
     setUseDoubleCheck: (value: boolean) => void;
+    useThreeStepExtraction: boolean;
+    setUseThreeStepExtraction: (value: boolean) => void;
     progressMessage: string;
     progressPercent: number;
 }
@@ -34,31 +36,55 @@ export const WizardStepParticipants = ({
     isProcessing,
     useDoubleCheck,
     setUseDoubleCheck,
+    useThreeStepExtraction,
+    setUseThreeStepExtraction,
     progressMessage,
     progressPercent,
 }: WizardStepParticipantsProps) => {
 
     const renderFooter = () => (
         <div className="space-y-4 pt-2">
-            {/* Double Check Toggle */}
-            <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
+            {/* Three-Step Extraction Toggle */}
+            <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg border border-blue-200 dark:border-blue-900">
                 <div className="space-y-0.5">
                     <div className="flex items-center gap-2">
-                        <Label htmlFor="double-check" className="text-base font-medium">
-                            {DOUBLE_CHECK_TEXT.TITLE}
+                        <Label htmlFor="three-step" className="text-base font-medium">
+                            Estrazione in 3 Fasi (Consigliato)
                         </Label>
-                        <Shield className="h-4 w-4 text-green-600" />
+                        <Sparkles className="h-4 w-4 text-blue-600" />
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        {DOUBLE_CHECK_TEXT.DESCRIPTION}
+                        Estrae i dati in 3 chiamate separate per maggiore accuratezza degli ID
                     </p>
                 </div>
                 <Switch
-                    id="double-check"
-                    checked={useDoubleCheck}
-                    onCheckedChange={setUseDoubleCheck}
+                    id="three-step"
+                    checked={useThreeStepExtraction}
+                    onCheckedChange={setUseThreeStepExtraction}
                 />
             </div>
+
+            {/* Double Check Toggle - Only visible when NOT using three-step */}
+            {!useThreeStepExtraction && (
+                <div className="flex items-center justify-between p-4 bg-muted/30 rounded-lg border border-border/50">
+                    <div className="space-y-0.5">
+                        <div className="flex items-center gap-2">
+                            <Label htmlFor="double-check" className="text-base font-medium">
+                                {DOUBLE_CHECK_TEXT.TITLE}
+                            </Label>
+                            <Shield className="h-4 w-4 text-green-600" />
+                        </div>
+                        <p className="text-sm text-muted-foreground">
+                            {DOUBLE_CHECK_TEXT.DESCRIPTION}
+                        </p>
+                    </div>
+                    <Switch
+                        id="double-check"
+                        checked={useDoubleCheck}
+                        onCheckedChange={setUseDoubleCheck}
+                    />
+                </div>
+            )}
 
             {/* Action Buttons */}
             <div className="flex justify-between items-center">
@@ -76,7 +102,13 @@ export const WizardStepParticipants = ({
                 <Button
                     onClick={onExtract}
                     disabled={isProcessing}
-                    className={`min-w-[200px] ${useDoubleCheck ? 'bg-green-600 hover:bg-green-700' : 'bg-primary hover:bg-primary/90'}`}
+                    className={`min-w-[200px] ${
+                        useThreeStepExtraction
+                            ? 'bg-blue-600 hover:bg-blue-700'
+                            : useDoubleCheck
+                                ? 'bg-green-600 hover:bg-green-700'
+                                : 'bg-primary hover:bg-primary/90'
+                    }`}
                 >
                     {isProcessing ? (
                         <>
@@ -85,7 +117,12 @@ export const WizardStepParticipants = ({
                         </>
                     ) : (
                         <>
-                            {useDoubleCheck ? (
+                            {useThreeStepExtraction ? (
+                                <>
+                                    <Sparkles className="mr-2 h-4 w-4" />
+                                    Estrai in 3 Fasi
+                                </>
+                            ) : useDoubleCheck ? (
                                 <>
                                     <Shield className="mr-2 h-4 w-4" />
                                     {BUTTON_LABELS.EXTRACT_DOUBLE_CHECK}
@@ -110,15 +147,21 @@ export const WizardStepParticipants = ({
                     </div>
                     <div className="h-2 bg-secondary rounded-full overflow-hidden">
                         <div
-                            className="h-full bg-primary transition-all duration-500 ease-out"
+                            className={`h-full transition-all duration-500 ease-out ${
+                                useThreeStepExtraction ? 'bg-blue-600' : 'bg-primary'
+                            }`}
                             style={{ width: `${progressPercent}%` }}
                         />
                     </div>
-                    {useDoubleCheck && (
+                    {useThreeStepExtraction ? (
+                        <p className="text-xs text-muted-foreground text-center italic">
+                            ✨ Estrazione in 3 fasi: calendario → ID corso/sezione → partecipanti
+                        </p>
+                    ) : useDoubleCheck ? (
                         <p className="text-xs text-muted-foreground text-center italic">
                             {INFO_MESSAGES.DOUBLE_CHECK_DESCRIPTION}
                         </p>
-                    )}
+                    ) : null}
                 </div>
             )}
         </div>
