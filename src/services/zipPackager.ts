@@ -492,7 +492,7 @@ function buildModulo5TemplateData(options: Modulo5TemplateDataOptions): Record<s
     DATA_INIZIO: startDate,
     DATA_FINE: endDate,
     ORE_TOTALI: data.corso?.ore_totali || data.corso?.durata_totale || '',
-    VERBALE_LUOGO: data.verbale?.luogo || data.sede?.nome || data.ente?.accreditato?.comune || '',
+    VERBALE_LUOGO: data.verbale?.luogo || data.ente?.accreditato?.comune || data.sede?.indirizzo || '',
     NOME_DOCENTE: docenteName,
     RESP_CERT_NOME_COMPLETO: respCertName,
     SUPERVISORE_NOME: supervisor.nome.toLowerCase(),
@@ -642,13 +642,20 @@ function buildSupervisorEmail(nome: string, cognome: string): string {
 }
 
 function buildCourseAddress(data: CourseData): string {
+  // 1. Priority: Sede address (if available)
+  if (data.sede?.indirizzo) {
+    return data.sede.indirizzo;
+  }
+
+  // 2. Fallback: Ente accredited address
   const acc = data.ente?.accreditato;
   if (acc?.via) {
     const parts = [acc.via, acc.numero_civico, acc.comune].filter(Boolean);
     return parts.join(', ');
   }
 
-  return data.sede?.indirizzo || data.ente?.indirizzo || '';
+  // 3. Last resort: Ente generic address
+  return data.ente?.indirizzo || '';
 }
 
 // ============================================================================

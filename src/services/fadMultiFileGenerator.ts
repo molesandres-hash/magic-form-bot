@@ -242,18 +242,19 @@ function prepareFADSessionData(data: CourseData, session: any, sessionIndex: num
 
         // Course info placeholders
         NOME_CORSO: data.corso?.titolo || 'N/A',
-        ID_SEZIONE: data.corso?.id || 'N/A',
-        ID_CORSO: data.corso?.id || 'N/A',
+        ID_SEZIONE: data.metadata?.modulo_corrente?.id_sezione || data.corso?.id || 'N/A',
+        ID_CORSO: data.metadata?.modulo_corrente?.id_corso || data.corso?.id || 'N/A',
 
         // --- NEW MAPPINGS FOR MODELLO A ---
         ENTE_NOME: data.ente?.nome || 'N/A',
         SEDE_ACCREDITATA: data.sede?.nome || data.ente?.accreditato?.nome || 'N/A',
         ORE_FAD: duration.toFixed(1).replace('.0', ''), // Hours for this specific session/file
         NOME_DOCENTE: data.trainer?.nome_completo || 'N/A',
+        OFFERTA_FORMATIVA: data.corso?.offerta_formativa ? `${data.corso.offerta_formativa.codice || ''} - ${data.corso.offerta_formativa.nome || ''}` : '',
 
         // FAD Specifics
-        ID_RIUNIONE: data.calendario_fad?.id_riunione || extractZoomDetails(data.calendario_fad?.strumenti || '').id || 'Da definire',
-        PASSCODE: data.calendario_fad?.passcode || extractZoomDetails(data.calendario_fad?.strumenti || '').passcode || 'Da definire',
+        ID_RIUNIONE: data.calendario_fad?.id_riunione || extractZoomDetails(data.calendario_fad?.strumenti || '').id || '',
+        PASSCODE: data.calendario_fad?.passcode || extractZoomDetails(data.calendario_fad?.strumenti || '').passcode || '',
         PIATTAFORMA: data.calendario_fad?.piattaforma || data.calendario_fad?.strumenti || 'Zoom',
 
         // Lists
@@ -264,17 +265,23 @@ function prepareFADSessionData(data: CourseData, session: any, sessionIndex: num
             }))
         ),
 
-        // Session list (even if it's just one for this file, the template might use a loop)
-        SESSIONI_FAD: [{
-            data: session.data_completa,
-            ora_inizio: session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
-            ora_fine: session.ora_fine_giornata || (session as any).ora_fine || '13:00',
+        // Session list (all FAD sessions for the course)
+        SESSIONI_FAD: fadSessions.map(s => ({
+            DATA: s.data_completa,
+            ORA_INIZIO: s.ora_inizio_giornata || (s as any).ora_inizio || '09:00',
+            ORA_FINE: s.ora_fine_giornata || (s as any).ora_fine || '13:00',
             NOME_CORSO: data.corso?.titolo || 'N/A',
             NOME_DOCENTE: data.trainer?.nome_completo || 'N/A'
-        }],
+        })),
 
-        // Participants table
-        ...partecipantiDynamic,
+        // Participants table (Fill up to 15 slots to be safe)
+        ...Array.from({ length: 15 }).reduce((acc: Record<string, string>, _, i) => {
+            const num = i + 1;
+            const p = partecipanti[i];
+            acc[`PARTECIPANTE ${num}`] = p ? p.nome_completo : '';
+            acc[`PARTECIPANTE ${num} EMAIL`] = p ? (p.email || '') : '';
+            return acc;
+        }, {}),
     };
 }
 
