@@ -13,6 +13,7 @@ import type {
     PredefinedSupervisor,
     PredefinedTrainer,
     PredefinedPlatform,
+    PredefinedOffer,
 } from '@/types/userSettings';
 import { DEFAULT_PREDEFINED_DATA } from '@/types/userSettings';
 
@@ -51,10 +52,11 @@ export function loadPredefinedData(): PredefinedDataSettings {
                 locations: (parsed.locations && parsed.locations.length > 0) ? parsed.locations : DEFAULT_PREDEFINED_DATA.locations,
                 entities: (parsed.entities && parsed.entities.length > 0) ? parsed.entities : DEFAULT_PREDEFINED_DATA.entities,
                 responsabili: (parsed.responsabili && parsed.responsabili.length > 0) ? parsed.responsabili : DEFAULT_PREDEFINED_DATA.responsabili,
-                directors: (parsed.directors && parsed.directors.length > 0) ? parsed.directors : DEFAULT_PREDEFINED_DATA.directors,
                 supervisors: (parsed.supervisors && parsed.supervisors.length > 0) ? parsed.supervisors : DEFAULT_PREDEFINED_DATA.supervisors,
                 trainers: (parsed.trainers && parsed.trainers.length > 0) ? parsed.trainers : DEFAULT_PREDEFINED_DATA.trainers,
                 platforms: (parsed.platforms && parsed.platforms.length > 0) ? parsed.platforms : DEFAULT_PREDEFINED_DATA.platforms,
+                argumentLists: (parsed.argumentLists && parsed.argumentLists.length > 0) ? parsed.argumentLists : DEFAULT_PREDEFINED_DATA.argumentLists,
+                offers: (parsed.offers && parsed.offers.length > 0) ? parsed.offers : DEFAULT_PREDEFINED_DATA.offers,
             };
         }
     } catch (error) {
@@ -105,14 +107,6 @@ export function getEnabledResponsabili(): PredefinedResponsabile[] {
 }
 
 /**
- * Gets all enabled directors
- */
-export function getEnabledDirectors(): PredefinedSupervisor[] {
-    const data = loadPredefinedData();
-    return data.directors.filter(item => item.enabled);
-}
-
-/**
  * Gets all enabled supervisors
  */
 export function getEnabledSupervisors(): PredefinedSupervisor[] {
@@ -134,6 +128,22 @@ export function getEnabledTrainers(): PredefinedTrainer[] {
 export function getEnabledPlatforms(): PredefinedPlatform[] {
     const data = loadPredefinedData();
     return data.platforms.filter(item => item.enabled);
+}
+
+/**
+ * Gets all enabled argument lists
+ */
+export function getEnabledArgumentLists(): import('@/types/userSettings').PredefinedArgumentList[] {
+    const data = loadPredefinedData();
+    return data.argumentLists.filter(item => item.enabled);
+}
+
+/**
+ * Gets all enabled offers
+ */
+export function getEnabledOffers(): PredefinedOffer[] {
+    const data = loadPredefinedData();
+    return data.offers.filter(item => item.enabled);
 }
 
 // ============================================================================
@@ -164,13 +174,7 @@ export function findResponsabileById(id: string): PredefinedResponsabile | undef
     return data.responsabili.find(item => item.id === id);
 }
 
-/**
- * Finds a director by ID
- */
-export function findDirectorById(id: string): PredefinedSupervisor | undefined {
-    const data = loadPredefinedData();
-    return data.directors.find(item => item.id === id);
-}
+
 
 /**
  * Finds a supervisor by ID
@@ -194,6 +198,14 @@ export function findTrainerById(id: string): PredefinedTrainer | undefined {
 export function findPlatformById(id: string): PredefinedPlatform | undefined {
     const data = loadPredefinedData();
     return data.platforms.find(item => item.id === id);
+}
+
+/**
+ * Finds an offer by ID
+ */
+export function findOfferById(id: string): PredefinedOffer | undefined {
+    const data = loadPredefinedData();
+    return data.offers.find(item => item.id === id);
 }
 
 // ============================================================================

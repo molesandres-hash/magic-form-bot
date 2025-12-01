@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -12,6 +12,14 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { getEnabledArgumentLists } from "@/utils/predefinedDataUtils";
 
 interface ExtractedDataType {
   corso?: {
@@ -20,7 +28,8 @@ interface ExtractedDataType {
     data_inizio?: string;
     data_fine?: string;
   };
-  partecipanti?: any[]; // Keep any for participants for now, can be refined later if needed
+  partecipanti?: any[];
+  moduli?: any[];
 }
 
 interface CompletionStepProps {
@@ -32,22 +41,71 @@ interface CompletionStepProps {
 const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepProps) => {
   const [formData, setFormData] = useState({
     direttore: "",
+    direttore_email: "",
     supervisore: "",
+    supervisore_email: "",
     responsabile_nome: "",
     responsabile_cognome: "",
     responsabile_cf: "",
+    responsabile_email: "",
     ente_accreditato: "",
     sede_ente: "",
     argomenti_lezione_1: "",
     argomenti_lezione_2: "",
   });
 
+  const [availableArgumentLists, setAvailableArgumentLists] = useState<any[]>([]);
+  const [aiArguments, setAiArguments] = useState<string[]>([]);
+
+  useEffect(() => {
+    setAvailableArgumentLists(getEnabledArgumentLists());
+  }, []);
+
+  useEffect(() => {
+    if (extractedData.moduli) {
+      const args = extractedData.moduli.flatMap(m => m.argomenti || []);
+      setAiArguments(args);
+    }
+  }, [extractedData]);
+
+  const generateEmail = (nome: string, cognome: string) => {
+    if (!nome || !cognome) return "";
+    const cleanNome = nome.trim().toLowerCase().replace(/\s+/g, '.');
+    const cleanCognome = cognome.trim().toLowerCase().replace(/\s+/g, '.');
+    return `${cleanNome}.${cleanCognome}@akgitalia.it`;
+  };
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validate required fields
     if (!formData.direttore || !formData.responsabile_nome || !formData.responsabile_cognome) {
-      toast.error("Compila tutti i campi obbligatori");
+      toast.error("Compila tutti i campi obbligatori (Direttore, Responsabile)");
+      return;
+    }
+
+    if (!formData.direttore_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.direttore_email)) {
+      toast.error("Inserisci un'email valida per il Direttore");
+      return;
+    }
+
+    if (!formData.responsabile_email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(formData.responsabile_email)) {
+      toast.error("Inserisci un'email valida per il Responsabile");
+      return;
+    }
+
+    if (!formData.ente_accreditato) {
+      toast.error("Inserisci l'Ente Accreditato");
+      return;
+    }
+
+    if (!formData.sede_ente) {
+      toast.error("Inserisci la Sede dell'Ente");
+      return;
+    }
+
+    if (!formData.argomenti_lezione_1 || !formData.argomenti_lezione_2) {
+      toast.error("Inserisci gli argomenti per entrambe le lezioni");
       return;
     }
 
@@ -62,6 +120,27 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
 
   const updateField = (field: string, value: string) => {
     setFormData(prev => ({ ...prev, [field]: value }));
+  };
+
+  const handleResponsabileChange = (field: 'nome' | 'cognome', value: string) => {
+    const newData = { ...formData, [`responsabile_${field}`]: value };
+
+    // Auto-generate email if both name and surname are present and email is empty
+    if (field === 'nome' && newData.responsabile_cognome && !newData.responsabile_email) {
+      newData.responsabile_email = generateEmail(value, newData.responsabile_cognome);
+    } else if (field === 'cognome' && newData.responsabile_nome && !newData.responsabile_email) {
+      newData.responsabile_email = generateEmail(newData.responsabile_nome, value);
+    }
+
+    setFormData(newData);
+  };
+
+  const handleArgumentListSelect = (field: string, listId: string) => {
+    const list = availableArgumentLists.find(l => l.id === listId);
+    if (list) {
+      updateField(field, list.arguments.join("\n"));
+      toast.success("Argomenti inseriti!");
+    }
   };
 
   return (
@@ -133,12 +212,30 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
                     />
                   </div>
                   <div className="space-y-2">
+                    <Label htmlFor="direttore_email">Email Direttore</Label>
+                    <Input
+                      id="direttore_email"
+                      value={formData.direttore_email}
+                      onChange={(e) => updateField("direttore_email", e.target.value)}
+                      placeholder="nome.cognome@akgitalia.it"
+                    />
+                  </div>
+                  <div className="space-y-2">
                     <Label htmlFor="supervisore">Supervisore</Label>
                     <Input
                       id="supervisore"
                       value={formData.supervisore}
                       onChange={(e) => updateField("supervisore", e.target.value)}
                       placeholder="Nome completo"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="supervisore_email">Email Supervisore</Label>
+                    <Input
+                      id="supervisore_email"
+                      value={formData.supervisore_email}
+                      onChange={(e) => updateField("supervisore_email", e.target.value)}
+                      placeholder="nome.cognome@akgitalia.it"
                     />
                   </div>
                 </div>
@@ -151,7 +248,7 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
                       <Input
                         id="resp_nome"
                         value={formData.responsabile_nome}
-                        onChange={(e) => updateField("responsabile_nome", e.target.value)}
+                        onChange={(e) => handleResponsabileChange("nome", e.target.value)}
                         required
                       />
                     </div>
@@ -160,7 +257,7 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
                       <Input
                         id="resp_cognome"
                         value={formData.responsabile_cognome}
-                        onChange={(e) => updateField("responsabile_cognome", e.target.value)}
+                        onChange={(e) => handleResponsabileChange("cognome", e.target.value)}
                         required
                       />
                     </div>
@@ -172,6 +269,15 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
                         onChange={(e) => updateField("responsabile_cf", e.target.value.toUpperCase())}
                         placeholder="RSSMRA80A01H501Z"
                         maxLength={16}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="resp_email">Email</Label>
+                      <Input
+                        id="resp_email"
+                        value={formData.responsabile_email}
+                        onChange={(e) => updateField("responsabile_email", e.target.value)}
+                        placeholder="nome.cognome@akgitalia.it"
                       />
                     </div>
                   </div>
@@ -222,7 +328,25 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
               <AccordionContent className="space-y-4 pt-4">
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <Label htmlFor="argomenti_1">Argomenti Lezione 1 (09:00-13:00)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="argomenti_1">Argomenti Lezione 1 (09:00-13:00)</Label>
+                      {availableArgumentLists.length > 0 && (
+                        <div className="w-[200px]">
+                          <Select onValueChange={(val) => handleArgumentListSelect("argomenti_lezione_1", val)}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Carica da predefiniti" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableArgumentLists.map((list) => (
+                                <SelectItem key={list.id} value={list.id}>
+                                  {list.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
                     <Textarea
                       id="argomenti_1"
                       value={formData.argomenti_lezione_1}
@@ -230,9 +354,44 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
                       placeholder="Descrivi gli argomenti trattati..."
                       rows={3}
                     />
+                    {aiArguments.length > 0 && (
+                      <div className="mt-2">
+                        <Label className="text-xs text-muted-foreground mb-1 block">Suggeriti da AI:</Label>
+                        <Select onValueChange={(val) => updateField("argomenti_lezione_1", val)}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Seleziona un argomento..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {aiArguments.map((arg, idx) => (
+                              <SelectItem key={idx} value={arg}>
+                                {arg.length > 50 ? arg.substring(0, 50) + '...' : arg}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="argomenti_2">Argomenti Lezione 2 (14:00-18:00)</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="argomenti_2">Argomenti Lezione 2 (14:00-18:00)</Label>
+                      {availableArgumentLists.length > 0 && (
+                        <div className="w-[200px]">
+                          <Select onValueChange={(val) => handleArgumentListSelect("argomenti_lezione_2", val)}>
+                            <SelectTrigger className="h-8 text-xs">
+                              <SelectValue placeholder="Carica da predefiniti" />
+                            </SelectTrigger>
+                            <SelectContent>
+                              {availableArgumentLists.map((list) => (
+                                <SelectItem key={list.id} value={list.id}>
+                                  {list.name}
+                                </SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        </div>
+                      )}
+                    </div>
                     <Textarea
                       id="argomenti_2"
                       value={formData.argomenti_lezione_2}
@@ -240,6 +399,23 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
                       placeholder="Descrivi gli argomenti trattati..."
                       rows={3}
                     />
+                    {aiArguments.length > 0 && (
+                      <div className="mt-2">
+                        <Label className="text-xs text-muted-foreground mb-1 block">Suggeriti da AI:</Label>
+                        <Select onValueChange={(val) => updateField("argomenti_lezione_2", val)}>
+                          <SelectTrigger className="h-8 text-xs">
+                            <SelectValue placeholder="Seleziona un argomento..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {aiArguments.map((arg, idx) => (
+                              <SelectItem key={idx} value={arg}>
+                                {arg.length > 50 ? arg.substring(0, 50) + '...' : arg}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+                    )}
                   </div>
                 </div>
               </AccordionContent>

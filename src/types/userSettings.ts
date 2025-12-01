@@ -62,7 +62,30 @@ export interface PredefinedLocation {
   name: string;
   /** Full address */
   address: string;
+  /** City */
+  citta?: string;
+  /** ZIP Code */
+  cap?: string;
+  /** Province */
+  provincia?: string;
   /** Whether this location is enabled */
+  enabled: boolean;
+}
+
+export interface PredefinedSede {
+  /** Unique ID */
+  id: string;
+  /** Sede name */
+  nome: string;
+  /** Full address */
+  indirizzo: string;
+  /** City */
+  citta: string;
+  /** ZIP Code */
+  cap: string;
+  /** Province */
+  provincia: string;
+  /** Whether this sede is enabled */
   enabled: boolean;
 }
 
@@ -71,8 +94,10 @@ export interface PredefinedEntity {
   id: string;
   /** Entity name */
   name: string;
-  /** Full address */
+  /** Full address (Main HQ) */
   address: string;
+  /** Sedi associated with this entity */
+  sedi: PredefinedSede[];
   /** Whether this entity is enabled */
   enabled: boolean;
 }
@@ -124,7 +149,22 @@ export interface PredefinedTrainer {
   nomeCompleto?: string;
   /** Tax ID (Codice Fiscale) */
   codiceFiscale?: string;
+  /** Phone number */
+  telefono?: string;
+  /** Email address */
+  email?: string;
   /** Whether this trainer is enabled */
+  enabled: boolean;
+}
+
+export interface PredefinedOffer {
+  /** Unique ID */
+  id: string;
+  /** Offer code (e.g. 1020) */
+  codice: string;
+  /** Offer name */
+  nome: string;
+  /** Whether this offer is enabled */
   enabled: boolean;
 }
 
@@ -158,6 +198,7 @@ export interface PredefinedDataSettings {
   trainers: PredefinedTrainer[];
   platforms: PredefinedPlatform[];
   argumentLists: PredefinedArgumentList[];
+  offers: PredefinedOffer[];
 }
 
 /**
@@ -166,14 +207,68 @@ export interface PredefinedDataSettings {
  */
 export const DEFAULT_PREDEFINED_DATA: PredefinedDataSettings = {
   locations: [
-    { id: 'loc_1', name: 'Varese', address: 'Via Carcano 18', enabled: true },
-    { id: 'loc_2', name: 'Milano Porta Romana', address: 'Corso di Porta Romana 46', enabled: true },
-    { id: 'loc_3', name: 'Milano Academy', address: 'Viale Col di Lana 6A', enabled: true },
-    { id: 'loc_4', name: 'Milano Porta Venezia', address: 'Viale Piave 40B', enabled: true },
-    { id: 'loc_5', name: 'External Training', address: 'Presso Cliente', enabled: true },
-    { id: 'loc_6', name: 'Milano Decembrio', address: 'Via Decembrio 28', enabled: true },
+    { id: 'loc_1', name: 'Varese', address: 'Via Walter Marcobi 4', citta: 'Varese', cap: '21100', provincia: 'VA', enabled: true },
+    { id: 'loc_2', name: 'Milano Porta Romana', address: 'Corso di Porta Romana 122', citta: 'Milano', cap: '20122', provincia: 'MI', enabled: true },
+    { id: 'loc_3', name: 'Milano Stazione Centrale', address: 'Via Recanate 2', citta: 'Milano', cap: '20124', provincia: 'MI', enabled: true },
+    { id: 'loc_4', name: 'Milano Porta Venezia', address: 'Viale Vittorio Veneto 20', citta: 'Milano', cap: '20124', provincia: 'MI', enabled: true },
+    { id: 'loc_6', name: 'Milano Decembrio', address: 'Via Pier Candido Decembrio 28', citta: 'Milano', cap: '20137', provincia: 'MI', enabled: true },
+    { id: 'loc_5', name: 'External Training', address: 'Presso Cliente', citta: '', cap: '', provincia: '', enabled: true },
   ],
-  entities: [],
+  entities: [
+    {
+      id: 'ent_1',
+      name: 'AK Group S.r.l',
+      address: 'Corso di Porta Romana 122, 20122 Milano (MI)',
+      enabled: true,
+      sedi: [
+        {
+          id: 'sede_ak_1',
+          nome: 'Sede Legale',
+          indirizzo: 'Corso di Porta Romana 122',
+          citta: 'Milano',
+          cap: '20122',
+          provincia: 'MI',
+          enabled: true
+        },
+        {
+          id: 'sede_ak_2',
+          nome: 'Varese',
+          indirizzo: 'Via Walter Marcobi 4',
+          citta: 'Varese',
+          cap: '21100',
+          provincia: 'VA',
+          enabled: true
+        },
+        {
+          id: 'sede_ak_3',
+          nome: 'Milano Stazione Centrale',
+          indirizzo: 'Via Recanate 2',
+          citta: 'Milano',
+          cap: '20124',
+          provincia: 'MI',
+          enabled: true
+        },
+        {
+          id: 'sede_ak_4',
+          nome: 'Milano Porta Venezia',
+          indirizzo: 'Viale Vittorio Veneto 20',
+          citta: 'Milano',
+          cap: '20124',
+          provincia: 'MI',
+          enabled: true
+        },
+        {
+          id: 'sede_ak_5',
+          nome: 'Milano Decembrio',
+          indirizzo: 'Via Pier Candido Decembrio 28',
+          citta: 'Milano',
+          cap: '20137',
+          provincia: 'MI',
+          enabled: true
+        }
+      ]
+    }
+  ],
   responsabili: [
     {
       id: 'resp_1',
@@ -199,14 +294,20 @@ export const DEFAULT_PREDEFINED_DATA: PredefinedDataSettings = {
       cognome: 'Moles',
       nomeCompleto: 'Andres Moles',
       codiceFiscale: 'MLSNRS97S25F205C',
+      telefono: '',
       enabled: true
     }
   ],
   platforms: [
+    { id: 'zoom', name: 'Zoom', enabled: true },
     { id: 'teams', name: 'Microsoft Teams', enabled: true },
     { id: 'meet', name: 'Google Meet', enabled: true },
   ],
   argumentLists: [],
+  offers: [
+    { id: 'gol_1020', codice: '1020', nome: 'GOL - Offerta per Formazione mirata all\'inserimento lavorativo', enabled: true },
+    { id: 'gol_1540', codice: '1540', nome: 'GOL - FAD 100% - Offerta per Formazione mirata all\'inserimento lavorativo', enabled: true },
+  ],
 };
 
 export interface UserSettings {
@@ -248,6 +349,10 @@ export const DEFAULT_FOLDER_STRUCTURE: FolderStructureSettings = {
       order: 1,
       enabled: true,
       fileTypes: ['docx'],
+      assignedTemplates: [
+        'local-Verbale - Corso di formazione ID XXXXX.docx',
+        'local-Verbale_con_placeholder.docx'
+      ],
       icon: '📄',
     },
     {

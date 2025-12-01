@@ -3,6 +3,7 @@ import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 import type { CourseData, EnteAccreditato, ResponsabileCorso } from "@/types/courseData";
+import type { PredefinedOffer } from "@/types/userSettings";
 
 interface CompletionSelectionProps {
     formData: CourseData;
@@ -11,6 +12,7 @@ interface CompletionSelectionProps {
     direttori: ResponsabileCorso[];
     supervisori: ResponsabileCorso[];
     responsabiliCert: ResponsabileCorso[];
+    offers: PredefinedOffer[];
 }
 
 export const CompletionSelection = ({
@@ -19,12 +21,12 @@ export const CompletionSelection = ({
     enti,
     direttori,
     supervisori,
+
     responsabiliCert,
+    offers,
 }: CompletionSelectionProps) => {
     const formatEnteLabel = (ente: EnteAccreditato) => {
-        const location = [ente.comune, ente.provincia].filter(Boolean).join(" ");
-        if (location) return `${ente.nome} - ${location}`;
-        if (ente.via) return `${ente.nome} - ${ente.via}`;
+        // Show only the entity name as requested
         return ente.nome;
     };
 
@@ -75,6 +77,44 @@ export const CompletionSelection = ({
                             Gli altri moduli possono essere aggiornati nel riquadro Moduli.
                         </p>
                     </div>
+                </div>
+
+                {/* Offerta Formativa */}
+                <div className="p-4 bg-muted/40 rounded-md">
+                    <Label htmlFor="offerta">Offerta Formativa (GOL)</Label>
+                    <Select
+                        value={formData.corso.offerta_formativa?.codice || ""}
+                        onValueChange={(value) => {
+                            const offer = offers.find(o => o.codice === value);
+                            if (offer) {
+                                updateFormData({
+                                    corso: {
+                                        ...formData.corso,
+                                        offerta_formativa: {
+                                            codice: offer.codice,
+                                            nome: offer.nome
+                                        }
+                                    }
+                                });
+                            }
+                        }}
+                    >
+                        <SelectTrigger id="offerta">
+                            <SelectValue placeholder="Seleziona offerta formativa..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                            {offers.map(offer => (
+                                <SelectItem key={offer.id} value={offer.codice}>
+                                    {offer.codice} - {offer.nome}
+                                </SelectItem>
+                            ))}
+                        </SelectContent>
+                    </Select>
+                    {offers.length === 0 && (
+                        <p className="text-xs text-muted-foreground mt-1">
+                            Nessuna offerta formativa configurata.
+                        </p>
+                    )}
                 </div>
 
                 <div className="grid gap-4">

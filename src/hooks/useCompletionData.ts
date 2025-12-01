@@ -8,8 +8,8 @@
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import type { CourseData, EnteAccreditato, ResponsabileCorso } from "@/types/courseData";
-import { getEnabledEntities, getEnabledResponsabili, getEnabledSupervisors } from "@/utils/predefinedDataUtils";
-import { listEnti, listResponsabili } from "@/services/localDb";
+import type { PredefinedOffer } from "@/types/userSettings";
+import { getEnabledEntities, getEnabledResponsabili, getEnabledSupervisors, getEnabledOffers } from "@/utils/predefinedDataUtils";
 
 export const useCompletionData = (
     initialData: CourseData,
@@ -23,6 +23,7 @@ export const useCompletionData = (
     const [direttori, setDirettori] = useState<ResponsabileCorso[]>([]);
     const [supervisori, setSupervisori] = useState<ResponsabileCorso[]>([]);
     const [responsabiliCert, setResponsabiliCert] = useState<ResponsabileCorso[]>([]);
+    const [offers, setOffers] = useState<PredefinedOffer[]>([]);
     const [loading, setLoading] = useState(true);
     const trainerFullName =
         `${formData.trainer?.nome || ''} ${formData.trainer?.cognome || ''}`.trim() ||
@@ -34,91 +35,86 @@ export const useCompletionData = (
         loadData();
     }, []);
 
-    const applyFallbackData = (message?: string) => {
-        const fallbackEnti: EnteAccreditato[] = getEnabledEntities().map(entity => ({
-            id: `local-ente-${entity.id}`,
-            nome: entity.name,
-            via: entity.address,
-            numero_civico: "",
-            comune: "",
-            cap: "",
-            provincia: ""
-        }));
+    const loadData = () => {
+        try {
+            // Load entities from predefined data and flatten them (Entity -> Sedi)
+            const predefinedEntities = getEnabledEntities();
+            const flattenedEnti: EnteAccreditato[] = [];
 
-        const supervisors = getEnabledSupervisors();
-        const fallbackDirettori: ResponsabileCorso[] = supervisors.map(sup => {
-            const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
-            return {
-                id: `local-dir-${sup.id}`,
-                tipo: "direttore",
-                nome: firstName || sup.nomeCompleto,
-                cognome: rest.join(" ") || sup.nomeCompleto,
-                qualifica: sup.qualifica
-            };
-        });
+            predefinedEntities.forEach(entity => {
+                if (entity.sedi && entity.sedi.length > 0) {
+                    // If entity has sedi, create an entry for each enabled sede
+                    entity.sedi.filter(s => s.enabled).forEach(sede => {
+                        flattenedEnti.push({
+                            id: `${entity.id}_${sede.id}`,
+                            nome: entity.name, // Entity Name (Ragione Sociale)
+                            via: sede.indirizzo,
+                            numero_civico: "", // Address usually contains civic number
+                            comune: sede.citta,
+                            cap: sede.cap,
+                            provincia: sede.provincia
+                        });
+                    });
+                } else {
+                    // Fallback for entities without sedi (shouldn't happen with new model but safe to keep)
+                    flattenedEnti.push({
+                        id: entity.id,
+                        nome: entity.name,
+                        via: entity.address,
+                        numero_civico: "",
+                        comune: "",
+                        cap: "",
+                        provincia: ""
+                    });
+                }
+            });
 
-        const fallbackSupervisori: ResponsabileCorso[] = supervisors.map(sup => {
-            const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
-            return {
-                id: `local-sup-${sup.id}`,
-                tipo: "supervisore",
-                nome: firstName || sup.nomeCompleto,
-                cognome: rest.join(" ") || sup.nomeCompleto,
-                qualifica: sup.qualifica
-            };
-        });
+            const supervisors = getEnabledSupervisors();
+            const fallbackDirettori: ResponsabileCorso[] = supervisors.map(sup => {
+                const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
+                return {
+                    id: `local-dir-${sup.id}`,
+                    tipo: "direttore",
+                    nome: firstName || sup.nomeCompleto || "",
+                    cognome: rest.join(" ") || sup.nomeCompleto || "",
+                    qualifica: sup.qualifica
+                };
+            });
 
-        const fallbackResponsabili: ResponsabileCorso[] = getEnabledResponsabili().map(resp => ({
-            id: `local-resp-${resp.id}`,
-            tipo: "responsabile_cert",
-            nome: resp.nome,
-            cognome: resp.cognome,
-            qualifica: "Responsabile Certificazione",
-            data_nascita: resp.dataNascita,
-            citta_nascita: resp.cittaNascita,
-            provincia_nascita: resp.provinciaNascita,
-            citta_residenza: resp.cittaResidenza,
-            via_residenza: resp.viaResidenza,
-            numero_civico_residenza: resp.numeroCivico,
-            documento_identita: resp.documento
-        }));
+            const fallbackSupervisori: ResponsabileCorso[] = supervisors.map(sup => {
+                const [firstName, ...rest] = (sup.nomeCompleto || "").split(" ");
+                return {
+                    id: `local-sup-${sup.id}`,
+                    tipo: "supervisore",
+                    nome: firstName || sup.nomeCompleto || "",
+                    cognome: rest.join(" ") || sup.nomeCompleto || "",
+                    qualifica: sup.qualifica
+                };
+            });
 
-        if (fallbackEnti.length || fallbackDirettori.length || fallbackSupervisori.length || fallbackResponsabili.length) {
-            setEnti(fallbackEnti);
+            const fallbackResponsabili: ResponsabileCorso[] = getEnabledResponsabili().map(resp => ({
+                id: `local-resp-${resp.id}`,
+                tipo: "responsabile_cert",
+                nome: resp.nome,
+                cognome: resp.cognome,
+                qualifica: "Responsabile Certificazione",
+                data_nascita: resp.dataNascita,
+                citta_nascita: resp.cittaNascita,
+                provincia_nascita: resp.provinciaNascita,
+                citta_residenza: resp.cittaResidenza,
+                via_residenza: resp.viaResidenza,
+                numero_civico_residenza: resp.numeroCivico,
+                documento_identita: resp.documento
+            }));
+
+            setEnti(flattenedEnti);
             setDirettori(fallbackDirettori);
             setSupervisori(fallbackSupervisori);
             setResponsabiliCert(fallbackResponsabili);
-            if (message) {
-                toast.info(message);
-            }
-        }
-    };
-
-    const loadData = async () => {
-        try {
-            const [entiData, responsabiliData] = await Promise.all([
-                listEnti(),
-                listResponsabili()
-            ]);
-
-            setEnti(entiData || []);
-
-            const typedResponsabili = (responsabiliData || []).map(r => ({
-                ...r,
-                tipo: r.tipo as 'direttore' | 'supervisore' | 'responsabile_cert'
-            }));
-
-            setDirettori(typedResponsabili.filter(r => r.tipo === 'direttore'));
-            setSupervisori(typedResponsabili.filter(r => r.tipo === 'supervisore'));
-            setResponsabiliCert(typedResponsabili.filter(r => r.tipo === 'responsabile_cert'));
-
-            if ((entiData?.length || 0) === 0 && (responsabiliData?.length || 0) === 0) {
-                applyFallbackData("Nessun dato salvato: uso i valori predefiniti salvati in locale.");
-            }
+            setOffers(getEnabledOffers());
         } catch (error: any) {
             console.error("Error loading data:", error);
             toast.error("Errore caricamento dati: " + error.message);
-            applyFallbackData("Errore nel recupero dei dati locali: uso i dati predefiniti salvati in locale.");
         } finally {
             setLoading(false);
         }
@@ -130,9 +126,9 @@ export const useCompletionData = (
 
         const normalizedTrainer = trainerFullName.toLowerCase();
         const match = direttori.find((dir) =>
-            `${dir.nome} ${dir.cognome}`.toLowerCase().trim() === normalizedTrainer ||
-            dir.nome.toLowerCase() === normalizedTrainer ||
-            dir.cognome.toLowerCase() === normalizedTrainer
+            `${dir.nome || ''} ${dir.cognome || ''}`.toLowerCase().trim() === normalizedTrainer ||
+            dir.nome?.toLowerCase() === normalizedTrainer ||
+            dir.cognome?.toLowerCase() === normalizedTrainer
         );
 
         if (match) {
@@ -197,6 +193,7 @@ export const useCompletionData = (
         direttori,
         supervisori,
         responsabiliCert,
+        offers,
         loading,
         updateFormData,
         validateAndSubmit

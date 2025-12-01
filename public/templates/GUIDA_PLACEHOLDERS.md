@@ -25,6 +25,8 @@ Il sistema sostituirà `{{NOME_VARIABILE}}` con il valore corrispondente.
 | `{{DATA_FINE}}` | La data dell'ultima lezione | "30/10/2025" |
 | `{{ORE_TOTALI}}` | Numero totale di ore del corso | "40" |
 | `{{ANNO_CORSO}}` | Anno del corso | "2025" |
+| `{{CODICE_OFFERTA_FORMATIVA}}` | Codice offerta GOL | "1020" |
+| `{{NOME_OFFERTA_FORMATIVA}}` | Nome offerta GOL | "GOL - Offerta per Formazione..." |
 
 ### Dati Docente / Responsabile Corso
 > **Nota**: Il docente è anche il "Responsabile del Corso" (Course Director).
@@ -33,6 +35,7 @@ Il sistema sostituirà `{{NOME_VARIABILE}}` con il valore corrispondente.
 |-------------|-------------|---------|
 | `{{NOME_DOCENTE}}` | Nome e cognome del docente/responsabile corso | "Mario Rossi" |
 | `{{CODICE_FISCALE_DOCENTE}}` | Codice fiscale del docente | "RSSMRA80A01H501U" |
+| `{{TELEFONO_DOCENTE}}` | Telefono del docente | "+39 333 1234567" |
 
 ### Dati Partecipante (per Attestati)
 | Placeholder | Descrizione | Esempio |
@@ -308,9 +311,11 @@ ____________________________
 | `{{anno}}` | Anno | "2025" |
 | `{{ora_inizio}}` | Ora inizio lezione FAD | "9:00" |
 | `{{ora_fine}}` | Ora fine lezione FAD | "13:00" |
-| `{{argomento_sessione}}` | Argomento casuale dalla lista configurata * | "Sicurezza sul lavoro" |
+| `{{argomento_sessione}}` | Argomento per il giorno * | "Sicurezza sul lavoro" |
 
-*L'argomento viene scelto casualmente dalle "Liste Argomenti" configurate in Impostazioni → Dati Predefiniti
+*L'argomento viene scelto dalle "Liste Argomenti" configurate:
+- Se il numero di argomenti corrisponde ai giorni, vengono assegnati in ordine cronologico.
+- Altrimenti, vengono assegnati sequenzialmente (ripetendo se necessario).
 
 ### Come Funziona
 

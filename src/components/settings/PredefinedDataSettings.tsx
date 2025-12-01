@@ -55,6 +55,7 @@ import type {
     PredefinedTrainer,
     PredefinedPlatform,
     PredefinedArgumentList,
+    PredefinedSede,
 } from '@/types/userSettings';
 
 // ============================================================================
@@ -124,6 +125,9 @@ const PredefinedDataSettings = () => {
             id: generatePredefinedDataId('location'),
             name: newLocation.name,
             address: newLocation.address,
+            citta: newLocation.citta || '',
+            cap: newLocation.cap || '',
+            provincia: newLocation.provincia || '',
             enabled: true,
         };
 
@@ -154,14 +158,16 @@ const PredefinedDataSettings = () => {
     };
 
     // ========================================================================
-    // ENTITIES
+    // ENTITIES & SEDI
     // ========================================================================
 
     const [newEntity, setNewEntity] = useState<Partial<PredefinedEntity>>({});
+    const [newSede, setNewSede] = useState<Partial<PredefinedSede>>({});
+    const [selectedEntityId, setSelectedEntityId] = useState<string | null>(null);
 
     const handleAddEntity = () => {
         if (!newEntity.name || !newEntity.address) {
-            toast.error('Nome e indirizzo sono obbligatori');
+            toast.error('Nome e indirizzo sede legale sono obbligatori');
             return;
         }
 
@@ -169,6 +175,7 @@ const PredefinedDataSettings = () => {
             id: generatePredefinedDataId('entity'),
             name: newEntity.name,
             address: newEntity.address,
+            sedi: [], // Initialize with empty sedi array
             enabled: true,
         };
 
@@ -182,6 +189,8 @@ const PredefinedDataSettings = () => {
     };
 
     const handleRemoveEntity = (id: string) => {
+        if (!confirm('Sei sicuro? Questo eliminerà anche tutte le sedi associate.')) return;
+
         setData((prev) => ({
             ...prev,
             entities: prev.entities.filter((e) => e.id !== id),
@@ -196,6 +205,56 @@ const PredefinedDataSettings = () => {
                 e.id === id ? { ...e, enabled: !e.enabled } : e
             ),
         }));
+    };
+
+    // Sedi Management
+    const handleAddSede = (entityId: string) => {
+        if (!newSede.nome || !newSede.indirizzo || !newSede.citta) {
+            toast.error('Nome, indirizzo e città sono obbligatori');
+            return;
+        }
+
+        const sede: PredefinedSede = {
+            id: generatePredefinedDataId('sede'),
+            nome: newSede.nome,
+            indirizzo: newSede.indirizzo,
+            citta: newSede.citta,
+            cap: newSede.cap || '',
+            provincia: newSede.provincia || '',
+            enabled: true,
+        };
+
+        setData((prev) => ({
+            ...prev,
+            entities: prev.entities.map((e) => {
+                if (e.id === entityId) {
+                    return {
+                        ...e,
+                        sedi: [...(e.sedi || []), sede]
+                    };
+                }
+                return e;
+            }),
+        }));
+
+        setNewSede({});
+        toast.success('Sede aggiunta all\'ente!');
+    };
+
+    const handleRemoveSede = (entityId: string, sedeId: string) => {
+        setData((prev) => ({
+            ...prev,
+            entities: prev.entities.map((e) => {
+                if (e.id === entityId) {
+                    return {
+                        ...e,
+                        sedi: (e.sedi || []).filter(s => s.id !== sedeId)
+                    };
+                }
+                return e;
+            }),
+        }));
+        toast.success('Sede rimossa');
     };
 
     // ========================================================================
@@ -220,6 +279,8 @@ const PredefinedDataSettings = () => {
             nome: newTrainer.nome,
             cognome: newTrainer.cognome,
             codiceFiscale: newTrainer.codiceFiscale.toUpperCase(),
+            telefono: newTrainer.telefono || '',
+            email: newTrainer.email || '',
             enabled: true,
         };
 
@@ -509,18 +570,38 @@ const PredefinedDataSettings = () => {
                         <AccordionContent>
                             <CardContent className="space-y-4">
                                 {/* Add New Form */}
-                                <div className="grid grid-cols-2 gap-3 p-4 bg-accent/5 rounded-lg">
-                                    <Input
-                                        placeholder="Nome sede"
-                                        value={newLocation.name || ''}
-                                        onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
-                                    />
-                                    <Input
-                                        placeholder="Indirizzo completo"
-                                        value={newLocation.address || ''}
-                                        onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
-                                    />
-                                    <Button onClick={handleAddLocation} size="sm" className="col-span-2">
+                                <div className="p-4 bg-accent/5 rounded-lg space-y-3">
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Input
+                                            placeholder="Nome sede"
+                                            value={newLocation.name || ''}
+                                            onChange={(e) => setNewLocation({ ...newLocation, name: e.target.value })}
+                                        />
+                                        <Input
+                                            placeholder="Indirizzo completo"
+                                            value={newLocation.address || ''}
+                                            onChange={(e) => setNewLocation({ ...newLocation, address: e.target.value })}
+                                        />
+                                    </div>
+                                    <div className="grid grid-cols-3 gap-3">
+                                        <Input
+                                            placeholder="Città"
+                                            value={newLocation.citta || ''}
+                                            onChange={(e) => setNewLocation({ ...newLocation, citta: e.target.value })}
+                                        />
+                                        <Input
+                                            placeholder="CAP"
+                                            value={newLocation.cap || ''}
+                                            onChange={(e) => setNewLocation({ ...newLocation, cap: e.target.value })}
+                                        />
+                                        <Input
+                                            placeholder="Prov"
+                                            value={newLocation.provincia || ''}
+                                            onChange={(e) => setNewLocation({ ...newLocation, provincia: e.target.value })}
+                                            maxLength={2}
+                                        />
+                                    </div>
+                                    <Button onClick={handleAddLocation} size="sm" className="w-full">
                                         <Plus className="mr-2 h-4 w-4" />
                                         Aggiungi Sede
                                     </Button>
@@ -536,7 +617,11 @@ const PredefinedDataSettings = () => {
                                             >
                                                 <div className="flex-1">
                                                     <p className="font-medium">{location.name}</p>
-                                                    <p className="text-sm text-muted-foreground">{location.address}</p>
+                                                    <p className="text-sm text-muted-foreground">
+                                                        {location.address}
+                                                        {location.citta ? `, ${location.citta}` : ''}
+                                                        {location.provincia ? ` (${location.provincia})` : ''}
+                                                    </p>
                                                 </div>
                                                 <div className="flex items-center gap-2">
                                                     <Switch
@@ -572,7 +657,7 @@ const PredefinedDataSettings = () => {
                             <div className="flex items-center gap-3">
                                 <Building2 className="h-5 w-5 text-primary" />
                                 <div className="text-left">
-                                    <h3 className="font-semibold">Enti</h3>
+                                    <h3 className="font-semibold">Enti e Sedi</h3>
                                     <p className="text-sm text-muted-foreground">
                                         {data.entities.length} enti configurati
                                     </p>
@@ -580,59 +665,147 @@ const PredefinedDataSettings = () => {
                             </div>
                         </AccordionTrigger>
                         <AccordionContent>
-                            <CardContent className="space-y-4">
-                                {/* Add New Form */}
-                                <div className="grid grid-cols-2 gap-3 p-4 bg-accent/5 rounded-lg">
-                                    <Input
-                                        placeholder="Nome ente"
-                                        value={newEntity.name || ''}
-                                        onChange={(e) => setNewEntity({ ...newEntity, name: e.target.value })}
-                                    />
-                                    <Input
-                                        placeholder="Indirizzo completo"
-                                        value={newEntity.address || ''}
-                                        onChange={(e) => setNewEntity({ ...newEntity, address: e.target.value })}
-                                    />
-                                    <Button onClick={handleAddEntity} size="sm" className="col-span-2">
-                                        <Plus className="mr-2 h-4 w-4" />
-                                        Aggiungi Ente
-                                    </Button>
+                            <CardContent className="space-y-6">
+                                {/* Add New Entity Form */}
+                                <div className="p-4 bg-accent/5 rounded-lg space-y-3">
+                                    <h4 className="font-medium text-sm">Nuovo Ente</h4>
+                                    <div className="grid grid-cols-2 gap-3">
+                                        <Input
+                                            placeholder="Ragione Sociale (es. AK Group S.r.l)"
+                                            value={newEntity.name || ''}
+                                            onChange={(e) => setNewEntity({ ...newEntity, name: e.target.value })}
+                                        />
+                                        <Input
+                                            placeholder="Indirizzo Sede Legale"
+                                            value={newEntity.address || ''}
+                                            onChange={(e) => setNewEntity({ ...newEntity, address: e.target.value })}
+                                        />
+                                        <Button onClick={handleAddEntity} size="sm" className="col-span-2">
+                                            <Plus className="mr-2 h-4 w-4" />
+                                            Aggiungi Ente
+                                        </Button>
+                                    </div>
                                 </div>
 
-                                {/* List */}
-                                {data.entities.length > 0 ? (
-                                    <div className="space-y-2">
-                                        {data.entities.map((entity) => (
-                                            <div
-                                                key={entity.id}
-                                                className="flex items-center justify-between p-3 border rounded-lg"
-                                            >
-                                                <div className="flex-1">
-                                                    <p className="font-medium">{entity.name}</p>
-                                                    <p className="text-sm text-muted-foreground">{entity.address}</p>
+                                {/* Entities List */}
+                                <div className="space-y-4">
+                                    {data.entities.map((entity) => (
+                                        <Card key={entity.id} className="border-l-4 border-l-primary">
+                                            <div className="p-4">
+                                                <div className="flex items-start justify-between mb-4">
+                                                    <div>
+                                                        <h4 className="font-bold text-lg">{entity.name}</h4>
+                                                        <p className="text-sm text-muted-foreground">{entity.address}</p>
+                                                    </div>
+                                                    <div className="flex items-center gap-2">
+                                                        <Switch
+                                                            checked={entity.enabled}
+                                                            onCheckedChange={() => handleToggleEntity(entity.id)}
+                                                        />
+                                                        <Button
+                                                            onClick={() => handleRemoveEntity(entity.id)}
+                                                            variant="ghost"
+                                                            size="sm"
+                                                            className="text-destructive"
+                                                        >
+                                                            <Trash2 className="h-4 w-4" />
+                                                        </Button>
+                                                    </div>
                                                 </div>
-                                                <div className="flex items-center gap-2">
-                                                    <Switch
-                                                        checked={entity.enabled}
-                                                        onCheckedChange={() => handleToggleEntity(entity.id)}
-                                                    />
-                                                    <Button
-                                                        onClick={() => handleRemoveEntity(entity.id)}
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        className="text-destructive"
-                                                    >
-                                                        <Trash2 className="h-4 w-4" />
-                                                    </Button>
+
+                                                {/* Sedi Management for this Entity */}
+                                                <div className="pl-4 border-l-2 border-muted space-y-3">
+                                                    <div className="flex items-center justify-between">
+                                                        <h5 className="text-sm font-semibold">Sedi Operative</h5>
+                                                        <Button
+                                                            variant="outline"
+                                                            size="sm"
+                                                            className="h-7 text-xs"
+                                                            onClick={() => setSelectedEntityId(selectedEntityId === entity.id ? null : entity.id)}
+                                                        >
+                                                            {selectedEntityId === entity.id ? 'Chiudi' : 'Aggiungi Sede'}
+                                                        </Button>
+                                                    </div>
+
+                                                    {/* Add Sede Form (Collapsible) */}
+                                                    {selectedEntityId === entity.id && (
+                                                        <div className="p-3 bg-background border rounded-md space-y-3 animate-in fade-in zoom-in-95 duration-200">
+                                                            <Input
+                                                                placeholder="Nome Sede (es. Filiale Milano)"
+                                                                value={newSede.nome || ''}
+                                                                onChange={(e) => setNewSede({ ...newSede, nome: e.target.value })}
+                                                                className="h-8 text-sm"
+                                                            />
+                                                            <Input
+                                                                placeholder="Indirizzo"
+                                                                value={newSede.indirizzo || ''}
+                                                                onChange={(e) => setNewSede({ ...newSede, indirizzo: e.target.value })}
+                                                                className="h-8 text-sm"
+                                                            />
+                                                            <div className="grid grid-cols-3 gap-2">
+                                                                <Input
+                                                                    placeholder="Città"
+                                                                    value={newSede.citta || ''}
+                                                                    onChange={(e) => setNewSede({ ...newSede, citta: e.target.value })}
+                                                                    className="h-8 text-sm"
+                                                                />
+                                                                <Input
+                                                                    placeholder="CAP"
+                                                                    value={newSede.cap || ''}
+                                                                    onChange={(e) => setNewSede({ ...newSede, cap: e.target.value })}
+                                                                    className="h-8 text-sm"
+                                                                />
+                                                                <Input
+                                                                    placeholder="Prov"
+                                                                    value={newSede.provincia || ''}
+                                                                    onChange={(e) => setNewSede({ ...newSede, provincia: e.target.value })}
+                                                                    className="h-8 text-sm"
+                                                                    maxLength={2}
+                                                                />
+                                                            </div>
+                                                            <Button onClick={() => handleAddSede(entity.id)} size="sm" className="w-full h-8">
+                                                                Salva Sede
+                                                            </Button>
+                                                        </div>
+                                                    )}
+
+                                                    {/* Sedi List */}
+                                                    {(entity.sedi || []).length > 0 ? (
+                                                        <div className="grid gap-2">
+                                                            {(entity.sedi || []).map((sede) => (
+                                                                <div key={sede.id} className="flex items-center justify-between p-2 bg-muted/50 rounded text-sm">
+                                                                    <div>
+                                                                        <span className="font-medium">{sede.nome}</span>
+                                                                        <span className="mx-2 text-muted-foreground">•</span>
+                                                                        <span className="text-muted-foreground">
+                                                                            {sede.indirizzo}, {sede.citta} ({sede.provincia})
+                                                                        </span>
+                                                                    </div>
+                                                                    <Button
+                                                                        variant="ghost"
+                                                                        size="sm"
+                                                                        className="h-6 w-6 p-0 text-destructive"
+                                                                        onClick={() => handleRemoveSede(entity.id, sede.id)}
+                                                                    >
+                                                                        <X className="h-3 w-3" />
+                                                                    </Button>
+                                                                </div>
+                                                            ))}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-xs text-muted-foreground italic">Nessuna sede operativa registrata</p>
+                                                    )}
                                                 </div>
                                             </div>
-                                        ))}
-                                    </div>
-                                ) : (
-                                    <p className="text-center text-sm text-muted-foreground py-4">
-                                        Nessun ente configurato
-                                    </p>
-                                )}
+                                        </Card>
+                                    ))}
+
+                                    {data.entities.length === 0 && (
+                                        <p className="text-center text-muted-foreground py-8">
+                                            Nessun ente configurato. Aggiungi il primo!
+                                        </p>
+                                    )}
+                                </div>
                             </CardContent>
                         </AccordionContent>
                     </Card>
@@ -860,6 +1033,17 @@ const PredefinedDataSettings = () => {
                                         onChange={(e) =>
                                             setNewTrainer({ ...newTrainer, codiceFiscale: e.target.value.toUpperCase() })
                                         }
+                                    />
+                                    <Input
+                                        placeholder="Telefono"
+                                        value={newTrainer.telefono || ''}
+                                        onChange={(e) => setNewTrainer({ ...newTrainer, telefono: e.target.value })}
+                                    />
+                                    <Input
+                                        placeholder="Email"
+                                        value={newTrainer.email || ''}
+                                        onChange={(e) => setNewTrainer({ ...newTrainer, email: e.target.value })}
+                                        className="col-span-3"
                                     />
                                     <Button onClick={handleAddTrainer} size="sm" className="col-span-3">
                                         <Plus className="mr-2 h-4 w-4" />

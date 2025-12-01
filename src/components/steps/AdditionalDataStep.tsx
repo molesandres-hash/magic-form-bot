@@ -48,6 +48,11 @@ const ERROR_MESSAGES = {
   EMPTY_CF: 'Inserisci il Codice Fiscale del docente',
   EMPTY_LOCATION: 'Seleziona una sede accreditata',
   EMPTY_ENTITY: 'Seleziona un ente',
+  EMPTY_NAME: 'Inserisci il nome del docente',
+  EMPTY_SURNAME: 'Inserisci il cognome del docente',
+  EMPTY_EMAIL: 'Inserisci l\'email del docente',
+  INVALID_EMAIL: 'Email non valida',
+  EMPTY_PHONE: 'Inserisci il telefono del docente',
 } as const;
 
 const CUSTOM_OPTION_VALUE = '__CUSTOM__';
@@ -130,6 +135,7 @@ export interface AdditionalData {
   codiceFiscaleDocente: string;
   nomeDocente?: string;
   cognomeDocente?: string;
+  telefonoDocente?: string;
   linkZoom?: string;
   idRiunione?: string;
   passcode?: string;
@@ -139,6 +145,7 @@ export interface AdditionalData {
   nomeEnte?: string;
   indirizzoEnte?: string;
   note?: string;
+  emailDocente?: string;
 }
 
 // ============================================================================
@@ -166,6 +173,8 @@ const AdditionalDataStep = ({
   );
   const [nomeDocente, setNomeDocente] = useState(initialData?.nomeDocente || '');
   const [cognomeDocente, setCognomeDocente] = useState(initialData?.cognomeDocente || '');
+  const [telefonoDocente, setTelefonoDocente] = useState(initialData?.telefonoDocente || '');
+  const [emailDocente, setEmailDocente] = useState(initialData?.emailDocente || '');
   const [linkZoom, setLinkZoom] = useState(initialData?.linkZoom || '');
   const [idRiunione, setIdRiunione] = useState(initialData?.idRiunione || '');
   const [passcode, setPasscode] = useState(initialData?.passcode || '');
@@ -200,15 +209,19 @@ const AdditionalDataStep = ({
     if (value !== CUSTOM_OPTION_VALUE) {
       const trainer = findTrainerById(value);
       if (trainer) {
-        setCodiceFiscaleDocente(trainer.codiceFiscale);
+        setCodiceFiscaleDocente(trainer.codiceFiscale || '');
         setNomeDocente(trainer.nome);
         setCognomeDocente(trainer.cognome);
+        setTelefonoDocente(trainer.telefono || '');
+        setEmailDocente(trainer.email || '');
       }
     } else {
       // Clear fields when "Custom" is selected
       setCodiceFiscaleDocente('');
       setNomeDocente('');
       setCognomeDocente('');
+      setTelefonoDocente('');
+      setEmailDocente('');
     }
   };
 
@@ -273,11 +286,34 @@ const AdditionalDataStep = ({
       return;
     }
 
+    // Validate Name/Surname/Email/Phone
+    if (!nomeDocente.trim()) {
+      toast.error(ERROR_MESSAGES.EMPTY_NAME);
+      return;
+    }
+    if (!cognomeDocente.trim()) {
+      toast.error(ERROR_MESSAGES.EMPTY_SURNAME);
+      return;
+    }
+    if (!emailDocente.trim()) {
+      toast.error(ERROR_MESSAGES.EMPTY_EMAIL);
+      return;
+    }
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailDocente.trim())) {
+      toast.error(ERROR_MESSAGES.INVALID_EMAIL);
+      return;
+    }
+    if (!telefonoDocente.trim()) {
+      toast.error(ERROR_MESSAGES.EMPTY_PHONE);
+      return;
+    }
+
     // All validations passed
     const data: AdditionalData = {
       codiceFiscaleDocente: codiceFiscaleDocente.toUpperCase().trim(),
       nomeDocente: nomeDocente.trim() || undefined,
       cognomeDocente: cognomeDocente.trim() || undefined,
+      telefonoDocente: telefonoDocente.trim() || undefined,
       linkZoom: linkZoom.trim() || undefined,
       idRiunione: idRiunione.trim() || undefined,
       passcode: passcode.trim() || undefined,
@@ -287,6 +323,7 @@ const AdditionalDataStep = ({
       nomeEnte: nomeEnte.trim() || undefined,
       indirizzoEnte: indirizzoEnte.trim() || undefined,
       note: note.trim() || undefined,
+      emailDocente: emailDocente.trim() || undefined,
     };
 
     onComplete(data);
@@ -302,6 +339,26 @@ const AdditionalDataStep = ({
       setSelectedTrainerId(CUSTOM_OPTION_VALUE);
     }
   };
+
+  const generateEmail = (nome: string, cognome: string) => {
+    if (!nome || !cognome) return "";
+    const cleanNome = nome.trim().toLowerCase().replace(/\s+/g, '.');
+    const cleanCognome = cognome.trim().toLowerCase().replace(/\s+/g, '.');
+    return `${cleanNome}.${cleanCognome}@akgitalia.it`;
+  };
+
+  useEffect(() => {
+    // Auto-generate email if name/surname are present and email is empty or looks like an auto-generated one
+    if (nomeDocente && cognomeDocente) {
+      const generated = generateEmail(nomeDocente, cognomeDocente);
+      // Update if email is empty OR if it matches the previous auto-generated pattern (heuristic)
+      // We check if the current email ends with @akgitalia.it to allow updates, 
+      // but we don't overwrite if the user has typed something completely different.
+      if (!emailDocente || emailDocente.endsWith('@akgitalia.it')) {
+        setEmailDocente(generated);
+      }
+    }
+  }, [nomeDocente, cognomeDocente]);
 
   // Auto-select predefined options using the closest match from extracted data
   useEffect(() => {
@@ -446,6 +503,25 @@ const AdditionalDataStep = ({
                   disabled={selectedTrainerId !== CUSTOM_OPTION_VALUE && hasTrainers}
                 />
               </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="telefono-docente" className="text-sm">Telefono</Label>
+              <Input
+                id="telefono-docente"
+                value={telefonoDocente}
+                onChange={(e) => setTelefonoDocente(e.target.value)}
+                placeholder="+39 333 1234567"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="email-docente" className="text-sm">Email</Label>
+              <Input
+                value={emailDocente}
+                onChange={(e) => setEmailDocente(e.target.value)}
+                placeholder="nome.cognome@akgitalia.it"
+              />
             </div>
 
             <div className="space-y-2">

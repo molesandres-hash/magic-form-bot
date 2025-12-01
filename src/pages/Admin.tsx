@@ -6,7 +6,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FileText, Upload, Settings, LogOut, Shield } from "lucide-react";
 import { toast } from "sonner";
 import TemplateManager from "@/components/admin/TemplateManager";
-import { EntiResponsabiliManager } from "@/components/admin/EntiResponsabiliManager";
+
 import { getSession, signOut } from "@/services/localAuth";
 
 const Admin = () => {
@@ -109,23 +109,15 @@ const Admin = () => {
 
           {/* Tabs */}
           <Tabs defaultValue="templates" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-1">
               <TabsTrigger value="templates">
                 <FileText className="w-4 h-4 mr-2" />
                 Template Documenti
               </TabsTrigger>
-              <TabsTrigger value="enti">
-                <Settings className="w-4 h-4 mr-2" />
-                Enti e Responsabili
-              </TabsTrigger>
             </TabsList>
-            
+
             <TabsContent value="templates" className="mt-6">
               <TemplateManager />
-            </TabsContent>
-            
-            <TabsContent value="enti" className="mt-6">
-              <EntiResponsabiliManager />
             </TabsContent>
           </Tabs>
         </div>

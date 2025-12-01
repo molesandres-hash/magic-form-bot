@@ -9,13 +9,7 @@ import { Card } from "@/components/ui/card";
 import { Download, FileText, CheckCircle, ChevronLeft, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import type { CourseData } from "@/types/courseData";
-import {
-  generateRegistroDidattico,
-  generateVerbalePartecipazione,
-  generateVerbaleScrutinio,
-  generateModelloFAD,
-  downloadWordDocument,
-} from "@/services/wordDocumentGenerator";
+// Legacy word generator removed - using template system only
 import {
   generateParticipantsExcel,
   generateAttendanceExcel,
@@ -40,30 +34,6 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
   const shouldGenerateFAD = hasFADSessions || data.corso?.tipo?.toLowerCase().includes('fad');
 
   const documents = [
-    {
-      id: "registro",
-      name: `Registro_Didattico_${data.corso?.id}.docx`,
-      type: "Registro Didattico e Presenze",
-      icon: "📋",
-      generated: true,
-      category: "word",
-    },
-    {
-      id: "verbale",
-      name: `Verbale_Partecipazione_${data.corso?.id}.docx`,
-      type: "Verbale di Partecipazione",
-      icon: "📄",
-      generated: true,
-      category: "word",
-    },
-    {
-      id: "verbale_scrutinio",
-      name: `Verbale_Scrutinio_${data.corso?.id}.docx`,
-      type: "Verbale Scrutinio",
-      icon: "📝",
-      generated: true,
-      category: "word",
-    },
     {
       id: "fad_registries",
       name: `Registri_FAD/`,
@@ -107,30 +77,6 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
 
     try {
       switch (docId) {
-        case "registro":
-          {
-            const blob = await generateRegistroDidattico(data);
-            await downloadWordDocument(blob, documents.find((d) => d.id === docId)!.name);
-            toast.success("Registro Didattico scaricato!");
-          }
-          break;
-
-        case "verbale":
-          {
-            const blob = await generateVerbalePartecipazione(data);
-            await downloadWordDocument(blob, documents.find((d) => d.id === docId)!.name);
-            toast.success("Verbale di Partecipazione scaricato!");
-          }
-          break;
-
-        case "verbale_scrutinio":
-          {
-            const blob = await generateVerbaleScrutinio(data);
-            await downloadWordDocument(blob, documents.find((d) => d.id === docId)!.name);
-            toast.success("Verbale Scrutinio scaricato!");
-          }
-          break;
-
         case "fad_registries":
           {
             toast.info("Generazione ZIP Registri FAD...", {
@@ -267,44 +213,6 @@ const GenerationStep = ({ data, onBack }: GenerationStepProps) => {
               </div>
             </div>
           </Card>
-
-          {/* Word Documents Section */}
-          <div className="space-y-3">
-            <h3 className="font-semibold text-foreground mb-4">📄 Documenti Word</h3>
-            {documents
-              .filter((doc) => doc.category === "word" && doc.generated)
-              .map((doc) => (
-                <Card key={doc.id} className="p-4 hover:shadow-md transition-shadow">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4 flex-1">
-                      <div className="text-3xl">{doc.icon}</div>
-                      <div className="flex-1">
-                        <h4 className="font-semibold text-foreground">{doc.name}</h4>
-                        <p className="text-sm text-muted-foreground">{doc.type}</p>
-                      </div>
-                    </div>
-                    <Button
-                      onClick={() => handleDownload(doc.id)}
-                      variant="outline"
-                      className="gap-2"
-                      disabled={isGenerating === doc.id}
-                    >
-                      {isGenerating === doc.id ? (
-                        <>
-                          <Loader2 className="h-4 w-4 animate-spin" />
-                          Generazione...
-                        </>
-                      ) : (
-                        <>
-                          <Download className="h-4 w-4" />
-                          Scarica
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                </Card>
-              ))}
-          </div>
 
           {/* Excel Documents Section */}
           <div className="space-y-3">

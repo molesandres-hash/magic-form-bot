@@ -40,6 +40,7 @@ REGOLE:
 - Per gli orari usa formato HH:MM (24 ore)
 - Se un dato non è presente, usa "" (stringa vuota)
 - Conta accuratamente quanti moduli/sezioni ci sono nella tabella
+- IMPORTANTE: Se estrai argomenti per i moduli, genera ESATTAMENTE un numero di argomenti pari al numero di giorni di lezione del modulo. Né più, né meno.
 `;
 
 export const STEP1_EXTRACTION_SCHEMA = {
@@ -133,8 +134,9 @@ ESTRAI:
 - Ente erogatore (nome, ID, indirizzo)
 - Docente/Trainer (nome completo, codice fiscale)
 - Responsabili (se presenti: certificazione, direttore, supervisore)
-- Info FAD (piattaforma, modalità gestione, modalità valutazione)
+- Info FAD (piattaforma, modalità gestione, modalità valutazione, ID riunione, passcode, link)
 - Dati Verbale (data, ora, luogo, tipo prova)
+- Offerta Formativa (codice, nome)
 
 NON ESTRARRE:
 - Partecipanti (li estrarremo nel prossimo step)
@@ -159,6 +161,13 @@ export const STEP2_EXTRACTION_SCHEMA = {
         ore_rendicontabili: { type: Type.STRING }
       },
       required: ['id']
+    },
+    offerta_formativa: {
+      type: Type.OBJECT,
+      properties: {
+        codice: { type: Type.STRING },
+        nome: { type: Type.STRING }
+      }
     },
     moduli: {
       type: Type.ARRAY,
@@ -196,7 +205,9 @@ export const STEP2_EXTRACTION_SCHEMA = {
       type: Type.OBJECT,
       properties: {
         nome_completo: { type: Type.STRING },
-        codice_fiscale: { type: Type.STRING }
+        codice_fiscale: { type: Type.STRING },
+        email: { type: Type.STRING },
+        telefono: { type: Type.STRING }
       }
     },
     responsabili: {
@@ -240,7 +251,10 @@ export const STEP2_EXTRACTION_SCHEMA = {
       properties: {
         piattaforma: { type: Type.STRING },
         modalita_gestione: { type: Type.STRING },
-        modalita_valutazione: { type: Type.STRING }
+        modalita_valutazione: { type: Type.STRING },
+        id_riunione: { type: Type.STRING },
+        passcode: { type: Type.STRING },
+        link: { type: Type.STRING }
       }
     }
   },

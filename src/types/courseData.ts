@@ -34,6 +34,10 @@ export interface Corso {
   capienza_numero: number;
   capienza_totale: number;
   programma: string;
+  offerta_formativa?: {
+    codice: string;
+    nome: string;
+  };
 }
 
 export interface Modulo {
@@ -59,10 +63,6 @@ export interface Modulo {
   sessioni_presenza: Sessione[]; // Solo sessioni in presenza di QUESTO modulo
   argomenti?: string[];          // Argomenti trattati nel modulo
 }
-
-// ... (Sede, Ente, Trainer, EnteAccreditato, ResponsabileCorso interfaces remain unchanged)
-
-
 
 export interface Sede {
   tipo: string;
@@ -90,6 +90,8 @@ export interface Trainer {
   nome: string;
   cognome: string;
   codice_fiscale?: string;
+  telefono?: string;
+  email?: string;
 }
 
 // Interfacce per DB
@@ -108,6 +110,7 @@ export interface ResponsabileCorso {
   tipo: 'direttore' | 'supervisore' | 'responsabile_cert';
   nome: string;
   cognome: string;
+  email?: string;
   qualifica?: string;
   data_nascita?: string;
   citta_nascita?: string;

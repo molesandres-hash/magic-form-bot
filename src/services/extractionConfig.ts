@@ -38,7 +38,9 @@ IMPORTANTE GENERALE:
 - Per le date usa formato DD/MM/YYYY
 - Per gli orari usa formato HH:MM
 - Estrai TUTTI i partecipanti dall'elenco
-- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile`;
+- Per tipo_sede distingui tra "Presenza", "Online", "FAD" quando applicabile
+- IMPORTANTE: Se estrai argomenti per i moduli, genera ESATTAMENTE un numero di argomenti pari al numero di giorni di lezione del modulo. Né più, né meno.
+- Se ci sono 5 giorni di lezione, DEVI generare 5 argomenti. Se ce ne sono 2, generane 2.`;
 
 /**
  * Response schema for structured extraction
@@ -63,6 +65,13 @@ export const EXTRACTION_SCHEMA = {
                 programma: { type: Type.STRING }
             },
             required: ['id', 'titolo']
+        },
+        offerta_formativa: {
+            type: Type.OBJECT,
+            properties: {
+                codice: { type: Type.STRING },
+                nome: { type: Type.STRING }
+            }
         },
         moduli: {
             type: Type.ARRAY,
@@ -190,7 +199,10 @@ export const EXTRACTION_SCHEMA = {
             properties: {
                 piattaforma: { type: Type.STRING },
                 modalita_gestione: { type: Type.STRING },
-                modalita_valutazione: { type: Type.STRING }
+                modalita_valutazione: { type: Type.STRING },
+                id_riunione: { type: Type.STRING },
+                passcode: { type: Type.STRING },
+                link: { type: Type.STRING }
             }
         },
         sessioni_raw: {

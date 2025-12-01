@@ -25,7 +25,7 @@ import {
 import { toast } from 'sonner';
 import type { FolderDefinition, FolderStructureSettings } from '@/types/userSettings';
 import { DEFAULT_FOLDER_STRUCTURE } from '@/types/userSettings';
-import { SYSTEM_TEMPLATES } from '@/services/templateRegistry';
+
 import { Checkbox } from '@/components/ui/checkbox';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
@@ -76,10 +76,7 @@ const FolderStructureSettings = () => {
     const loadTemplates = async () => {
       const options: TemplateOption[] = [];
 
-      // 1. System Templates
-      Object.values(SYSTEM_TEMPLATES).forEach(t => {
-        options.push({ id: t.id, name: t.name, type: 'system' });
-      });
+
 
       // 2. Local Templates
       try {
@@ -302,8 +299,8 @@ const FolderStructureSettings = () => {
                 <Card
                   key={folder.id}
                   className={`p-4 border-l-4 ${folder.enabled
-                      ? 'border-l-primary bg-card'
-                      : 'border-l-muted bg-muted/20'
+                    ? 'border-l-primary bg-card'
+                    : 'border-l-muted bg-muted/20'
                     }`}
                 >
                   <div className="flex items-center gap-4">

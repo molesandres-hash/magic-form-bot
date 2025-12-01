@@ -28,6 +28,34 @@ const API_CONFIG = {
 } as const;
 
 // ============================================================================
+// HELPERS
+// ============================================================================
+
+/**
+ * Cleans the AI response to ensure valid JSON
+ * Removes markdown code blocks and extra text
+ */
+const cleanJson = (text: string): string => {
+  let cleaned = text.trim();
+  // Remove markdown code blocks
+  if (cleaned.startsWith('```json')) {
+    cleaned = cleaned.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (cleaned.startsWith('```')) {
+    cleaned = cleaned.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+
+  // Find the first '{' and last '}' to handle extra text
+  const firstOpen = cleaned.indexOf('{');
+  const lastClose = cleaned.lastIndexOf('}');
+
+  if (firstOpen !== -1 && lastClose !== -1) {
+    cleaned = cleaned.substring(firstOpen, lastClose + 1);
+  }
+
+  return cleaned;
+};
+
+// ============================================================================
 // TYPE DEFINITIONS
 // ============================================================================
 
@@ -74,6 +102,10 @@ interface Step2Result {
     stato: string;
     capienza: string;
     ore_rendicontabili: string;
+    offerta_formativa?: {
+      codice: string;
+      nome: string;
+    };
   };
   moduli: Array<{
     id: string;
@@ -97,6 +129,8 @@ interface Step2Result {
   trainer: {
     nome_completo: string;
     codice_fiscale: string;
+    email?: string;
+    telefono?: string;
   };
   responsabili: any;
   verbale: any;
@@ -178,7 +212,7 @@ export async function extractStep1_CalendarAndModules(
       fullText += chunk.text;
     }
 
-    const result: Step1Result = JSON.parse(fullText);
+    const result: Step1Result = JSON.parse(cleanJson(fullText));
     console.log('[STEP 1] Extraction completed:', result);
     onProgress?.('Step 1 completato', 33);
 
@@ -238,7 +272,7 @@ export async function extractStep2_IDsAndInfo(
       fullText += chunk.text;
     }
 
-    const result: Step2Result = JSON.parse(fullText);
+    const result: Step2Result = JSON.parse(cleanJson(fullText));
     console.log('[STEP 2] Extraction completed:', result);
     onProgress?.('Step 2 completato', 66);
 
@@ -297,7 +331,7 @@ export async function extractStep3_Participants(
       fullText += chunk.text;
     }
 
-    const result: Step3Result = JSON.parse(fullText);
+    const result: Step3Result = JSON.parse(cleanJson(fullText));
     console.log('[STEP 3] Extraction completed:', result);
     onProgress?.('Step 3 completato', 90);
 
@@ -461,6 +495,7 @@ async function processThreeStepData(mergedData: any): Promise<any> {
     anno: mergedData.corso?.data_inizio ? extractYear(mergedData.corso.data_inizio) : '',
     capienza_numero: capienzaCorso.current,
     capienza_totale: capienzaCorso.total,
+    offerta_formativa: mergedData.corso?.offerta_formativa,
   };
 
   // Process trainer
@@ -470,6 +505,8 @@ async function processThreeStepData(mergedData: any): Promise<any> {
     nome: trainerName.nome,
     cognome: trainerName.cognome,
     codice_fiscale: mergedData.trainer?.codice_fiscale || '',
+    email: mergedData.trainer?.email || '',
+    telefono: mergedData.trainer?.telefono || '',
   };
 
   // Process partecipanti
@@ -586,6 +623,8 @@ async function processThreeStepData(mergedData: any): Promise<any> {
     calendario_fad: {
       modalita: mergedData.fad_info?.modalita_gestione || '',
       strumenti: mergedData.fad_info?.piattaforma || '',
+      id_riunione: mergedData.fad_info?.id_riunione || '',
+      passcode: mergedData.fad_info?.passcode || '',
       obiettivi: '',
       valutazione: mergedData.fad_info?.modalita_valutazione || '',
       eventi: []

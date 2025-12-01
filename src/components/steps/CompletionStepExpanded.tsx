@@ -34,6 +34,7 @@ export default function CompletionStepExpanded({ extractedData, onComplete, onBa
     direttori,
     supervisori,
     responsabiliCert,
+    offers,
     loading,
     updateFormData,
     validateAndSubmit
@@ -97,6 +98,7 @@ export default function CompletionStepExpanded({ extractedData, onComplete, onBa
             direttori={direttori}
             supervisori={supervisori}
             responsabiliCert={responsabiliCert}
+            offers={offers}
           />
 
           {/* Ordinamento Partecipanti */}

@@ -59,7 +59,7 @@ export async function generateFADRegistryForDay(
         const templateBlob = await templateResponse.blob();
 
         // 3. Prepare data for this specific session
-        const templateData = prepareFADSessionData(data, session);
+        const templateData = prepareFADSessionData(data, session, sessionIndex, fadSessions.length);
 
         // 4. Process template
         const blob = await processWordTemplate({
@@ -105,7 +105,7 @@ export async function generateModelloAFAD(
 
         // 3. Prepare data for this specific session
         // Assuming Modello A uses the same data structure as Modello B
-        const templateData = prepareFADSessionData(data, session);
+        const templateData = prepareFADSessionData(data, session, sessionIndex, fadSessions.length);
 
         // 4. Process template
         const blob = await processWordTemplate({
@@ -137,7 +137,7 @@ export async function generateAllFADRegistries(
     for (let i = 0; i < fadSessions.length; i++) {
         const session = fadSessions[i];
 
-        // Generate Modello B (Registro FAD)
+        // Generate Modello B (Registro FAD) - One per session
         try {
             const blobB = await generateFADRegistryForDay(data, i);
             const filenameB = `Registro_FAD_${formatDateForFilename(session.data_completa)}.docx`;
@@ -145,14 +145,20 @@ export async function generateAllFADRegistries(
         } catch (e) {
             console.error(`Failed to generate Modello B for session ${i}`, e);
         }
+    }
 
-        // Generate Modello A
+    // Generate Modello A - ONCE per module/course context
+    // We use the first session (index 0) as the reference for start date/context if needed,
+    // but the template should mostly use general course data.
+    if (fadSessions.length > 0) {
         try {
-            const blobA = await generateModelloAFAD(data, i);
-            const filenameA = `Modello_A_FAD_${formatDateForFilename(session.data_completa)}.docx`;
+            // Use index 0 to provide a valid session context, but data is module-wide
+            const blobA = await generateModelloAFAD(data, 0);
+            // Filename can be generic or based on start date
+            const filenameA = `Modello_A_FAD_Generale.docx`;
             results.push({ filename: filenameA, blob: blobA });
         } catch (e) {
-            console.error(`Failed to generate Modello A for session ${i}`, e);
+            console.error(`Failed to generate Modello A`, e);
         }
     }
 
@@ -166,7 +172,7 @@ export async function generateAllFADRegistries(
 /**
  * Prepares placeholder data for a single FAD session
  */
-function prepareFADSessionData(data: CourseData, session: any): Record<string, any> {
+function prepareFADSessionData(data: CourseData, session: any, sessionIndex: number, totalSessions: number): Record<string, any> {
     const calculateDuration = (start: string, end: string): number => {
         try {
             const [h1, m1] = (start || '0:0').split(':').map(Number);
@@ -212,8 +218,8 @@ function prepareFADSessionData(data: CourseData, session: any): Record<string, a
     // Extract date components
     const { giorno, mese, anno } = extractDateComponents(session.data_completa);
 
-    // Get a random topic from configured lists
-    const argomento = getRandomTopic();
+    // Get topic for this day
+    const argomento = getTopicForDay(sessionIndex, totalSessions);
 
     // Calculate FAD hours (duration) for this specific session
     const duration = calculateDuration(
@@ -335,10 +341,12 @@ function extractDateComponents(dateString: string): { giorno: string; mese: stri
 }
 
 /**
- * Gets a random topic from the configured argument lists
- * Returns 'Da definire' if no lists are configured
+ * Gets a topic for a specific day based on configured argument lists
+ * Logic:
+ * - If # arguments == # days: Assign chronologically
+ * - If # arguments != # days: Assign sequentially (wrapping around if needed)
  */
-function getRandomTopic(): string {
+function getTopicForDay(dayIndex: number, totalDays: number): string {
     try {
         const predefinedData = loadPredefinedData();
         const argumentLists = predefinedData.argumentLists || [];
@@ -362,11 +370,17 @@ function getRandomTopic(): string {
             return 'Da definire';
         }
 
-        // Return random topic
-        const randomIndex = Math.floor(Math.random() * allTopics.length);
-        return allTopics[randomIndex];
+        // If exact match, use direct index
+        if (allTopics.length === totalDays) {
+            return allTopics[dayIndex] || 'Da definire';
+        }
+
+        // Otherwise use modulo to wrap around sequentially
+        // This satisfies "casualmente tra quelli disponibili, ma sempre in sequenza cronologica"
+        // by ensuring we pick from the list in order, even if counts mismatch.
+        return allTopics[dayIndex % allTopics.length];
     } catch (error) {
-        console.error('Error getting random topic:', error);
+        console.error('Error getting topic for day:', error);
         return 'Da definire';
     }
 }

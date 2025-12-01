@@ -1,4 +1,3 @@
-
 /**
  * ZIP Packager Service
  *
@@ -18,17 +17,11 @@
 import JSZip from 'jszip';
 import { saveAs } from 'file-saver';
 import type { CourseData, Metadata } from '@/types/courseData';
-import {
-  generateRegistroDidattico,
-  generateVerbalePartecipazione,
-  generateVerbaleScrutinio,
-  generateModelloFAD,
-} from './wordDocumentGenerator';
-import { processWordTemplate } from './wordTemplateProcessor';
+// Legacy word generator removed - using template system only
+import { processWordTemplate, prepareDataForWordTemplate } from './wordTemplateProcessor';
 import * as XLSX from 'xlsx';
 import { loadFolderStructureSettings } from '@/components/settings/FolderStructureSettings';
 import {
-  SYSTEM_TEMPLATES,
   createLocalTemplateGenerator,
   createDbTemplateGenerator,
   type TemplateGenerator
@@ -39,6 +32,9 @@ import { listTemplates } from '@/services/localDb';
 import { loadTemplateBufferFromPublic, addCertificatesToZip } from './zipPackagerCertificates';
 import { addRegistroIDToZip } from './zipPackagerRegistroID';
 import { loadPredefinedData } from '@/utils/predefinedDataUtils';
+import { generatePresenceRegisterFiles } from './presenceRegisterGenerator';
+import { mapCourseDataToTemplate } from './templateDataMapper';
+
 
 // ============================================================================
 // CONSTANTS - Folder structure and configuration
@@ -166,17 +162,7 @@ interface ModuleScope {
 async function resolveAllTemplates(): Promise<Map<string, ResolvedTemplate>> {
   const map = new Map<string, ResolvedTemplate>();
 
-  // 1. System Templates
-  Object.values(SYSTEM_TEMPLATES).forEach(t => {
-    map.set(t.id, {
-      id: t.id,
-      name: t.name,
-      filename: t.filename,
-      generator: t.generator
-    });
-  });
-
-  // 2. Local Templates
+  // 1. Local Templates
   try {
     const response = await fetch('/templates/manifest.json');
     if (response.ok) {
@@ -216,10 +202,6 @@ async function resolveAllTemplates(): Promise<Map<string, ResolvedTemplate>> {
 
 /**
  * Determines if FAD (distance learning) document should be generated
- * Why: Not all courses have FAD components, saves unnecessary file generation
- *
- * @param data - Course data
- * @returns true if course has FAD sessions
  */
 function shouldGenerateFAD(data: CourseData): boolean {
   const hasFADSessions = (data.sessioni || []).some((session) => session.is_fad);
@@ -255,8 +237,6 @@ function buildSectionScopes(data: CourseData): SectionScope[] {
   );
 
   if (sectionIds.length === 0) {
-    // Fallback for when no sections are defined
-    // We still try to populate metadata from the first module if available
     const firstModule = moduli[0];
     const scopedData = { ...data };
 
@@ -286,8 +266,6 @@ function buildSectionScopes(data: CourseData): SectionScope[] {
     const scopedModules = moduli.filter((m: any) => m.id_sezione === id);
     const sessioni = scopedModules.flatMap((m: any) => m.sessioni || []);
     const sessioniPresenza = scopedModules.flatMap((m: any) => m.sessioni_presenza || []);
-
-    // Use the first module in the section as the representative for IDs
     const currentModule = scopedModules[0];
 
     const scopedData: CourseData = {
@@ -345,7 +323,7 @@ function buildModuleScopes(data: CourseData): ModuleScope[] {
 
     const scopedData: CourseData = {
       ...data,
-      moduli: [modulo], // Scope to just this module
+      moduli: [modulo],
       sessioni: scopedSessions || [],
       sessioni_presenza: scopedSessionsPresenza || [],
       corso: scopedCourse as any,
@@ -387,30 +365,47 @@ interface Modulo5TemplateDataOptions {
   docenteName: string;
 }
 
-/**
- * Creates "modulo 5" folder and generates Calendario condizionalità
- * for each participant that has benefits flag enabled.
- */
 async function addModulo5Calendars(zipRoot: JSZip, data: CourseData): Promise<void> {
+  console.log('🔍 Modulo 5: Starting generation...');
+  console.log('🔍 Modulo 5: Total participants:', data.partecipanti?.length || 0);
+
   const beneficiaries = (data.partecipanti || []).filter(p => hasBenefitsFlag(p.benefits));
-  if (beneficiaries.length === 0) return;
+  console.log('🔍 Modulo 5: Beneficiaries with benefits flag:', beneficiaries.length);
+
+  if (beneficiaries.length === 0) {
+    console.warn('⚠️ Modulo 5: No beneficiaries found, skipping generation');
+    return;
+  }
 
   const templateBlob = await loadModulo5Template();
-  if (!templateBlob) return;
+  if (!templateBlob) {
+    console.error('❌ Modulo 5: Template not loaded');
+    return;
+  }
 
   const modulo5Folder = zipRoot.folder('modulo 5');
-  if (!modulo5Folder) return;
+  if (!modulo5Folder) {
+    console.error('❌ Modulo 5: Could not create folder');
+    return;
+  }
 
   const respCertName = getRespCertFullName(data);
   const supervisor = resolveSupervisorInfo(data);
   const docenteName = data.trainer?.nome_completo || data.trainer?.nome || '';
 
   const sortedSessions = sortSessionsByDate(data.sessioni || []);
+  console.log('🔍 Modulo 5: Total sessions:', sortedSessions.length);
+
   const sessionRows = buildModulo5SessionRows(sortedSessions, docenteName);
+  console.log('🔍 Modulo 5: Session rows built:', sessionRows.length);
+  console.log('🔍 Modulo 5: First session row sample:', sessionRows[0]);
+
   const { startDate, endDate } = buildModulo5CourseDates(data, sortedSessions);
 
   for (const participant of beneficiaries) {
     const filename = buildModulo5Filename(participant, data.corso?.id || 'corso');
+    console.log(`📄 Modulo 5: Generating file for ${participant.nome} ${participant.cognome}`);
+
     const templateData = buildModulo5TemplateData({
       data,
       participant,
@@ -422,6 +417,33 @@ async function addModulo5Calendars(zipRoot: JSZip, data: CourseData): Promise<vo
       docenteName,
     });
 
+    // 🔍 DETAILED LOGGING - Show all placeholder values
+    console.log('═══════════════════════════════════════════════════════════');
+    console.log(`📋 TEMPLATE DATA for ${participant.nome} ${participant.cognome}`);
+    console.log('═══════════════════════════════════════════════════════════');
+
+    // Log all non-array placeholders
+    Object.keys(templateData).forEach(key => {
+      if (key !== 'SESSIONI') {
+        console.log(`  ${key}: "${templateData[key]}"`);
+      }
+    });
+
+    // Log SESSIONI array in a readable format
+    console.log('\n📅 SESSIONI ARRAY:');
+    if (templateData.SESSIONI && Array.isArray(templateData.SESSIONI)) {
+      console.log(`  Total sessions: ${templateData.SESSIONI.length}`);
+      templateData.SESSIONI.forEach((session: any, index: number) => {
+        console.log(`\n  Session ${index + 1}:`);
+        console.log(`    DATA: "${session.DATA}"`);
+        console.log(`    ORA_MATTINA: "${session.ORA_MATTINA}"`);
+        console.log(`    ORA_POMERIGGIO: "${session.ORA_POMERIGGIO}"`);
+        console.log(`    DURATA: "${session.DURATA}"`);
+        console.log(`    NOME_DOCENTE: "${session.NOME_DOCENTE}"`);
+      });
+    }
+    console.log('═══════════════════════════════════════════════════════════\n');
+
     try {
       const blob = await processWordTemplate({
         template: templateBlob,
@@ -429,8 +451,9 @@ async function addModulo5Calendars(zipRoot: JSZip, data: CourseData): Promise<vo
         filename,
       });
       modulo5Folder.file(filename, blob);
+      console.log(`✅ Modulo 5: Successfully generated ${filename}`);
     } catch (error) {
-      console.error('Errore generazione Calendario condizionalità (Modulo 5):', error);
+      console.error('❌ Modulo 5: Error generating file:', error);
     }
   }
 }
@@ -460,8 +483,8 @@ function buildModulo5TemplateData(options: Modulo5TemplateDataOptions): Record<s
     'PARTECIPANTE 1 CF': participant?.codice_fiscale || '',
     'PARTECIPANTE 1': fullName,
     NOME_CORSO: data.corso?.titolo || '',
-    ID_CORSO: data.corso?.id || '',
-    ID_SEZIONE: data.corso?.id || '',
+    ID_CORSO: data.metadata?.modulo_corrente?.id_corso || data.corso?.id || '',
+    ID_SEZIONE: data.metadata?.modulo_corrente?.id_sezione || data.corso?.id || '',
     ENTE_NOME: enteNome,
     ID_ENTE: data.ente?.id || '',
     SEDE_ACCREDITATA: sedeAccreditata,
@@ -487,18 +510,31 @@ function buildModulo5Filename(participant: any, courseId: string): string {
 }
 
 function buildModulo5SessionRows(sessions: any[], docenteName: string): Array<Record<string, string>> {
-  return sessions.map((session) => {
+  return sessions.map((session, index) => {
     const start = session?.ora_inizio_giornata || session?.ora_inizio || '';
     const end = session?.ora_fine_giornata || session?.ora_fine || '';
+
+    // Debug logging
+    if (!start || !end) {
+      console.warn(`Modulo 5 - Session ${index + 1}: Missing time data`, {
+        data: session?.data_completa || session?.data,
+        ora_inizio_giornata: session?.ora_inizio_giornata,
+        ora_fine_giornata: session?.ora_fine_giornata,
+        ora_inizio: session?.ora_inizio,
+        ora_fine: session?.ora_fine,
+        availableFields: Object.keys(session || {})
+      });
+    }
+
     const duration = calculateDurationHours(start, end);
     const { ora_mattina, ora_pomeriggio } = splitSessionByShift(start, end, duration);
 
     return {
-      data: session?.data_completa || session?.data || '',
-      ora_mattina,
-      ora_pomeriggio,
-      durata: duration > 0 ? duration.toString().replace(/\.0$/, '') : '0',
-      NOME_DOCENTE: docenteName,
+      DATA: session?.data_completa || session?.data || '',
+      ORA_MATTINA: ora_mattina || '-',
+      ORA_POMERIGGIO: ora_pomeriggio || '-',
+      DURATA: duration > 0 ? duration.toString().replace(/\.0$/, '') : '0',
+      NOME_DOCENTE: docenteName || '',
     };
   });
 }
@@ -638,7 +674,6 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
   const templateMap = await resolveAllTemplates();
 
   // 2. Create Root Folder (if configured)
-  // Default pattern: "{ID_CORSO} - {NOME_CORSO}" if not specified
   let rootFolder = zip;
   if (settings.rootFolderName) {
     const rootName = settings.rootFolderName
@@ -646,7 +681,6 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
       .replace('{NOME_CORSO}', sanitizeFilename(courseTitle));
     rootFolder = zip.folder(rootName) || zip;
   } else {
-    // Default behavior: Use course ID and title
     const rootName = `${courseId} - ${sanitizeFilename(courseTitle)}`;
     rootFolder = zip.folder(rootName) || zip;
   }
@@ -668,7 +702,6 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
           try {
             const blob = await templateInfo.generator(data);
             if (blob) {
-              // Use configured filename or default
               const filename = `${templateInfo.filename}_${courseId}.docx`;
               zipFolder.file(filename, blob);
             }
@@ -679,29 +712,12 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
       }
     }
 
-    // 3b. Generate Excel files (Legacy support or if explicitly assigned)
-    // For now, if folder accepts 'xlsx', we put standard Excel files there
-    // TODO: Make Excel files also configurable templates
+    // 3b. Generate Excel files
     if (folderDef.fileTypes.includes('xlsx')) {
       excelFolderFound = true;
-
-      // Participants list - REDUNDANT (Merged into Registro Presenze)
-      // const participantsExcel = generateParticipantsExcelBlob(data);
-      // zipFolder.file(`${FILE_PREFIX.PARTICIPANTS}_${courseId}.xlsx`, participantsExcel);
-
-      // Attendance register (CONSOLIDATED)
       const attendanceExcel = generateAttendanceExcelBlob(data);
       zipFolder.file(`${FILE_PREFIX.ATTENDANCE}_${courseId}.xlsx`, attendanceExcel);
 
-      // Complete report - REDUNDANT (Merged into Registro Presenze)
-      // const reportExcel = generateCourseReportExcelBlob(data);
-      // zipFolder.file(`${FILE_PREFIX.REPORT}_${courseId}.xlsx`, reportExcel);
-
-      // Hours calculation register (Registro Ore) - REDUNDANT
-      // const hoursExcel = generateHoursExcelBlob(data);
-      // zipFolder.file(`Registro_Ore_${courseId}.xlsx`, hoursExcel);
-
-      // New: Calendario Lezioni per sezione (text-only)
       const calendarExcel = generateSectionCalendarExcelBlob(data, options?.sectionId);
       zipFolder.file(`Calendario_Lezioni_${courseId}.xlsx`, calendarExcel);
     }
@@ -721,7 +737,6 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
   }
 
   // 4. Generate FAD Registries (Multi-file)
-  // Create separate folder with one file per FAD session day
   if (hasFADSessions(data)) {
     console.log('Generating FAD registries folder...');
     const fadFolder = rootFolder.folder('Registri_FAD');
@@ -761,7 +776,10 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
   // 9. Add Registro ID (Registro presenza ID)
   await addRegistroIDToZip(rootFolder, data);
 
-  // 10. Add README (if enabled)
+  // 10. Add Modulo 8 (Registro Giornaliero - Merged DOCX)
+  await addModulo8DailyRegisters(rootFolder, data);
+
+  // 11. Add README (if enabled)
   if (settings.generateReadme) {
     const readmeContent = generateREADME(data);
     rootFolder.file('README.txt', readmeContent);
@@ -796,10 +814,6 @@ async function buildZipBlob(data: CourseData, options?: ZipBuildOptions): Promis
 // MODULO 7 - Comunicazione Evento per beneficiari
 // ============================================================================
 
-/**
- * Creates "modulo 7" folder with one subfolder per session day and
- * generates Comunicazione_evento documents for participants with benefits.
- */
 async function addModulo7Communications(zipRoot: JSZip, data: CourseData): Promise<void> {
   const sessions = data.sessioni || [];
   const beneficiaries = (data.partecipanti || []).filter(p => hasBenefitsFlag(p.benefits));
@@ -896,15 +910,8 @@ function buildModulo7TemplateData(data: CourseData, session: any, participant: a
   };
 }
 
-// ============================================================================
-// VERBALE AMMISSIONE ESAME (DOCX)
-// ============================================================================
-
 const VERBALE_AMMISSIONE_PATH = '/templates/Verbale_Ammissione_Esame_con_placeholder.docx';
 
-/**
- * Adds the "Verbale Ammissione Esame" to the zip, generated from the DOCX template.
- */
 async function addVerbaleAmmissione(zipFolder: JSZip, data: CourseData): Promise<void> {
   try {
     const response = await fetch(VERBALE_AMMISSIONE_PATH);
@@ -914,18 +921,7 @@ async function addVerbaleAmmissione(zipFolder: JSZip, data: CourseData): Promise
     }
     const templateBlob = await response.blob();
 
-    // Prepare data for the template
-    const templateData = {
-      ...data.corso,
-      ...data.ente,
-      ...data.sede,
-      // Add any specific placeholders needed for this document
-      NOME_CORSO: data.corso?.titolo || '',
-      ID_CORSO: data.corso?.id || '',
-      DATA_INIZIO: data.corso?.data_inizio || '',
-      DATA_FINE: data.corso?.data_fine || '',
-      ENTE_NOME: data.ente?.accreditato?.nome || data.ente?.nome || '',
-    };
+    const templateData = mapCourseDataToTemplate(data);
 
     const blob = await processWordTemplate({
       template: templateBlob,
@@ -965,18 +961,30 @@ function formatDateForFilename(dateStr: string): string {
 }
 
 // ============================================================================
+// MODULO 8 - Registro Giornaliero (Merged DOCX)
+// ============================================================================
+
+async function addModulo8DailyRegisters(zipRoot: JSZip, data: CourseData): Promise<void> {
+  const sessions = (data.sessioni || []).filter(s => !s.is_fad);
+  if (sessions.length === 0) return;
+
+  const modulo8Folder = zipRoot.folder('modulo 8');
+  if (!modulo8Folder) return;
+
+  try {
+    const files = await generatePresenceRegisterFiles(data);
+    files.forEach(file => {
+      modulo8Folder.file(file.filename, file.blob);
+    });
+  } catch (error) {
+    console.error('Errore generazione Registro Presenze (Modulo 8):', error);
+  }
+}
+
+// ============================================================================
 // EXCEL GENERATION HELPERS - Create Excel blobs for ZIP packaging
 // ============================================================================
 
-/**
- * Generates participants Excel as Blob (for ZIP packaging)
- *
- * Purpose: Creates Excel with full participant roster and validation status
- * Why Blob: Needed for ZIP archive, not direct download
- *
- * @param data - Course data with participants
- * @returns Excel file as Blob
- */
 function generateParticipantsExcelBlob(data: CourseData): Blob {
   const participantsData = (data.partecipanti || []).map((p) => ({
     'Numero': p.numero,
@@ -1007,17 +1015,9 @@ function generateParticipantsExcelBlob(data: CourseData): Blob {
   });
 }
 
-/**
- * Generates attendance Excel as Blob (for ZIP packaging)
- */
-/**
- * Generates attendance Excel as Blob (for ZIP packaging)
- * Includes Attendance Matrix, Course Summary, and Participant Details in one sheet.
- */
 function generateAttendanceExcelBlob(data: CourseData): Blob {
   const sessionDates = (data.sessioni_presenza || []).map((s) => s.data_completa);
 
-  // 1. ATTENDANCE MATRIX
   const attendanceData = (data.partecipanti || []).map((p) => {
     const row: any = {
       'Numero': p.numero,
@@ -1037,10 +1037,8 @@ function generateAttendanceExcelBlob(data: CourseData): Blob {
 
   const ws = XLSX.utils.json_to_sheet(attendanceData);
 
-  // 2. APPEND COURSE SUMMARY (Below matrix)
-  // Calculate start row for summary (matrix rows + header + some spacing)
-  const matrixEndRow = attendanceData.length + 2; // +1 for header, +1 for 0-based index
-  const summaryStartRow = matrixEndRow + 3; // 3 rows spacing
+  const matrixEndRow = attendanceData.length + 2;
+  const summaryStartRow = matrixEndRow + 3;
 
   XLSX.utils.sheet_add_aoa(ws, [['--- RIEPILOGO CORSO ---']], { origin: `A${summaryStartRow}` });
 
@@ -1058,7 +1056,6 @@ function generateAttendanceExcelBlob(data: CourseData): Blob {
 
   XLSX.utils.sheet_add_aoa(ws, courseSummary, { origin: `A${summaryStartRow + 1}` });
 
-  // 3. APPEND PARTICIPANT DETAILS (Below summary)
   const participantsStartRow = summaryStartRow + courseSummary.length + 3;
 
   XLSX.utils.sheet_add_aoa(ws, [['--- DETTAGLIO PARTECIPANTI ---']], { origin: `A${participantsStartRow}` });
@@ -1086,13 +1083,9 @@ function generateAttendanceExcelBlob(data: CourseData): Blob {
   });
 }
 
-/**
- * Generates course report Excel as Blob (for ZIP packaging)
- */
 function generateCourseReportExcelBlob(data: CourseData): Blob {
   const wb = XLSX.utils.book_new();
 
-  // Course Summary
   const courseSummary = [
     { Campo: 'ID Corso', Valore: data.corso?.id || 'N/A' },
     { Campo: 'Titolo', Valore: data.corso?.titolo || 'N/A' },
@@ -1107,7 +1100,6 @@ function generateCourseReportExcelBlob(data: CourseData): Blob {
   wsSummary['!cols'] = [{ wch: 25 }, { wch: 50 }];
   XLSX.utils.book_append_sheet(wb, wsSummary, 'Riepilogo');
 
-  // Participants
   const participantsData = (data.partecipanti || []).map((p) => ({
     'N.': p.numero,
     'Nome Completo': p.nome_completo,
@@ -1125,110 +1117,6 @@ function generateCourseReportExcelBlob(data: CourseData): Blob {
   });
 }
 
-/**
- * Generates the "Registro Ore" Excel with hourly calculations
- */
-/**
- * Generates the "Registro Ore" Excel with hourly calculations
- * Now includes Summary and Participants sheets
- */
-function generateHoursExcelBlob(data: CourseData): Blob {
-  const wb = XLSX.utils.book_new();
-
-  // 1. SHEET: RIEPILOGO (Summary)
-  const courseSummary = [
-    { Campo: 'ID Corso', Valore: data.corso?.id || 'N/A' },
-    { Campo: 'Titolo', Valore: data.corso?.titolo || 'N/A' },
-    { Campo: 'Data Inizio', Valore: data.corso?.data_inizio || 'N/A' },
-    { Campo: 'Data Fine', Valore: data.corso?.data_fine || 'N/A' },
-    { Campo: 'Ore Totali', Valore: data.corso?.ore_totali || 'N/A' },
-    { Campo: 'Numero Partecipanti', Valore: data.partecipanti_count?.toString() || '0' },
-    { Campo: 'Ente', Valore: data.ente?.accreditato?.nome || data.ente?.nome || 'N/A' },
-    { Campo: 'Sede', Valore: data.sede?.nome || 'N/A' },
-  ];
-  const wsSummary = XLSX.utils.json_to_sheet(courseSummary);
-  wsSummary['!cols'] = [{ wch: 25 }, { wch: 50 }];
-  XLSX.utils.book_append_sheet(wb, wsSummary, 'Riepilogo');
-
-  // 2. SHEET: PARTECIPANTI (Participants)
-  const participantsData = (data.partecipanti || []).map((p) => ({
-    'N.': p.numero,
-    'Nome': p.nome,
-    'Cognome': p.cognome,
-    'CF': p.codice_fiscale,
-    'Email': p.email,
-    'Telefono': p.telefono,
-  }));
-  const wsParticipants = XLSX.utils.json_to_sheet(participantsData);
-  wsParticipants['!cols'] = [
-    { wch: 5 }, { wch: 15 }, { wch: 15 }, { wch: 20 }, { wch: 30 }, { wch: 15 }
-  ];
-  XLSX.utils.book_append_sheet(wb, wsParticipants, 'Partecipanti');
-
-  // 3. SHEET: REGISTRO (Hourly Calculations)
-  const sessions = (data.sessioni || []).map((s) => ({
-    data: s.data_completa,
-    ora_inizio: s.ora_inizio_giornata,
-    ora_fine: s.ora_fine_giornata,
-    luogo: s.sede,
-  }));
-
-  const rows = processSessionsIntoRows(
-    sessions,
-    data.corso?.id || '',
-    (data.trainer as any)?.codice_fiscale || (data.trainer as any)?.codiceFiscale || '',
-    data.corso?.titolo || ''
-  );
-
-  const columns = [
-    { header: 'ID_SEZIONE', variableName: 'ID_SEZIONE', width: 15, format: 'text' },
-    { header: 'DATA LEZIONE', variableName: 'DATA_LEZIONE', width: 12, format: 'text' },
-    { header: 'TOTALE_ORE', variableName: 'TOTALE_ORE', width: 10, format: 'text' },
-    { header: 'ORA_INIZIO', variableName: 'ORA_INIZIO', width: 10, format: 'text' },
-    { header: 'ORA_FINE', variableName: 'ORA_FINE', width: 10, format: 'text' },
-    { header: 'TIPOLOGIA', variableName: 'TIPOLOGIA', width: 10, format: 'text' },
-    { header: 'CODICE FISCALE DOCENTE', variableName: 'CODICE_FISCALE_DOCENTE', width: 20, format: 'text' },
-    { header: 'MATERIA', variableName: 'MATERIA', width: 30, format: 'text' },
-    { header: 'CONTENUTI MATERIA', variableName: 'CONTENUTI_MATERIA', width: 30, format: 'text' },
-    { header: 'SVOLGIMENTO SEDE LEZIONE', variableName: 'SVOLGIMENTO_SEDE_LEZIONE', width: 25, format: 'text' },
-  ];
-
-  // Create clean worksheet for Registro
-  const wsRegistro = XLSX.utils.json_to_sheet(rows, {
-    header: columns.map((c) => c.header),
-  });
-
-  // Force text format
-  const range = XLSX.utils.decode_range(wsRegistro['!ref'] || 'A1');
-  for (let R = range.s.r; R <= range.e.r; ++R) {
-    for (let C = range.s.c; C <= range.e.c; ++C) {
-      const cellRef = XLSX.utils.encode_cell({ r: R, c: C });
-      if (!wsRegistro[cellRef]) continue;
-      wsRegistro[cellRef].t = 's';
-      wsRegistro[cellRef].z = '@';
-    }
-  }
-  wsRegistro['!cols'] = columns.map((col) => ({ wch: col.width }));
-
-  XLSX.utils.book_append_sheet(wb, wsRegistro, 'Registro');
-
-  // Write final workbook
-  const excelBuffer = XLSX.write(wb, {
-    bookType: 'xlsx',
-    type: 'array',
-    cellStyles: false,
-    bookSST: false,
-  });
-
-  return new Blob([excelBuffer], {
-    type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-  });
-}
-
-/**
- * Generates Calendario Lezioni Excel (one row per lesson) with all-text cells
- * Matches requested headers and keeps ID_SEZIONE per each sezione.
- */
 function generateSectionCalendarExcelBlob(data: CourseData, sectionId?: string): Blob {
   const idSezione = sectionId || data.corso?.id || '';
   const materia = data.corso?.titolo || '';
@@ -1295,9 +1183,6 @@ function getSectionCalendarColumns(): { header: string; variableName: string; wi
   ];
 }
 
-/**
- * Generates README content
- */
 function generateREADME(data: CourseData): string {
   const courseId = data.corso?.id || 'N/A';
   const courseTitle = data.corso?.titolo || 'N/A';
@@ -1369,9 +1254,6 @@ Generato con Google Gemini AI 2.5 Flash
 `;
 }
 
-/**
- * Sanitizes filename for safe file system usage
- */
 function sanitizeFilename(filename: string): string {
   return filename
     .replace(/[^a-z0-9_\-]/gi, '_')
@@ -1379,9 +1261,6 @@ function sanitizeFilename(filename: string): string {
     .substring(0, 50);
 }
 
-/**
- * Formats date as YYYYMMDD
- */
 function formatDate(date: Date): string {
   const year = date.getFullYear();
   const month = String(date.getMonth() + 1).padStart(2, '0');
