@@ -49,6 +49,9 @@ export async function generatePresenceRegisterFiles(
     let headBlob: Blob | null = null;
     try {
         headBlob = await generateRegisterHead(data, presenceSessions.length);
+        if (headBlob) {
+            results.push({ filename: 'Registro_Frontespizio.docx', blob: headBlob });
+        }
     } catch (error) {
         console.error('Error generating Register Head:', error);
     }
@@ -64,12 +67,16 @@ export async function generatePresenceRegisterFiles(
         try {
             const dayBlob = await generateRegisterDayPage(data, session, i + 1);
             dayBlobs.push(dayBlob);
+
+            // Add individual day file
+            const dateStr = session.data_completa ? session.data_completa.replace(/\//g, '_') : `Giorno_${i + 1}`;
+            results.push({ filename: `Registro_Giorno_${dateStr}.docx`, blob: dayBlob });
         } catch (error) {
             console.error(`Error generating Register Day ${i + 1}:`, error);
         }
     }
 
-    // 3. MERGE FILES
+    // 3. MERGE FILES (Optional convenience file)
     try {
         if (dayBlobs.length > 0) {
             // Convert all blobs to ArrayBuffers for docx-merger
@@ -80,11 +87,6 @@ export async function generatePresenceRegisterFiles(
 
             const merger = new DocxMerger({}, filesToMerge);
 
-            // docx-merger save returns a Node Buffer or Blob depending on env. 
-            // In browser, we might need to handle it.
-            // Actually, looking at docx-merger docs/source, save(type, callback)
-            // We can use a Promise wrapper.
-
             const mergedBlob = await new Promise<Blob>((resolve, reject) => {
                 merger.save('blob', (data: any) => {
                     resolve(data);
@@ -92,18 +94,10 @@ export async function generatePresenceRegisterFiles(
             });
 
             results.push({ filename: 'Registro_Presenze_Completo.docx', blob: mergedBlob });
-        } else {
-            // Fallback if no days
-            results.push({ filename: 'Registro_Frontespizio.docx', blob: headBlob });
         }
     } catch (error) {
         console.error('Error merging presence register files:', error);
-        // Fallback: return separate files if merge fails
-        results.push({ filename: '00_Registro_Frontespizio.docx', blob: headBlob });
-        dayBlobs.forEach((blob, i) => {
-            const dayNum = (i + 1).toString().padStart(2, '0');
-            results.push({ filename: `${dayNum}_Registro_Giorno.docx`, blob });
-        });
+        // Individual files are already added, so no need for fallback logic here
     }
 
     return results;

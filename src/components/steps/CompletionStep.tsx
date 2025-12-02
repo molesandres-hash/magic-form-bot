@@ -34,7 +34,7 @@ interface ExtractedDataType {
 
 interface CompletionStepProps {
   extractedData: ExtractedDataType;
-  onComplete: (data: ExtractedDataType & typeof formData) => void;
+  onComplete: (data: ExtractedDataType & any) => void;
   onBack: () => void;
 }
 
@@ -112,6 +112,10 @@ const CompletionStep = ({ extractedData, onComplete, onBack }: CompletionStepPro
     const completeData = {
       ...extractedData,
       ...formData,
+      argomenti_didattici: {
+        lezione1: formData.argomenti_lezione_1,
+        lezione2: formData.argomenti_lezione_2
+      }
     };
 
     toast.success("Dati completati con successo!");

@@ -1,7 +1,7 @@
 import { useState, useRef } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { GripVertical, ArrowUp, ArrowDown } from "lucide-react";
+import { GripVertical, ArrowUp, ArrowDown, Trash2 } from "lucide-react";
 import { AccordionItem, AccordionTrigger, AccordionContent } from "@/components/ui/accordion";
 import type { Partecipante } from "@/types/courseData";
 
@@ -54,6 +54,14 @@ export const ParticipantReorder = ({ participants, onReorder }: ParticipantReord
         onReorder(copyListItems);
     };
 
+    const handleRemove = (index: number) => {
+        if (window.confirm('Sei sicuro di voler rimuovere questo partecipante?')) {
+            const newList = [...participants];
+            newList.splice(index, 1);
+            onReorder(newList);
+        }
+    };
+
     return (
         <AccordionItem value="participants-reorder" className="border rounded-lg px-6">
             <AccordionTrigger className="hover:no-underline">
@@ -93,11 +101,6 @@ export const ParticipantReorder = ({ participants, onReorder }: ParticipantReord
                                     <span className="font-medium">
                                         {index + 1}. {participant.nome_completo}
                                     </span>
-                                    {participant.ruolo && (
-                                        <span className="text-xs text-muted-foreground">
-                                            {participant.ruolo}
-                                        </span>
-                                    )}
                                 </div>
                             </div>
 
@@ -119,6 +122,15 @@ export const ParticipantReorder = ({ participants, onReorder }: ParticipantReord
                                     onClick={() => moveItem(index, 'down')}
                                 >
                                     <ArrowDown className="h-4 w-4" />
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="icon"
+                                    className="h-8 w-8 text-destructive hover:text-destructive/90 hover:bg-destructive/10"
+                                    onClick={() => handleRemove(index)}
+                                    title="Rimuovi partecipante"
+                                >
+                                    <Trash2 className="h-4 w-4" />
                                 </Button>
                             </div>
                         </div>

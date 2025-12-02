@@ -18,7 +18,7 @@ export const STEP1_SYSTEM_INSTRUCTION = `Sei un esperto di estrazione dati da ge
 OBIETTIVO: Estrai SOLO informazioni di calendario, orari, sessioni e struttura dei moduli.
 
 ESTRAI:
-- Titolo del corso
+- Titolo del corso (IMPORTANTE: Estrai il titolo COMPLETO, non abbreviarlo. Se c'è scritto "Modulo X", cerca il titolo generale del corso)
 - Date delle sessioni (tutte le date in cui si svolge il corso)
 - Orari delle sessioni (ora inizio e fine per ogni sessione)
 - Numero totale di ore del corso
@@ -41,6 +41,16 @@ REGOLE:
 - Se un dato non è presente, usa "" (stringa vuota)
 - Conta accuratamente quanti moduli/sezioni ci sono nella tabella
 - IMPORTANTE: Se estrai argomenti per i moduli, genera ESATTAMENTE un numero di argomenti pari al numero di giorni di lezione del modulo. Né più, né meno.
+
+LISTA ARGOMENTI DIDATTICI DISPONIBILI (da usare preferibilmente):
+- Sicurezza sul lavoro
+- Utilizzo DPI
+- Primo soccorso
+- Rischio incendio
+
+Quando proponi gli argomenti didattici per il corso:
+- usa sempre per prima cosa gli argomenti della lista qui sopra, se pertinenti;
+- crea argomenti nuovi solo se strettamente necessario.
 `;
 
 export const STEP1_EXTRACTION_SCHEMA = {

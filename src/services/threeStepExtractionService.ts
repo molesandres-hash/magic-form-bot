@@ -445,6 +445,9 @@ function mergeThreeStepResults(
 /**
  * Post-processes the merged data (same logic as original processExtractedData)
  */
+/**
+ * Post-processes the merged data (same logic as original processExtractedData)
+ */
 async function processThreeStepData(mergedData: any): Promise<any> {
   // Import utilities
   const { validateCodiceFiscale, validateEmail, validatePhone } = await import('@/utils/validators');
@@ -464,8 +467,8 @@ async function processThreeStepData(mergedData: any): Promise<any> {
   const isFAD = (tipo_sede: string, sede: string): boolean => {
     const tipo = (tipo_sede || '').toLowerCase();
     const sedeLower = (sede || '').toLowerCase();
-    return tipo.includes('online') || tipo.includes('fad') ||
-      sedeLower.includes('online') || sedeLower.includes('fad');
+    return tipo.includes('online') || tipo.includes('fad') || tipo.includes('webinar') || tipo.includes('remoto') ||
+      sedeLower.includes('online') || sedeLower.includes('fad') || sedeLower.includes('webinar') || sedeLower.includes('remoto');
   };
 
   const generateSessioni = (sessioni_raw: any[]) => {
@@ -505,12 +508,11 @@ async function processThreeStepData(mergedData: any): Promise<any> {
     nome: trainerName.nome,
     cognome: trainerName.cognome,
     codice_fiscale: mergedData.trainer?.codice_fiscale || '',
-    email: mergedData.trainer?.email || '',
-    telefono: mergedData.trainer?.telefono || '',
   };
 
-  // Process partecipanti
+  // Process participants
   const partecipanti = (mergedData.partecipanti || []).map((p: any, index: number) => {
+    // Normalize benefits
     let benefits = 'No';
     if (p.benefits) {
       const b = p.benefits.toString().toLowerCase();
@@ -532,7 +534,7 @@ async function processThreeStepData(mergedData: any): Promise<any> {
     };
   });
 
-  // Process moduli
+  // Process modules
   const moduli_processati = (mergedData.moduli || []).map((mod: any) => {
     const sessioni_modulo_raw = mod.sessioni_raw || [];
     const sessioni_modulo = generateSessioni(sessioni_modulo_raw);
@@ -543,22 +545,9 @@ async function processThreeStepData(mergedData: any): Promise<any> {
     const capienzaMod = parseCapienza(mod.capienza || '0/0');
 
     return {
-      id: mod.id || '',
-      titolo: mod.titolo || '',
-      id_corso: mod.id_corso || '',
-      id_sezione: mod.id_sezione || '',
-      data_inizio: mod.data_inizio || '',
-      data_fine: mod.data_fine || '',
-      ore_totali: mod.ore_totali || '',
-      durata: mod.durata || '',
-      ore_rendicontabili: mod.ore_rendicontabili || '',
-      capienza: mod.capienza || '0/0',
+      ...mod,
       capienza_numero: capienzaMod.current,
       capienza_totale: capienzaMod.total,
-      stato: mod.stato || '',
-      tipo_sede: mod.tipo_sede || '',
-      provider: mod.provider || '',
-      argomenti: mod.argomenti || [],
       numero_sessioni: sessioni_modulo.length,
       sessioni: sessioni_modulo,
       sessioni_presenza: sessioni_presenza_modulo,
@@ -631,7 +620,7 @@ async function processThreeStepData(mergedData: any): Promise<any> {
     },
     metadata: {
       data_estrazione: new Date().toISOString(),
-      versione_sistema: '2.3.0', // Updated version for three-step extraction
+      versione_sistema: '2.3.0',
       extraction_method: 'three-step',
       utente: '',
       completamento_percentuale,

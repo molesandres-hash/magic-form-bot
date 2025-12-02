@@ -468,14 +468,16 @@ const PredefinedDataSettings = () => {
     const [newSupervisor, setNewSupervisor] = useState<Partial<PredefinedSupervisor>>({});
 
     const handleAddSupervisor = () => {
-        if (!newSupervisor.nomeCompleto || !newSupervisor.qualifica) {
-            toast.error('Nome completo e qualifica sono obbligatori');
+        if (!newSupervisor.nome || !newSupervisor.cognome || !newSupervisor.qualifica) {
+            toast.error('Nome, cognome e qualifica sono obbligatori');
             return;
         }
 
         const supervisor: PredefinedSupervisor = {
             id: generatePredefinedDataId('supervisor'),
-            nomeCompleto: newSupervisor.nomeCompleto,
+            nome: newSupervisor.nome,
+            cognome: newSupervisor.cognome,
+            nomeCompleto: `${newSupervisor.nome} ${newSupervisor.cognome}`,
             qualifica: newSupervisor.qualifica,
             enabled: true,
         };
@@ -925,6 +927,7 @@ const PredefinedDataSettings = () => {
                 </AccordionItem>
 
                 {/* SUPERVISORI */}
+                {/* SUPERVISORI */}
                 <AccordionItem value="supervisors">
                     <Card>
                         <AccordionTrigger className="px-6 hover:no-underline">
@@ -943,14 +946,20 @@ const PredefinedDataSettings = () => {
                                 {/* Add New Form */}
                                 <div className="grid grid-cols-2 gap-3 p-4 bg-accent/5 rounded-lg">
                                     <Input
-                                        placeholder="Nome Completo"
-                                        value={newSupervisor.nomeCompleto || ''}
-                                        onChange={(e) => setNewSupervisor({ ...newSupervisor, nomeCompleto: e.target.value })}
+                                        placeholder="Nome"
+                                        value={newSupervisor.nome || ''}
+                                        onChange={(e) => setNewSupervisor({ ...newSupervisor, nome: e.target.value })}
                                     />
                                     <Input
-                                        placeholder="Qualifica"
+                                        placeholder="Cognome"
+                                        value={newSupervisor.cognome || ''}
+                                        onChange={(e) => setNewSupervisor({ ...newSupervisor, cognome: e.target.value })}
+                                    />
+                                    <Input
+                                        placeholder="Qualifica (es. Supervisore)"
                                         value={newSupervisor.qualifica || ''}
                                         onChange={(e) => setNewSupervisor({ ...newSupervisor, qualifica: e.target.value })}
+                                        className="col-span-2"
                                     />
                                     <Button onClick={handleAddSupervisor} size="sm" className="col-span-2">
                                         <Plus className="mr-2 h-4 w-4" />
@@ -1279,7 +1288,7 @@ const PredefinedDataSettings = () => {
                     </Card>
                 </AccordionItem>
             </Accordion>
-        </div>
+        </div >
     );
 };
 

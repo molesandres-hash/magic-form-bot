@@ -2,7 +2,7 @@ import JSZip from 'jszip';
 import { prepareDataForWordTemplate, processWordTemplate } from './wordTemplateProcessor';
 import type { CourseData } from '@/types/courseData';
 
-const REGISTRO_ID_TEMPLATE_PATH = '/templates/Registro_ID_con_placeholder.docx';
+const REGISTRO_ID_TEMPLATE_PATH = '/templates/Registro ID.docx';
 const OUTPUT_FILENAME = 'Registro presenza ID.docx';
 
 /**

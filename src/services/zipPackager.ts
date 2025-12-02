@@ -526,14 +526,14 @@ function buildModulo5SessionRows(sessions: any[], docenteName: string): Array<Re
       });
     }
 
-    const duration = calculateDurationHours(start, end);
-    const { ora_mattina, ora_pomeriggio } = splitSessionByShift(start, end, duration);
+    const spanDuration = calculateDurationHours(start, end);
+    const { ora_mattina, ora_pomeriggio, workHours } = splitSessionByShift(start, end, spanDuration);
 
     return {
       DATA: session?.data_completa || session?.data || '',
       ORA_MATTINA: ora_mattina || '-',
       ORA_POMERIGGIO: ora_pomeriggio || '-',
-      DURATA: duration > 0 ? duration.toString().replace(/\.0$/, '') : '0',
+      DURATA: workHours > 0 ? workHours.toString().replace(/\.0$/, '') : '0',
       NOME_DOCENTE: docenteName || '',
     };
   });
@@ -545,22 +545,35 @@ function buildModulo5CourseDates(data: CourseData, sessions: any[]): { startDate
   return { startDate, endDate };
 }
 
-function splitSessionByShift(start: string, end: string, duration: number): { ora_mattina: string; ora_pomeriggio: string } {
-  if (duration >= 8) {
-    return { ora_mattina: '9:00-13:00', ora_pomeriggio: '14:00-18:00' };
+function splitSessionByShift(start: string, end: string, spanDuration: number): { ora_mattina: string; ora_pomeriggio: string; workHours: number } {
+  if (!start || !end) return { ora_mattina: '-', ora_pomeriggio: '-', workHours: 0 };
+
+  const startH = parseInt(start.split(':')[0], 10);
+  const endH = parseInt(end.split(':')[0], 10);
+
+  // Logic: If the session spans across the 13:00-14:00 break
+  // We assume break is 13:00 - 14:00.
+  // Condition: Starts before 13:00 AND Ends after 14:00
+  if (startH < 13 && endH >= 14) {
+    const morningEnd = '13:00';
+    const afternoonStart = '14:00';
+
+    const morningDur = calculateDurationHours(start, morningEnd);
+    const afternoonDur = calculateDurationHours(afternoonStart, end);
+
+    return {
+      ora_mattina: `${start}-${morningEnd}`,
+      ora_pomeriggio: `${afternoonStart}-${end}`,
+      workHours: Number((morningDur + afternoonDur).toFixed(2))
+    };
   }
 
-  const range = formatTimeRange(start, end);
-  if (range === '-') {
-    return { ora_mattina: '-', ora_pomeriggio: '-' };
+  // Otherwise, it's a single block (either morning or afternoon)
+  if (startH >= 14) {
+    return { ora_mattina: '-', ora_pomeriggio: `${start}-${end}`, workHours: spanDuration };
   }
 
-  const startHour = parseInt((start || '0').split(':')[0] || '0', 10);
-  if (!Number.isNaN(startHour) && startHour < 14) {
-    return { ora_mattina: range, ora_pomeriggio: '-' };
-  }
-
-  return { ora_mattina: '-', ora_pomeriggio: range };
+  return { ora_mattina: `${start}-${end}`, ora_pomeriggio: '-', workHours: spanDuration };
 }
 
 function formatTimeRange(start: string, end: string): string {

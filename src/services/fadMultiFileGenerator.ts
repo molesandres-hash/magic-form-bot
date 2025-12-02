@@ -13,6 +13,7 @@
 import type { CourseData } from '@/types/courseData';
 import { processWordTemplate } from './wordTemplateProcessor';
 import { loadPredefinedData } from '@/utils/predefinedDataUtils';
+import { mapCourseDataToTemplate } from './templateDataMapper';
 
 // ============================================================================
 // CONSTANTS
@@ -171,122 +172,77 @@ export async function generateAllFADRegistries(
 
 /**
  * Prepares placeholder data for a single FAD session
+ * Uses the centralized mapCourseDataToTemplate to ensure consistency
  */
-function prepareFADSessionData(data: CourseData, session: any, sessionIndex: number, totalSessions: number): Record<string, any> {
-    const calculateDuration = (start: string, end: string): number => {
-        try {
-            const [h1, m1] = (start || '0:0').split(':').map(Number);
-            const [h2, m2] = (end || '0:0').split(':').map(Number);
-            return (h2 + m2 / 60) - (h1 + m1 / 60);
-        } catch {
-            return 0;
-        }
-    };
+function prepareFADSessionData(
+    data: CourseData,
+    session: any,
+    sessionIndex: number,
+    totalSessions: number
+): Record<string, any> {
+    // 1. Get full centralized data mapping
+    const fullData = mapCourseDataToTemplate(data);
 
-    const fadSessions = (data.sessioni || []).filter(s => s.is_fad);
+    // 2. Get specific session data from the pre-calculated SESSIONI_FAD list
+    // We use the index to find the matching session
+    const sessionData = fullData.SESSIONI_FAD[sessionIndex];
 
-    // Hours of FAD calculated on all FAD sessions
-    const fadHours = fadSessions.reduce((acc, s) => {
-        return acc + calculateDuration(s.ora_inizio_giornata || (s as any).ora_inizio, s.ora_fine_giornata || (s as any).ora_fine);
-    }, 0);
+    if (!sessionData) {
+        console.error(`Session data not found for index ${sessionIndex}`);
+        return fullData; // Fallback
+    }
 
-    // Flattened topics list (argomenti) across modules
-    const listaArgomenti = (data.moduli || []).flatMap(m =>
-        (m.argomenti || []).map(arg => ({
-            argomento: arg,
-            modulo: m.titolo
-        }))
-    );
+    // 3. Get Topic (Argument)
+    const topic = getTopicForDay(sessionIndex, totalSessions);
 
-    // Full FAD calendar for the table section
-    const sessioniFad = fadSessions.map(s => ({
-        data: s.data_completa,
-        ora_inizio: s.ora_inizio_giornata || (s as any).ora_inizio,
-        ora_fine: s.ora_fine_giornata || (s as any).ora_fine,
-        durata: calculateDuration(s.ora_inizio_giornata || (s as any).ora_inizio, s.ora_fine_giornata || (s as any).ora_fine).toFixed(1).replace('.0', '')
+    // 4. Prepare Participants list for this session
+    // Inject session-specific fields into each participant for loop access
+    const participants = (sessionData.PARTECIPANTI_SESSIONE || []).map((p: any) => ({
+        ...p,
+        // Inject fields that might be needed inside the participant loop
+        ARGOMENTO: topic,
+        argomento: topic, // Lowercase alias
+        ORARIO_LEZIONE: `${sessionData.ora_inizio} / ${sessionData.ora_fine}`,
+        orario_lezione: `${sessionData.ora_inizio} / ${sessionData.ora_fine}`, // Lowercase alias
+        DATA_SESSIONE: sessionData.data,
+        // Ensure these are available as uppercase too if needed
+        ORA_CONNESSIONE: p.ora_connessione,
+        ORA_DISCONNESSIONE: p.ora_disconnessione
     }));
 
-    // Dynamic participant placeholders (PARTECIPANTE 1, PARTECIPANTE 1 EMAIL, ...)
-    const partecipanti = (data.partecipanti || []).sort((a, b) => a.numero - b.numero);
-    const partecipantiDynamic = partecipanti.reduce((acc, p, index) => {
-        const num = index + 1;
-        acc[`PARTECIPANTE ${num}`] = p.nome_completo;
-        acc[`PARTECIPANTE ${num} EMAIL`] = p.email || '';
-        return acc;
-    }, {} as Record<string, string>);
-
-    // Extract date components
-    const { giorno, mese, anno } = extractDateComponents(session.data_completa);
-
-    // Get topic for this day
-    const argomento = getTopicForDay(sessionIndex, totalSessions);
-
-    // Calculate FAD hours (duration) for this specific session
-    const duration = calculateDuration(
-        session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
-        session.ora_fine_giornata || (session as any).ora_fine || '13:00'
-    );
-
+    // 5. Merge everything
+    // Priority: Session Data > Full Data > Defaults
     return {
-        // Date placeholders
-        giorno: giorno,
-        mese: mese,
-        anno: anno,
+        ...fullData, // Global course info (NOME_CORSO, ENTE, etc.)
+        ...sessionData, // Session specific info (giorno, mese, anno, ora_inizio, etc.)
 
-        // Time placeholders
-        ora_inizio: session.ora_inizio_giornata || (session as any).ora_inizio || '09:00',
-        ora_fine: session.ora_fine_giornata || (session as any).ora_fine || '13:00',
+        // Explicit overrides to ensure top-level keys match template expectations
+        GIORNO: sessionData.giorno,
+        MESE: sessionData.mese,
+        ANNO: sessionData.anno,
+        DATA: sessionData.data,
 
-        // Topic placeholder
-        argomento_sessione: argomento,
+        ORA_INIZIO: sessionData.ora_inizio,
+        ORA_FINE: sessionData.ora_fine,
 
-        // Course info placeholders
-        NOME_CORSO: data.corso?.titolo || 'N/A',
-        ID_SEZIONE: data.metadata?.modulo_corrente?.id_sezione || data.corso?.id || 'N/A',
-        ID_CORSO: data.metadata?.modulo_corrente?.id_corso || data.corso?.id || 'N/A',
+        ARGOMENTO: topic,
 
-        // --- NEW MAPPINGS FOR MODELLO A ---
-        ENTE_NOME: data.ente?.nome || 'N/A',
-        SEDE_ACCREDITATA: data.sede?.nome || data.ente?.accreditato?.nome || 'N/A',
-        ORE_FAD: duration.toFixed(1).replace('.0', ''), // Hours for this specific session/file
-        NOME_DOCENTE: data.trainer?.nome_completo || 'N/A',
-        OFFERTA_FORMATIVA: data.corso?.offerta_formativa ? `${data.corso.offerta_formativa.codice || ''} - ${data.corso.offerta_formativa.nome || ''}` : '',
-
-        // FAD Specifics
-        ID_RIUNIONE: data.calendario_fad?.id_riunione || extractZoomDetails(data.calendario_fad?.strumenti || '').id || '',
-        PASSCODE: data.calendario_fad?.passcode || extractZoomDetails(data.calendario_fad?.strumenti || '').passcode || '',
-        PIATTAFORMA: data.calendario_fad?.piattaforma || data.calendario_fad?.strumenti || 'Zoom',
+        // FAD Details
+        LINK: session.link || fullData.ZOOM_LINK || '',
+        MEETING_ID: extractZoomDetails(session.link || '').id || fullData.ZOOM_MEETING_ID || '',
+        PASSCODE: extractZoomDetails(session.link || '').passcode || fullData.ZOOM_PASSCODE || '',
 
         // Lists
-        LISTA_ARGOMENTI: (data.moduli || []).flatMap(m =>
-            (m.argomenti || []).map(arg => ({
-                argomento: arg,
-                modulo: m.titolo
-            }))
-        ),
+        PARTECIPANTI: participants, // Use the enriched list
 
-        // Session list (all FAD sessions for the course)
-        SESSIONI_FAD: fadSessions.map(s => ({
-            DATA: s.data_completa,
-            ORA_INIZIO: s.ora_inizio_giornata || (s as any).ora_inizio || '09:00',
-            ORA_FINE: s.ora_fine_giornata || (s as any).ora_fine || '13:00',
-            NOME_CORSO: data.corso?.titolo || 'N/A',
-            NOME_DOCENTE: data.trainer?.nome_completo || 'N/A'
-        })),
-
-        // Participants table (Fill up to 15 slots to be safe)
-        ...Array.from({ length: 15 }).reduce((acc: Record<string, string>, _, i) => {
-            const num = i + 1;
-            const p = partecipanti[i];
-            acc[`PARTECIPANTE ${num}`] = p ? p.nome_completo : '';
-            acc[`PARTECIPANTE ${num} EMAIL`] = p ? (p.email || '') : '';
-            return acc;
-        }, {}),
+        // Indices
+        NUMERO_SESSIONE: sessionIndex + 1,
+        TOTALE_SESSIONI: totalSessions
     };
 }
 
 /**
- * Extracts Meeting ID and Passcode from a Zoom link
+ * Extracts Zoom meeting ID and passcode from a link
  */
 function extractZoomDetails(link: string): { id: string; passcode: string } {
     if (!link) return { id: '', passcode: '' };
@@ -312,40 +268,7 @@ function extractZoomDetails(link: string): { id: string; passcode: string } {
     return { id, passcode };
 }
 
-/**
- * Extracts day, month name, and year from date string
- * @param dateString - Date in format "DD/MM/YYYY" or similar
- * @returns Object with giorno, mese (name), anno
- */
-function extractDateComponents(dateString: string): { giorno: string; mese: string; anno: string } {
-    try {
-        // Handle various date formats
-        const parts = dateString.split('/');
-        if (parts.length < 3) {
-            throw new Error('Invalid date format');
-        }
 
-        const day = parts[0].padStart(2, '0');
-        const monthIndex = parseInt(parts[1], 10) - 1; // 0-based
-        const year = parts[2];
-
-        // Get month name in Italian
-        const monthName = MONTH_NAMES[monthIndex] || 'N/A';
-
-        return {
-            giorno: day,
-            mese: monthName,
-            anno: year
-        };
-    } catch (error) {
-        console.error('Error extracting date components:', error);
-        return {
-            giorno: 'XX',
-            mese: 'N/A',
-            anno: '2025'
-        };
-    }
-}
 
 /**
  * Gets a topic for a specific day based on configured argument lists

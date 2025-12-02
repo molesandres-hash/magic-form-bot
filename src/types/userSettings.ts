@@ -130,7 +130,11 @@ export interface PredefinedResponsabile {
 export interface PredefinedSupervisor {
   /** Unique ID */
   id: string;
-  /** Full name */
+  /** First name */
+  nome: string;
+  /** Last name */
+  cognome: string;
+  /** Full name (helper) */
   nomeCompleto: string;
   /** Job title/role */
   qualifica: string;
@@ -285,7 +289,7 @@ export const DEFAULT_PREDEFINED_DATA: PredefinedDataSettings = {
     }
   ],
   supervisors: [
-    { id: 'sup_1', nomeCompleto: 'Hubbard Andrea', qualifica: 'Supervisore', enabled: true }
+    { id: 'sup_1', nome: 'Andrea', cognome: 'Hubbard', nomeCompleto: 'Hubbard Andrea', qualifica: 'Supervisore', enabled: true }
   ],
   trainers: [
     {

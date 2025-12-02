@@ -1,11 +1,16 @@
 import type { CourseData } from '@/types/courseData';
 import { loadPredefinedData } from '@/utils/predefinedDataUtils';
+import { formatSedeIndirizzo, getVerbaleLuogo } from '@/utils/locationUtils';
 
 /**
  * Maps CourseData to a flat dictionary of placeholders for Word templates.
  * Centralizes all logic for data preparation to ensure consistency across different templates.
  */
 export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
+    // DEBUG LOGGING
+    console.log('--- mapCourseDataToTemplate START ---');
+    console.log('Incoming Data:', JSON.stringify(data, null, 2));
+
     // Helper to calculate duration in hours
     const calculateDuration = (start: string, end: string): number => {
         try {
@@ -17,11 +22,41 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
         }
     };
 
-    // Calculate FAD hours
+    // Calculate FAD hours per module
+    const moduleFadHours: Record<string, string> = {};
+    let totalFadHours = 0;
+
+    (data.moduli || []).forEach((modulo, index) => {
+        // Find sessions for this module
+        let moduleSessions = modulo.sessioni || [];
+
+        // Fallback: if module sessions are empty but global sessions exist and we have 1 module
+        if (moduleSessions.length === 0 && data.moduli.length === 1 && data.sessioni) {
+            moduleSessions = data.sessioni;
+        }
+
+        const fadSessionsModule = moduleSessions.filter(s => s.is_fad);
+        const modFadHours = fadSessionsModule.reduce((acc, s) => {
+            return acc + calculateDuration(s.ora_inizio_giornata, s.ora_fine_giornata);
+        }, 0);
+
+        totalFadHours += modFadHours;
+
+        // Map index to letter: 0->A, 1->B, etc.
+        const letter = String.fromCharCode(65 + index); // 65 is 'A'
+        moduleFadHours[`ore_FAD_modulo_${letter}`] = modFadHours.toFixed(1).replace('.0', '');
+    });
+
+    // Calculate global FAD sessions (if not already covered by modules, though usually they are)
+    // We use the total calculated from modules to be consistent, or fallback to global sessions if no modules
+    if ((!data.moduli || data.moduli.length === 0) && data.sessioni) {
+        const globalFadSessions = data.sessioni.filter(s => s.is_fad);
+        totalFadHours = globalFadSessions.reduce((acc, s) => {
+            return acc + calculateDuration(s.ora_inizio_giornata, s.ora_fine_giornata);
+        }, 0);
+    }
+
     const fadSessions = (data.sessioni || []).filter(s => s.is_fad);
-    const fadHours = fadSessions.reduce((acc, s) => {
-        return acc + calculateDuration(s.ora_inizio_giornata, s.ora_fine_giornata);
-    }, 0);
 
     const currentModule: any =
         (data as any)?.metadata?.modulo_corrente ||
@@ -60,12 +95,23 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
 
         // Search in supervisors
         const supervisor = predefined.supervisors.find(s => s.id === cleanId);
-        if (supervisor) return {
-            nome: supervisor.nomeCompleto.split(' ')[0],
-            cognome: supervisor.nomeCompleto.split(' ').slice(1).join(' '),
-            nomeCompleto: supervisor.nomeCompleto,
-            qualifica: supervisor.qualifica
-        };
+        if (supervisor) {
+            const nomeCompleto = supervisor.nomeCompleto || '';
+            return {
+                nome: nomeCompleto.split(' ')[0] || '',
+                cognome: nomeCompleto.split(' ').slice(1).join(' ') || '',
+                nomeCompleto: nomeCompleto,
+                qualifica: supervisor.qualifica || '',
+                // Supervisors might not have all these fields, so we leave them undefined or empty
+                dataNascita: '',
+                cittaNascita: '',
+                provinciaNascita: '',
+                cittaResidenza: '',
+                viaResidenza: '',
+                numeroCivico: '',
+                documento: ''
+            };
+        }
 
         // Search in responsabili
         const resp = predefined.responsabili.find(r => r.id === cleanId);
@@ -73,7 +119,14 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
             nome: resp.nome,
             cognome: resp.cognome,
             nomeCompleto: `${resp.nome} ${resp.cognome}`,
-            qualifica: 'Responsabile'
+            qualifica: 'Responsabile',
+            dataNascita: resp.dataNascita,
+            cittaNascita: resp.cittaNascita,
+            provinciaNascita: resp.provinciaNascita,
+            cittaResidenza: resp.cittaResidenza,
+            viaResidenza: resp.viaResidenza,
+            numeroCivico: resp.numeroCivico,
+            documento: resp.documento
         };
 
         return null;
@@ -105,7 +158,8 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
     const direttoreQualifica = direttore?.qualifica || 'Trainer'; // Default qualification if falling back to trainer
 
     // Prepare data for the template
-    return {
+    const result = {
+
         // --- DATI CORSO ---
         NOME_CORSO: data.corso?.titolo || '',
         ID_CORSO: currentModule?.id_corso || data.corso?.id || '', // Specific ID_CORSO from module
@@ -114,7 +168,19 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
         DATA_FINE: data.corso?.data_fine || '',
         ORE_TOTALI: data.corso?.ore_totali || '',
         ANNO_CORSO: data.corso?.anno || new Date().getFullYear().toString(),
-        MODULO_TITOLO: currentModule?.titolo || data.corso?.titolo || '',
+        MODULO_TITOLO: (() => {
+            // If there is only 1 module, ALWAYS use the Course Title
+            if ((data.moduli || []).length <= 1) {
+                return data.corso?.titolo || '';
+            }
+
+            const modTitle = currentModule?.titolo || '';
+            // If module title is generic (e.g. "Modulo 1"), use Course Title
+            if (!modTitle || /^Modulo\s+\d+$/i.test(modTitle)) {
+                return data.corso?.titolo || '';
+            }
+            return modTitle;
+        })(),
         MODULO_ID: currentModule?.id || currentModule?.id_sezione || '',
         MODULO_ID_SEZIONE: currentModule?.id_sezione || '',
         MODULO_NUMERO: currentModuleNumber,
@@ -127,7 +193,30 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
         ENTE_NOME: data.ente?.nome || '',
         ENTE_INDIRIZZO: data.ente?.indirizzo || '',
         SEDE_ACCREDITATA: data.ente?.accreditato?.nome || data.sede?.nome || '',
-        SEDE_INDIRIZZO: data.ente?.accreditato?.via ? `${data.ente.accreditato.via}, ${data.ente.accreditato.comune}` : (data.sede?.indirizzo || ''),
+        SEDE_ACCREDITATA_COMPLETA: `${data.ente?.accreditato?.nome || data.sede?.nome || ''} - ${formatSedeIndirizzo(
+            data.ente?.accreditato?.via || data.sede?.indirizzo || '',
+            data.ente?.accreditato?.comune || data.sede?.citta
+        )}`,
+        SEDE_INDIRIZZO: (() => {
+            // 1. Priority: Sede (if available)
+            if (data.sede?.indirizzo) {
+                const parts = [
+                    data.sede.indirizzo,
+                    data.sede.citta,
+                    data.sede.cap
+                ].filter(Boolean);
+                return parts.join(' - ');
+            }
+            // 2. Fallback: Ente Accreditato
+            return formatSedeIndirizzo(
+                data.ente?.accreditato?.via || '',
+                data.ente?.accreditato?.comune
+            );
+        })(),
+        VERBALE_LUOGO: getVerbaleLuogo(
+            data.ente?.accreditato?.via || data.sede?.indirizzo || '',
+            data.ente?.accreditato?.comune || data.sede?.citta
+        ),
 
         // --- DATI DOCENTE / REFERENTI ---
         NOME_DOCENTE: data.trainer?.nome_completo || '',
@@ -143,8 +232,11 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
         TUTOR_CORSO: '', // TODO: Add to CourseData
 
         // --- DATI FAD (E-LEARNING) ---
-        ORE_FAD: fadHours.toFixed(1).replace('.0', ''),
-        PIATTAFORMA: data.calendario_fad?.strumenti || 'Zoom',
+        ORE_FAD: totalFadHours.toFixed(1).replace('.0', ''),
+        ORE_TOTALE_FAD: totalFadHours.toFixed(1).replace('.0', ''),
+        ...moduleFadHours,
+
+        PIATTAFORMA: data.calendario_fad?.piattaforma || data.calendario_fad?.strumenti || 'Zoom',
         MODALITA_GESTIONE: data.calendario_fad?.modalita || 'Sincrona',
         MODALITA_VALUTAZIONE: data.calendario_fad?.valutazione || 'Test Scritto',
         OBIETTIVI_DIDATTICI: data.calendario_fad?.obiettivi || '',
@@ -225,12 +317,16 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
 
             return {
                 data: s.data_completa,
+                DATA: s.data_completa, // Uppercase for template loop scope
                 giorno: dateObj.getDate().toString().padStart(2, '0'),
                 mese: mesi[dateObj.getMonth()],
                 anno: dateObj.getFullYear().toString(),
                 ora_inizio: s.ora_inizio_giornata,
+                ORA_INIZIO: s.ora_inizio_giornata,
                 ora_fine: s.ora_fine_giornata,
+                ORA_FINE: s.ora_fine_giornata,
                 durata: calculateDuration(s.ora_inizio_giornata, s.ora_fine_giornata).toFixed(1).replace('.0', ''),
+                DURATA: calculateDuration(s.ora_inizio_giornata, s.ora_fine_giornata).toFixed(1).replace('.0', ''),
 
                 // Nested participants list for this specific session
                 // In a real scenario, this would filter based on actual attendance
@@ -254,67 +350,21 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
             .sort((a, b) => a.numero - b.numero)
             .map(p => ({
                 numero: p.numero,
+                NUMERO: p.numero, // Uppercase alias
                 nome: p.nome,
                 cognome: p.cognome,
+                NOME: (p.nome || '').toUpperCase(),
+                COGNOME: (p.cognome || '').toUpperCase(),
                 nome_completo: p.nome_completo,
+                NOME_COMPLETO: p.nome_completo, // Uppercase alias
                 codice_fiscale: p.codice_fiscale,
+                CODICE_FISCALE: p.codice_fiscale, // Uppercase alias
                 email: p.email || '',
+                EMAIL: p.email || '', // Uppercase alias
                 telefono: p.telefono,
                 benefits: p.benefits || 'No'
             })),
 
-        // Dynamic Placeholders for Participants (PARTECIPANTE 1, PARTECIPANTE 2, etc.)
-        // Pre-fill up to 20 participants to ensure no undefined values
-        ...Array.from({ length: 20 }).reduce((acc: Record<string, string>, _, index) => {
-            const num = index + 1;
-            const p = (data.partecipanti || [])[index];
-
-            acc[`PARTECIPANTE ${num}`] = p ? p.nome_completo : '';
-            acc[`PARTECIPANTE ${num} NOME`] = p ? p.nome : '';
-            acc[`PARTECIPANTE ${num} COGNOME`] = p ? p.cognome : '';
-            acc[`PARTECIPANTE ${num} CF`] = p ? p.codice_fiscale : '';
-            acc[`PARTECIPANTE ${num} EMAIL`] = p ? (p.email || '') : '';
-            acc[`PARTECIPANTE ${num} BENEFITS`] = p ? (p.benefits || 'No') : '';
-            return acc;
-        }, {}),
-
-        // --- LISTA ARGOMENTI (Flattened) ---
-        LISTA_ARGOMENTI: (data.moduli || []).flatMap(m =>
-            (m.argomenti || []).map(arg => ({
-                argomento: arg,
-                modulo: m.titolo
-            }))
-        ),
-
-        // Dynamic Placeholders for Module Arguments
-        ...(data.moduli || []).reduce((acc, m, index) => {
-            const num = index + 1;
-            acc[`MODULO ${num} ARGOMENTI`] = (m.argomenti || []).join(', ');
-            return acc;
-        }, {} as Record<string, string>),
-
-        // --- LISTA SESSIONI DATE (Start/End) ---
-        LISTA_SESSIONI_DATE: (data.sessioni || []).map(s => ({
-            data: s.data_completa,
-            ora_inizio: s.ora_inizio_giornata,
-            ora_fine: s.ora_fine_giornata,
-            luogo: s.sede,
-            modalita: s.is_fad ? 'FAD' : 'Presenza'
-        })),
-
-        // --- LISTA SESSIONI DATE (Start/End) SOLO PRESENZA ---
-        LISTA_SESSIONI_PRESENZA_DATE: (data.sessioni || []).filter(s => !s.is_fad).map(s => ({
-            data: s.data_completa,
-            ora_inizio: s.ora_inizio_giornata,
-            ora_fine: s.ora_fine_giornata,
-            luogo: s.sede,
-            modalita: 'Presenza'
-        })),
-
-        // --- DATI VERBALE (Esame Finale) ---
-        VERBALE_DATA: data.verbale?.data || data.corso?.data_fine || '',
-        VERBALE_ORA: data.verbale?.ora || '',
-        VERBALE_LUOGO: data.verbale?.luogo || data.ente?.accreditato?.comune || data.sede?.nome || '',
         VERBALE_DESCRIZIONE_PROVA: data.verbale?.prova?.descrizione || '',
         VERBALE_TIPO_PROVA: data.verbale?.prova?.tipo || '',
         VERBALE_DURATA_PROVA: data.verbale?.prova?.durata || '',
@@ -330,20 +380,33 @@ export function mapCourseDataToTemplate(data: CourseData): Record<string, any> {
         PARTECIPANTI_BOCCIATI: data.verbale?.esiti?.negativi || [],
         PARTECIPANTI_BOCCIATI_TESTO: data.verbale?.esiti?.negativi_testo || 'nessuno',
 
+        // --- LISTA ARGOMENTI (FLAT) ---
+        LISTA_ARGOMENTI: (data.moduli || []).flatMap(modulo =>
+            (modulo.argomenti || []).map(argomento => ({
+                argomento: argomento,
+                ARGOMENTO: argomento, // Uppercase alias
+                modulo: modulo.titolo || 'Modulo',
+                MODULO: modulo.titolo || 'Modulo' // Uppercase alias
+            }))
+        ),
+
         // --- RESPONSABILI (da DB) ---
         RESP_CERT_NOME: respCert?.nome || '',
         RESP_CERT_COGNOME: respCert?.cognome || '',
         RESP_CERT_NOME_COMPLETO: respCert?.nomeCompleto || '',
-        // TODO: Add other fields if available in PredefinedResponsabile
-        RESP_CERT_DATA_NASCITA: '',
-        RESP_CERT_CITTA_NASCITA: '',
-        RESP_CERT_PROVINCIA_NASCITA: '',
-        RESP_CERT_CITTA_RESIDENZA: '',
-        RESP_CERT_VIA_RESIDENZA: '',
-        RESP_CERT_NUMERO_CIVICO: '',
-        RESP_CERT_DOCUMENTO: '',
+        RESP_CERT_DATA_NASCITA: respCert?.dataNascita || '',
+        RESP_CERT_CITTA_NASCITA: respCert?.cittaNascita || '',
+        RESP_CERT_PROVINCIA_NASCITA: respCert?.provinciaNascita || '',
+        RESP_CERT_CITTA_RESIDENZA: respCert?.cittaResidenza || '',
+        RESP_CERT_VIA_RESIDENZA: respCert?.viaResidenza || '',
+        RESP_CERT_NUMERO_CIVICO: respCert?.numeroCivico || '',
+        RESP_CERT_DOCUMENTO: respCert?.documento || '',
 
         SUPERVISORE_NOME_COMPLETO: supervisore?.nomeCompleto || '',
         SUPERVISORE_QUALIFICA: supervisore?.qualifica || '',
     };
+
+    console.log('Generated Template Data:', JSON.stringify(result, null, 2));
+    console.log('--- mapCourseDataToTemplate END ---');
+    return result;
 }

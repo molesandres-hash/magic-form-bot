@@ -17,6 +17,10 @@ export interface CourseData {
   registro: Registro;
   calendario_fad?: CalendarioFAD;
   metadata: Metadata;
+  argomenti_didattici?: {
+    lezione1: string;
+    lezione2: string;
+  };
 }
 
 export interface Corso {
@@ -69,6 +73,9 @@ export interface Sede {
   nome: string;
   modalita: string;
   indirizzo: string;
+  citta?: string;
+  cap?: string;
+  provincia?: string;
 }
 
 export interface Ente {

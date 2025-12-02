@@ -1,5 +1,5 @@
 {
-  "generatedAt": "2025-12-01T19:30:51.280Z",
+  "generatedAt": "2025-12-02T14:58:24.064Z",
   "templates": [
     {
       "id": "local-modello B FAD.docx",
@@ -22,8 +22,8 @@
       "name": "modello A FAD con placeholder",
       "filename": "modello_A_FAD_con_placeholder.docx",
       "path": "/templates/modello_A_FAD_con_placeholder.docx",
-      "size": 134737,
-      "lastModified": "2025-11-30T18:58:01.097Z"
+      "size": 135626,
+      "lastModified": "2025-12-02T14:57:55.928Z"
     },
     {
       "id": "local-Registro ID.docx",
@@ -46,16 +46,16 @@
       "name": "Verbale Ammissione Esame con placeholder",
       "filename": "Verbale_Ammissione_Esame_con_placeholder.docx",
       "path": "/templates/Verbale_Ammissione_Esame_con_placeholder.docx",
-      "size": 17360,
-      "lastModified": "2025-11-30T19:07:11.531Z"
+      "size": 16736,
+      "lastModified": "2025-12-01T23:56:00.764Z"
     },
     {
       "id": "local-Verbale_con_placeholder.docx",
       "name": "Verbale con placeholder",
       "filename": "Verbale_con_placeholder.docx",
       "path": "/templates/Verbale_con_placeholder.docx",
-      "size": 142499,
-      "lastModified": "2025-11-30T10:21:15.536Z"
+      "size": 158312,
+      "lastModified": "2025-12-01T23:23:34.840Z"
     }
   ]
 }
